@@ -24,8 +24,8 @@
 // 4 extra bytes for each layer weight
 struct layer
 {
-    layer **prevLayers;
-    layer **nextLayers;
+    struct layer **prevLayers;
+    struct layer **nextLayers;
     float *currLayerWeights;
     float *currLayerGradients;
     int numNodes;
@@ -33,7 +33,7 @@ struct layer
     int numNextLayers;
     int layer_id;    
     char activation;
-    bool norm;
+    char norm;
 };
 
 float relu(float x)
@@ -95,7 +95,7 @@ void minMaxNorm(float* arr, int size)
     }
 }
 
-layer* make_input_layer(int numNodes, int numNextLayers, int layer_id, bool norm)
+struct  layer* make_input_layer(int numNodes, int numNextLayers, int layer_id)
 {
     // Allocate space for the input layer
     struct layer *inLayer = (struct layer*)malloc(sizeof(struct layer));
@@ -111,7 +111,7 @@ layer* make_input_layer(int numNodes, int numNextLayers, int layer_id, bool norm
     inLayer->prevLayers = NULL;
 
     // Allocate space for the following layers so a forward pass is easier to implement and also navigating the layers
-    inLayer->nextLayers = (struct layer**)calloc(numNextLayers, sizeof(layer*));
+    inLayer->nextLayers = (struct layer**)calloc(numNextLayers, sizeof(struct layer*));
     if(inLayer->nextLayers == NULL)
     {
         goto error1;
@@ -133,7 +133,7 @@ layer* make_input_layer(int numNodes, int numNextLayers, int layer_id, bool norm
     inLayer->numNodes = numNodes;
     inLayer->activation = 'i';
     inLayer->layer_id = layer_id;
-    inLayer->norm = norm;
+    inLayer->norm = 'f';
 
     return inLayer;
 
@@ -150,7 +150,7 @@ error1:
     return NULL;
 }
 
-layer* make_dense_layer(layer** prev, int numNodes, int numPrevLayers, int numNextLayers, int layer_id, bool norm)
+struct layer* make_dense_layer(struct layer** prev, int numNodes, int numPrevLayers, int numNextLayers, int layer_id, char norm)
 {
     int j = 0;
 
@@ -168,14 +168,14 @@ layer* make_dense_layer(layer** prev, int numNodes, int numPrevLayers, int numNe
     denseLayer->numNextLayers = numNextLayers;
 
     // Allocate space for the previous layers using provided parameter - DESIGN YOUR MODEL BEFORE IMPLEMENTING CAREFULLY
-    denseLayer->prevLayers = (struct layer **)malloc(sizeof(layer*) * numPrevLayers);
+    denseLayer->prevLayers = (struct layer **)malloc(sizeof(struct layer*) * numPrevLayers);
     if(denseLayer->prevLayers == NULL)
     {
         goto error1;
     }
 
     // Set the previous layers as the previous layers
-    memcpy(denseLayer->prevLayers, prev, sizeof(layer*) * numPrevLayers);
+    memcpy(denseLayer->prevLayers, prev, sizeof(struct layer*) * numPrevLayers);
 
     // Make this layer a next layer for all previous layers
     for(int i = 0; i < numPrevLayers; i++)
@@ -190,7 +190,7 @@ layer* make_dense_layer(layer** prev, int numNodes, int numPrevLayers, int numNe
     }
 
     // Allocate space for the next layers using provided parameter
-    denseLayer->nextLayers = (struct layer **)calloc(numNextLayers, sizeof(layer*));
+    denseLayer->nextLayers = (struct layer **)calloc(numNextLayers, sizeof(struct layer*));
     if(denseLayer->nextLayers == NULL)
     {
         goto error2;
@@ -202,7 +202,7 @@ layer* make_dense_layer(layer** prev, int numNodes, int numPrevLayers, int numNe
         goto error3;
     }
 
-    denseLayer->currLayerGradients = (float *)calloc((numNodes + 1) * sizeof(float)); // Neuron weights plus a bias weight
+    denseLayer->currLayerGradients = (float *)calloc((numNodes + 1), sizeof(float)); // Neuron weights plus a bias weight
     if(denseLayer->currLayerGradients == NULL)
     {
         goto error4;
@@ -236,7 +236,7 @@ error1:
     return NULL;
 }
 
-layer* make_output_layer(layer** prev, int numNodes, int numPrevLayers, int layer_id)
+struct layer* make_output_layer(struct layer** prev, int numNodes, int numPrevLayers, int layer_id)
 {
     int j = 0;
     struct layer *outLayer = (struct layer *)malloc(sizeof(struct layer));
@@ -250,13 +250,13 @@ layer* make_output_layer(layer** prev, int numNodes, int numPrevLayers, int laye
     outLayer->nextLayers = NULL; // No next layers for an output layer
 
     // Allocate space for the previous layers using provided parameter - DESIGN YOUR MODEL BEFORE IMPLEMENTING
-    outLayer->prevLayers = (struct layer **)malloc(sizeof(layer *) * numPrevLayers);
+    outLayer->prevLayers = (struct layer **)malloc(sizeof(struct layer*) * numPrevLayers);
     if(outLayer->prevLayers == NULL)
     {
         goto error1;
     }
 
-    memcpy(outLayer->prevLayers, prev, sizeof(layer*) * numPrevLayers);
+    memcpy(outLayer->prevLayers, prev, sizeof(struct layer*) * numPrevLayers);
 
     for(int i = 0; i < numPrevLayers; i++)
     {
@@ -274,7 +274,7 @@ layer* make_output_layer(layer** prev, int numNodes, int numPrevLayers, int laye
         goto error2;
     }
 
-    outLayer->currLayerGradients = (float *)calloc((numNodes + 1) * sizeof(float)); // Neuron weights plus a bias weight
+    outLayer->currLayerGradients = (float *)calloc((numNodes + 1),  sizeof(float)); // Neuron weights plus a bias weight
     if(outLayer->currLayerGradients == NULL)
     {
         goto error3;
@@ -288,7 +288,7 @@ layer* make_output_layer(layer** prev, int numNodes, int numPrevLayers, int laye
     outLayer->numNodes = numNodes;
     outLayer->activation = 't';
     outLayer->layer_id = layer_id;
-    outLayer->norm = false;
+    outLayer->norm = 'f';
 
     return outLayer;
 
@@ -306,7 +306,7 @@ error1:
 }
 
 /*
-layer* make_normalization_layer(layer* prev, int numNextLayers = 1)
+struct layer* make_normalization_layer(struct layer* prev, int numNextLayers = 1)
 {
     int layerWeightsSize = sizeof(prev->currLayerWeights);
     int prevSize = sizeof(prev);
@@ -326,7 +326,7 @@ layer* make_normalization_layer(layer* prev, int numNextLayers = 1)
         goto error1;
     }
 
-    normLayer->nextLayers = (layer **)malloc(sizeof(layer*)*numNextLayers);
+    normLayer->nextLayers = (layer **)malloc(sizeof(struct layer*)*numNextLayers);
     if(normLayer->prevLayers == NULL)
     {
         goto error2;
@@ -362,7 +362,7 @@ error1:
 */
 
 // Layer loading
-void load_layer(layer* layer, float weights[])
+void load_layer(struct layer* layer, float weights[])
 {
     //Size of weights array must match number of nodes in inLayer
     for(int i = 0; i < (layer->numNodes + 1); i++)
@@ -372,7 +372,7 @@ void load_layer(layer* layer, float weights[])
 }
 
 // Works with a single layer to get an output
-float layer_forward(layer* layer, float x)
+float layer_forward(struct layer* layer, float x)
 {
     float forwardVal = 0;
 
@@ -396,13 +396,13 @@ float layer_forward(layer* layer, float x)
     }    
 }
 
-float* layer_backward(layer* layer, float* gradients)
+float* layer_backward(struct layer* layer, float* gradients)
 {
 
 }
 
 // Destroy an individual layer after operations are concluded
-void hakai_layer(layer* lay)
+void hakai_layer(struct layer* lay)
 {
     free(lay->currLayerWeights);
     free(lay->nextLayers);

@@ -4,7 +4,8 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/**",
-                "/usr/src/linux-headers-6.17.0-6/"
+                "/usr/src/linux-headers-6.17.0-6/",
+                "${workspaceFolder}/nn_include"
             ],
             "defines": [],
             "cStandard": "c17",
