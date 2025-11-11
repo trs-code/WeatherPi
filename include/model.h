@@ -6,11 +6,11 @@
 // 8 extra bytes for input layer for the model - numInLayers
 // 8 extra bytes for each layer in model - numLayers
 struct model
-{
-    int *layer_ids; // Checks for the presence of a layer in the model - layer_id[id # of the layer] = 0 if absent 1 if constructed
-    float *layer_outs; // Reference for output values of models - helps do DP forward pass on DAG graph
+{   
     layer **inLayers; // References to the input layers of the model - entry point for model operations
     layer *outLayer; // References the output layers of the model - entry point for model operations
+    int *layer_ids; // Checks for the presence of a layer in the model - layer_id[id # of the layer] = 0 if absent 1 if constructed
+    float *layer_outs; // Reference for output values of models - helps do DP forward pass on DAG graph
     float learning_rate; // Learning rate for the NN
     int numLayers; // Number of total layers in the NN
     int numInLayers; // Number of input layers in the NN
@@ -84,10 +84,12 @@ float forward_out(layer* layer, model* myModel)
     return output;
 }
 
-void backward_pass(layer, float expected, float prediction, float learning_rate)
+float* backward_pass(layer* layer, float expected, float prediction, float learning_rate)
 {
     float diff = expected-prediction;
     float loss = 0.5*diff*diff;
+
+    
 
 
 }

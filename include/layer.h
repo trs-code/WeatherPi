@@ -19,19 +19,21 @@
 // OR I WILL PERSONALLY HUNT YOU DOWN AND STICK A NEURAL NETWORK
 // IN A PLACE WHERE THE LIGHT DON'T SHINE
 
-// 31 Bytes
+// 40 Bytes
 // 8 extra bytes for each previous layer, 8 extra bytes for each next layer
 // 4 extra bytes for each layer weight
 struct layer
 {
+    layer **prevLayers;
+    layer **nextLayers;
+    float *currLayerWeights;
+    float *currLayerGradients;
     int numNodes;
     int numPrevLayers;
     int numNextLayers;
-    layer **prevLayers;
-    float *currLayerWeights;
-    layer **nextLayers;
+    int layer_id;    
     char activation;
-    int layer_id;
+    bool norm;
 };
 
 float relu(float x)
@@ -93,8 +95,7 @@ void minMaxNorm(float* arr, int size)
     }
 }
 
-
-layer* make_input_layer(int numNodes, int numNextLayers, int layer_id)
+layer* make_input_layer(int numNodes, int numNextLayers, int layer_id, bool norm)
 {
     // Allocate space for the input layer
     struct layer *inLayer = (struct layer*)malloc(sizeof(struct layer));
@@ -123,12 +124,22 @@ layer* make_input_layer(int numNodes, int numNextLayers, int layer_id)
         goto error2;
     }
 
+    inLayer->currLayerGradients = (float*)calloc(numNodes, sizeof(float));
+    if(inLayer->currLayerGradients == NULL)
+    {
+        goto error3;
+    }
+
     inLayer->numNodes = numNodes;
     inLayer->activation = 'i';
     inLayer->layer_id = layer_id;
+    inLayer->norm = norm;
 
     return inLayer;
 
+error3:
+    free(inLayer->currLayerWeights);
+    inLayer->currLayerGradients = NULL;
 error2:
     free(inLayer->nextLayers);
     inLayer->nextLayers = NULL;
@@ -139,7 +150,7 @@ error1:
     return NULL;
 }
 
-layer* make_dense_layer(layer** prev, int numNodes, int numPrevLayers, int numNextLayers, int layer_id)
+layer* make_dense_layer(layer** prev, int numNodes, int numPrevLayers, int numNextLayers, int layer_id, bool norm)
 {
     int j = 0;
 
@@ -191,6 +202,12 @@ layer* make_dense_layer(layer** prev, int numNodes, int numPrevLayers, int numNe
         goto error3;
     }
 
+    denseLayer->currLayerGradients = (float *)calloc((numNodes + 1) * sizeof(float)); // Neuron weights plus a bias weight
+    if(denseLayer->currLayerGradients == NULL)
+    {
+        goto error4;
+    }
+
     for(int i = 0; i < (numNodes + 1); i++)
     {
         denseLayer->currLayerWeights[i] = 0; // Fix later to randomly initialize
@@ -199,9 +216,13 @@ layer* make_dense_layer(layer** prev, int numNodes, int numPrevLayers, int numNe
     denseLayer->numNodes = numNodes;
     denseLayer->activation = 'r';
     denseLayer->layer_id = layer_id;
+    denseLayer->norm = norm;
 
     return denseLayer;
 
+error4:
+    free(denseLayer->currLayerWeights);
+    denseLayer->currLayerWeights = NULL;
 error3:
     free(denseLayer->nextLayers);
     denseLayer->nextLayers = NULL;
@@ -253,6 +274,12 @@ layer* make_output_layer(layer** prev, int numNodes, int numPrevLayers, int laye
         goto error2;
     }
 
+    outLayer->currLayerGradients = (float *)calloc((numNodes + 1) * sizeof(float)); // Neuron weights plus a bias weight
+    if(outLayer->currLayerGradients == NULL)
+    {
+        goto error3;
+    }
+
     for(int i = 0; i < (numNodes + 1); i++)
     {
         outLayer->currLayerWeights[i] = 0; // Fix later to randomly initialize
@@ -261,10 +288,13 @@ layer* make_output_layer(layer** prev, int numNodes, int numPrevLayers, int laye
     outLayer->numNodes = numNodes;
     outLayer->activation = 't';
     outLayer->layer_id = layer_id;
+    outLayer->norm = false;
 
     return outLayer;
 
-
+error3:
+    free(outLayer->currLayerWeights);
+    outLayer->currLayerWeights = NULL;
 error2:
     free(outLayer->prevLayers);
     outLayer->prevLayers = NULL;
