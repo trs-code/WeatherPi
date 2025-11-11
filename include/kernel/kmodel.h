@@ -1,6 +1,6 @@
 #ifndef NN_MODEL
 #define NN_MODEL
-#include <layer.h>
+#include <klayer.h>
 
 // 44 Bytes for an empty model husk
 // 8 extra bytes for input layer for the model - numInLayers
@@ -18,25 +18,25 @@ struct model
 
 model* construct_model(int numLayers, int numInLayers, float learning_rate)
 {
-    struct model *myModel = (struct model*)malloc(sizeof(struct model));
+    struct model *myModel = (struct model*)kmalloc(sizeof(struct model));
     if(myModel == NULL)
     {
         return NULL;
     }
 
-    myModel->layer_ids = (int *)calloc(numLayers, sizeof(int));
+    myModel->layer_ids = (int *)kcalloc(numLayers, sizeof(int));
     if(myModel->layer_ids == NULL)
     {
         goto error1;
     }
 
-    myModel->layer_outs = (float *)calloc(numLayers, sizeof(float));
+    myModel->layer_outs = (float *)kcalloc(numLayers, sizeof(float));
     if(myModel->layer_ids == NULL)
     {
         goto error2;
     }
 
-    myModel->inLayers = (layer **)calloc(myModel->numInLayers, sizeof(layer*) * numInLayers);
+    myModel->inLayers = (layer **)kcalloc(myModel->numInLayers, sizeof(layer*) * numInLayers);
     if(myModel->inLayers == NULL)
     {
         goto error3;
@@ -47,13 +47,13 @@ model* construct_model(int numLayers, int numInLayers, float learning_rate)
     myModel->numInLayers = numInLayers;
 
 error3:
-    free(myModel->layer_outs);
+    kfree(myModel->layer_outs);
     myModel->layer_outs = NULL;
 error2:
-    free(myModel->layer_ids);
+    kfree(myModel->layer_ids);
     myModel->layer_outs = NULL;
 error1:
-    free(myModel);
+    kfree(myModel);
     myModel = NULL;
 
     return NULL;
@@ -118,21 +118,21 @@ void clear_layer_outs(model* myModel)
 
 void hakai_model(model* myModel)
 {
-    layer **outArr = (layer**)malloc(sizeof(layer*));
+    layer **outArr = (layer**)kmalloc(sizeof(layer*));
     outArr[0] = myModel->outLayer;
     clear_model(outArr);
 
-    free(outArr);
+    kfree(outArr);
     outArr = NULL;
     hakai_layer(myModel->outLayer);
     
-    free(myModel->layer_outs);
+    kfree(myModel->layer_outs);
     myModel->layer_outs = NULL;
 
-    free(myModel->layer_ids);
+    kfree(myModel->layer_ids);
     myModel->layer_ids = NULL;
 
-    free(myModel);
+    kfree(myModel);
     myModel = NULL;
 }
 

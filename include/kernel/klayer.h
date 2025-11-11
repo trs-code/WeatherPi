@@ -1,20 +1,20 @@
-#ifndef NN_LAYER
-#define NN_LAYER
-/* 
-#include <linux/slab.h>
+#ifndef K_NN_LAYER
+#define K_NN_LAYER
+
+//#include <linux/slab.h>
 #include <linux/kernel.h>
-*/
-#include <stdlib.h>
-#include <string.h>
+#include <linux/module.h>
+#include <linux/string.h>
+#include <linux/slab.h>
 
 //          VERY FUCKING IMPORTANT
-// MAKE SURE AN EXIT PROCESS FREES THE MEMORY FOR
+// MAKE SURE AN EXIT PROCESS kfreeS THE MEMORY FOR
 //
 //                      EVERY
 //                      SINGLE
 //                      LAYER
 //
-// STARTING FROM THE OUTPUT AND ITERATE THROUGH THE LINKED LIST FREEING THE MEMORY FOR EACH LAYER WEIGHTS AND LAYER
+// STARTING FROM THE OUTPUT AND ITERATE THROUGH THE LINKED LIST kfreeING THE MEMORY FOR EACH LAYER WEIGHTS AND LAYER
 // WHEN OPERATIONS ARE CONCLUDED
 // OR I WILL PERSONALLY HUNT YOU DOWN AND STICK A NEURAL NETWORK
 // IN A PLACE WHERE THE LIGHT DON'T SHINE
@@ -97,7 +97,7 @@ void minMaxNorm(float* arr, int size)
 layer* make_input_layer(int numNodes, int numNextLayers, int layer_id)
 {
     // Allocate space for the input layer
-    struct layer *inLayer = (struct layer*)malloc(sizeof(struct layer));
+    struct layer *inLayer = (struct layer*)kmalloc(sizeof(struct layer));
     if(inLayer == NULL)
     {
         return NULL;
@@ -110,14 +110,14 @@ layer* make_input_layer(int numNodes, int numNextLayers, int layer_id)
     inLayer->prevLayers = NULL;
 
     // Allocate space for the following layers so a forward pass is easier to implement and also navigating the layers
-    inLayer->nextLayers = (struct layer**)calloc(numNextLayers, sizeof(layer*));
+    inLayer->nextLayers = (struct layer**)kcalloc(numNextLayers, sizeof(layer*));
     if(inLayer->nextLayers == NULL)
     {
         goto error1;
     }
 
     // Input layer just accepts inputs, doesn't need weights
-    inLayer->currLayerWeights = (float*)calloc(numNodes, sizeof(float));
+    inLayer->currLayerWeights = (float*)kcalloc(numNodes, sizeof(float));
     if(inLayer->currLayerWeights == NULL)
     {
         goto error2;
@@ -130,10 +130,10 @@ layer* make_input_layer(int numNodes, int numNextLayers, int layer_id)
     return inLayer;
 
 error2:
-    free(inLayer->nextLayers);
+    kfree(inLayer->nextLayers);
     inLayer->nextLayers = NULL;
 error1:
-    free(inLayer);
+    kfree(inLayer);
     inLayer = NULL;
 
     return NULL;
@@ -144,7 +144,7 @@ layer* make_dense_layer(layer** prev, int numNodes, int numPrevLayers, int numNe
     int j = 0;
 
     // Allocate space for the layer
-    struct layer *denseLayer = (struct layer *)malloc(sizeof(struct layer));
+    struct layer *denseLayer = (struct layer *)kmalloc(sizeof(struct layer));
     if(denseLayer == NULL)
     {
         return NULL;
@@ -157,7 +157,7 @@ layer* make_dense_layer(layer** prev, int numNodes, int numPrevLayers, int numNe
     denseLayer->numNextLayers = numNextLayers;
 
     // Allocate space for the previous layers using provided parameter - DESIGN YOUR MODEL BEFORE IMPLEMENTING CAREFULLY
-    denseLayer->prevLayers = (struct layer **)malloc(sizeof(layer*) * numPrevLayers);
+    denseLayer->prevLayers = (struct layer **)kmalloc(sizeof(layer*) * numPrevLayers);
     if(denseLayer->prevLayers == NULL)
     {
         goto error1;
@@ -179,13 +179,13 @@ layer* make_dense_layer(layer** prev, int numNodes, int numPrevLayers, int numNe
     }
 
     // Allocate space for the next layers using provided parameter
-    denseLayer->nextLayers = (struct layer **)calloc(numNextLayers, sizeof(layer*));
+    denseLayer->nextLayers = (struct layer **)kcalloc(numNextLayers, sizeof(layer*));
     if(denseLayer->nextLayers == NULL)
     {
         goto error2;
     }
 
-    denseLayer->currLayerWeights = (float *)malloc((numNodes + 1) * sizeof(float)); // Neuron weights plus a bias weight
+    denseLayer->currLayerWeights = (float *)kmalloc((numNodes + 1) * sizeof(float)); // Neuron weights plus a bias weight
     if(denseLayer->currLayerWeights == NULL)
     {
         goto error3;
@@ -203,13 +203,13 @@ layer* make_dense_layer(layer** prev, int numNodes, int numPrevLayers, int numNe
     return denseLayer;
 
 error3:
-    free(denseLayer->nextLayers);
+    kfree(denseLayer->nextLayers);
     denseLayer->nextLayers = NULL;
 error2:
-    free(denseLayer->prevLayers);
+    kfree(denseLayer->prevLayers);
     denseLayer->prevLayers = NULL;
 error1:
-    free(denseLayer);
+    kfree(denseLayer);
     denseLayer = NULL;
 
     return NULL;
@@ -218,7 +218,7 @@ error1:
 layer* make_output_layer(layer** prev, int numNodes, int numPrevLayers, int layer_id)
 {
     int j = 0;
-    struct layer *outLayer = (struct layer *)malloc(sizeof(struct layer));
+    struct layer *outLayer = (struct layer *)kmalloc(sizeof(struct layer));
     if(outLayer == NULL)
     {
         goto error1;
@@ -229,7 +229,7 @@ layer* make_output_layer(layer** prev, int numNodes, int numPrevLayers, int laye
     outLayer->nextLayers = NULL; // No next layers for an output layer
 
     // Allocate space for the previous layers using provided parameter - DESIGN YOUR MODEL BEFORE IMPLEMENTING
-    outLayer->prevLayers = (struct layer **)malloc(sizeof(layer *) * numPrevLayers);
+    outLayer->prevLayers = (struct layer **)kmalloc(sizeof(layer *) * numPrevLayers);
     if(outLayer->prevLayers == NULL)
     {
         goto error1;
@@ -247,7 +247,7 @@ layer* make_output_layer(layer** prev, int numNodes, int numPrevLayers, int laye
         j = 0;
     }
 
-    outLayer->currLayerWeights = (float *)malloc((numNodes + 1) * sizeof(float)); // Neuron weights plus a bias weight
+    outLayer->currLayerWeights = (float *)kmalloc((numNodes + 1) * sizeof(float)); // Neuron weights plus a bias weight
     if(outLayer->currLayerWeights == NULL)
     {
         goto error2;
@@ -266,10 +266,10 @@ layer* make_output_layer(layer** prev, int numNodes, int numPrevLayers, int laye
 
 
 error2:
-    free(outLayer->prevLayers);
+    kfree(outLayer->prevLayers);
     outLayer->prevLayers = NULL;
 error1:
-    free(outLayer);
+    kfree(outLayer);
     outLayer = NULL;
 
     return NULL;
@@ -280,7 +280,7 @@ layer* make_normalization_layer(layer* prev, int numNextLayers = 1)
 {
     int layerWeightsSize = sizeof(prev->currLayerWeights);
     int prevSize = sizeof(prev);
-    struct layer *normLayer = (struct layer*)malloc(sizeof(struct layer));
+    struct layer *normLayer = (struct layer*)kmalloc(sizeof(struct layer));
     if(normLayer == NULL)
     {
         return NULL;
@@ -290,20 +290,20 @@ layer* make_normalization_layer(layer* prev, int numNextLayers = 1)
     normLayer->numPrevLayers = 1;
     normLayer->numNextLayers = numNextLayers;
     
-    normLayer->prevLayers = (layer **)malloc(prevSize);
+    normLayer->prevLayers = (layer **)kmalloc(prevSize);
     if(normLayer->prevLayers == NULL)
     {
         goto error1;
     }
 
-    normLayer->nextLayers = (layer **)malloc(sizeof(layer*)*numNextLayers);
+    normLayer->nextLayers = (layer **)kmalloc(sizeof(layer*)*numNextLayers);
     if(normLayer->prevLayers == NULL)
     {
         goto error2;
     }
     
     memcpy(normLayer->prevLayers, prev, prevSize);
-    normLayer->currLayerWeights = (float *)malloc(layerWeightsSize);
+    normLayer->currLayerWeights = (float *)kmalloc(layerWeightsSize);
     if(normLayer->currLayerWeights == NULL)
     {
         goto error3;
@@ -318,13 +318,13 @@ layer* make_normalization_layer(layer* prev, int numNextLayers = 1)
     return normLayer;
 
 error3:
-    free(normLayer->nextLayers);
+    kfree(normLayer->nextLayers);
     normLayer->nextLayers = NULL;
 error2:
-    free(normLayer->prevLayers);
+    kfree(normLayer->prevLayers);
     normLayer->prevLayers = NULL;
 error1:
-    free(normLayer);
+    kfree(normLayer);
     normLayer = NULL;
 
     return NULL;
@@ -374,10 +374,10 @@ float* layer_backward(layer* layer, float* gradients)
 // Destroy an individual layer after operations are concluded
 void hakai_layer(layer* lay)
 {
-    free(lay->currLayerWeights);
-    free(lay->nextLayers);
-    free(lay->prevLayers);
-    free(lay);
+    kfree(lay->currLayerWeights);
+    kfree(lay->nextLayers);
+    kfree(lay->prevLayers);
+    kfree(lay);
 }
 
 #endif
