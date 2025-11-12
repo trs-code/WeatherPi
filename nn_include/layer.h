@@ -45,7 +45,7 @@ float relu(float x)
 float tanh(float x)
 {
     float x2 = x * x;
-    return 0.5 + (x * (27.0 + x2) / (54.0 + 18.0 * x2));
+    return 0.5f + (x * (27.0f + x2) / (54.0f + 18.0f * x2));
 }
 
 float relu_derivative(float x)
@@ -95,7 +95,7 @@ void minMaxNorm(float* arr, int size)
     }
 }
 
-struct  layer* make_input_layer(int numNodes, int numNextLayers, int layer_id)
+struct layer* make_input_layer(int numNodes, int numNextLayers, int layer_id)
 {
     // Allocate space for the input layer
     struct layer *inLayer = (struct layer*)malloc(sizeof(struct layer));
@@ -398,16 +398,46 @@ float layer_forward(struct layer* layer, float x)
 
 float* layer_backward(struct layer* layer, float* gradients)
 {
-
+    //finish
 }
 
 // Destroy an individual layer after operations are concluded
 void hakai_layer(struct layer* lay)
 {
-    free(lay->currLayerWeights);
-    free(lay->nextLayers);
-    free(lay->prevLayers);
-    free(lay);
+    if(lay == NULL)
+    {
+        return;
+    }
+
+    if(lay->currLayerGradients != NULL) 
+    {
+        free(lay->currLayerGradients);
+        lay->currLayerGradients = NULL;
+    }
+    
+    if(lay->currLayerWeights != NULL) 
+    {
+        free(lay->currLayerWeights);
+        lay->currLayerWeights = NULL;
+    }
+
+    if(lay->nextLayers != NULL) 
+    {
+        free(lay->nextLayers);
+        lay->nextLayers = NULL;
+    }
+    
+    if(lay->prevLayers != NULL) 
+    {
+        free(lay->prevLayers);
+        lay->prevLayers = NULL;
+    }
+    
+    if(lay != NULL) 
+    {
+        free(lay);
+        lay = NULL;
+    }
 }
 
 #endif

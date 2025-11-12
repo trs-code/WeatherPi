@@ -1,6 +1,6 @@
 #ifndef NN_MODEL
 #define NN_MODEL
-#include <layer.h>
+#include "./layer.h"
 
 // 44 Bytes for an empty model husk
 // 8 extra bytes for input layer for the model - numInLayers
@@ -46,6 +46,8 @@ struct model* construct_model(int numLayers, int numInLayers, float learning_rat
     myModel->learning_rate = learning_rate;
     myModel->numInLayers = numInLayers;
 
+    return myModel;
+
 error3:
     free(myModel->layer_outs);
     myModel->layer_outs = NULL;
@@ -89,27 +91,12 @@ float* backward_pass(struct layer* layer, float expected, float prediction, floa
     float diff = expected-prediction;
     float loss = 0.5*diff*diff;
 
-    
+    //finish
 
 
 }
 
-// Enter this function with the outArray of the model and let it do its thing
-// One big advantage of the doubly linked list structure is being able to exploit the convergence of the model on the input layer
-void clear_model(struct layer** layerArr)
-{
-    for(int i = 0; i < ((sizeof(layerArr))/(sizeof(struct layer*))); i++)
-    {
-        if(layerArr[i] == NULL)
-        {
-            return;
-        }
-        clear_model(layerArr[i]->prevLayers);
-        hakai_layer(layerArr[i]);
-        layerArr[i] = NULL;
-    }
-}
-
+// For clearing the outputs once a forward pass is done
 void clear_layer_outs(struct model* myModel)
 {
     for(int i = 0; i < (myModel->numLayers); i++)
@@ -118,15 +105,33 @@ void clear_layer_outs(struct model* myModel)
     }
 }
 
+// Enter this function with the outArray of the model and let it do its thing
+// One big advantage of the doubly linked list structure is being able to exploit the convergence of the model on the input layer
+void clear_model(struct layer** layerArr)
+{
+    if(layerArr == NULL)
+    {
+        return;
+    }
+    for(int i = 1; i < ((sizeof(layerArr))/(sizeof(struct layer*))); i++)
+    {
+        if(layerArr[i] == NULL)
+        {
+            return;
+        }
+        clear_model(layerArr[i]->prevLayers);
+        if(i > 0) hakai_layer(layerArr[i]);
+        layerArr[i] = NULL;
+    }
+    free(layerArr);
+    layerArr = NULL;
+}
+
 void hakai_model(struct model* myModel)
 {
     struct layer **outArr = (struct layer**)malloc(sizeof(struct layer*));
     outArr[0] = myModel->outLayer;
     clear_model(outArr);
-
-    free(outArr);
-    outArr = NULL;
-    hakai_layer(myModel->outLayer);
     
     free(myModel->layer_outs);
     myModel->layer_outs = NULL;
