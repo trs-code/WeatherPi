@@ -362,7 +362,7 @@ error1:
 */
 
 // Layer loading
-void load_layer(struct layer* layer, float weights[])
+void load_layer(struct layer* layer, float values[])
 {
     //Size of weights array must match number of nodes in inLayer
     for(int i = 0; i < (layer->numNodes + 1); i++)
@@ -399,45 +399,6 @@ float layer_forward(struct layer* layer, float x)
 float* layer_backward(struct layer* layer, float* gradients)
 {
     //finish
-}
-
-// Destroy an individual layer after operations are concluded
-void hakai_layer(struct layer* lay)
-{
-    if(lay == NULL)
-    {
-        return;
-    }
-
-    if(lay->currLayerGradients != NULL) 
-    {
-        free(lay->currLayerGradients);
-        lay->currLayerGradients = NULL;
-    }
-    
-    if(lay->currLayerWeights != NULL) 
-    {
-        free(lay->currLayerWeights);
-        lay->currLayerWeights = NULL;
-    }
-
-    if(lay->nextLayers != NULL) 
-    {
-        free(lay->nextLayers);
-        lay->nextLayers = NULL;
-    }
-    
-    if(lay->prevLayers != NULL) 
-    {
-        free(lay->prevLayers);
-        lay->prevLayers = NULL;
-    }
-    
-    if(lay != NULL) 
-    {
-        free(lay);
-        lay = NULL;
-    }
 }
 
 #endif

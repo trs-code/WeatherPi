@@ -2,12 +2,13 @@
 #define NN_MODEL
 #include "./layer.h"
 
-// 44 Bytes for an empty model husk
-// 8 extra bytes for input layer for the model - numInLayers
-// 8 extra bytes for each layer in model - numLayers
+// 52 Bytes for an empty model husk
+// 16 extra bytes for input layer for the model - numInLayers
+// 16 extra bytes for each layer in model - numLayers
 struct model
 {   
     struct layer **inLayers; // References to the input layers of the model - entry point for model operations
+    struct layer **layer_refs; // References for each hung layer while they are getting deconstructed
     struct layer *outLayer; // References the output layers of the model - entry point for model operations
     int *layer_ids; // Checks for the presence of a layer in the model - layer_id[id # of the layer] = 0 if absent 1 if constructed
     float *layer_outs; // Reference for output values of models - helps do DP forward pass on DAG graph
@@ -42,12 +43,21 @@ struct model* construct_model(int numLayers, int numInLayers, float learning_rat
         goto error3;
     }
 
+    myModel->layer_refs = (struct layer **)calloc(numInLayers, sizeof(struct layer*));
+    if(myModel->layer_refs == NULL)
+    {
+        goto error4;
+    } 
+
     myModel->numLayers = numLayers;
     myModel->learning_rate = learning_rate;
     myModel->numInLayers = numInLayers;
 
     return myModel;
 
+error4:
+    free(myModel->layer_refs);
+    myModel->layer_refs = NULL;
 error3:
     free(myModel->layer_outs);
     myModel->layer_outs = NULL;
@@ -105,22 +115,54 @@ void clear_layer_outs(struct model* myModel)
     }
 }
 
+// Destroy an individual layer after operations are concluded
+void hakai_layer(struct layer* lay, struct model* myModel)
+{
+    int i = 0;
+    
+    if(myModel->layer_ids[lay->layer_id] == 0)
+    {
+        return;
+    }
+
+    free(lay->currLayerGradients);
+    lay->currLayerGradients = NULL;
+
+    free(lay->currLayerWeights);
+    lay->currLayerWeights = NULL;
+
+    free(lay->nextLayers);
+    lay->nextLayers = NULL;
+    
+    //free(lay->prevLayers);
+    lay->prevLayers = NULL;
+
+    myModel->layer_ids[lay->layer_id] = 0;
+
+    while(myModel->layer_refs[i] != NULL)
+    {
+        i += 1;
+    }
+
+    myModel->layer_refs[i] = lay;  
+}
+
 // Enter this function with the outArray of the model and let it do its thing
 // One big advantage of the doubly linked list structure is being able to exploit the convergence of the model on the input layer
-void clear_model(struct layer** layerArr)
+void clear_model(struct layer** layerArr, struct model* myModel)
 {
     if(layerArr == NULL)
     {
         return;
     }
-    for(int i = 1; i < ((sizeof(layerArr))/(sizeof(struct layer*))); i++)
+    for(int i = 0; i < ((sizeof(layerArr))/(sizeof(struct layer*))); i++)
     {
-        if(layerArr[i] == NULL)
+        if(myModel->layer_ids[layerArr[i]->layer_id] == 0)
         {
-            return;
+            continue;
         }
-        clear_model(layerArr[i]->prevLayers);
-        if(i > 0) hakai_layer(layerArr[i]);
+        clear_model(layerArr[i]->prevLayers, myModel);
+        hakai_layer(layerArr[i], myModel);
         layerArr[i] = NULL;
     }
     free(layerArr);
@@ -130,14 +172,28 @@ void clear_model(struct layer** layerArr)
 void hakai_model(struct model* myModel)
 {
     struct layer **outArr = (struct layer**)malloc(sizeof(struct layer*));
+    if(outArr == NULL)
+    {
+        return;
+    }
+
     outArr[0] = myModel->outLayer;
-    clear_model(outArr);
+    clear_model(outArr, myModel);
     
     free(myModel->layer_outs);
     myModel->layer_outs = NULL;
 
     free(myModel->layer_ids);
     myModel->layer_ids = NULL;
+
+    for(int i = myModel->numLayers - 1; i >= 0; i--)
+    {
+        free(myModel->layer_refs[i]);
+        myModel->layer_refs[i] = NULL;
+    }
+
+    free(myModel->layer_refs);
+    myModel->layer_refs = NULL;
 
     free(myModel);
     myModel = NULL;
