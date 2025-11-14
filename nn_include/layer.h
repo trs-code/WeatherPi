@@ -6,6 +6,7 @@
 */
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 //          VERY FUCKING IMPORTANT
 // MAKE SURE AN EXIT PROCESS FREES THE MEMORY FOR
@@ -53,10 +54,10 @@ float relu_derivative(float x)
     return (x > 0) ? 1 : 0.01;
 }
 
-float tanh_derivative(float x)
+float tanh_derivative(double x)
 {
-    float denom = (1.0f + absolute(x));
-    return 1.0f / (denom * denom);
+    double tanhx = tanh(x);
+    return 1.0 - (tanhx * tanhx);
 }
 
 float findMax(float* arr, int size)
@@ -81,6 +82,11 @@ float findMin(float* arr, int size)
     }
 
     return currMin;
+}
+
+float cross_entropy_loss(float target, float y)
+{
+    return -1 * (0);
 }
 
 void minMaxNorm(float* arr, int size)
