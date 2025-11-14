@@ -82,16 +82,17 @@ float forward_out(struct layer* layer, struct model* myModel)
         return myModel->layer_outs[layer->layer_id];
     }
 
-    if(layer->numPrevLayers == 0)
-    {
-        x = 1.0;
-    }
-    else
+    if(layer->numPrevLayers != 0)
     {
         for(int i = 0; i < layer->numPrevLayers; i++)
         {
             x += forward_out(layer->prevLayers[i], myModel);
         }
+        
+    }
+    else
+    {
+        x = 1.0;
     }
 
     for(int i = 0; i < layer->numNodes; i++)
@@ -213,7 +214,7 @@ void hakai_model(struct model* myModel)
     myModel = NULL;
 }
 
-void save_model(struct model* saveMod);
+int save_model(struct model* saveMod);
 
 struct model* load_model(char* filename[]);
 

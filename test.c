@@ -46,7 +46,7 @@ int main()
     load_layer(myModel->inLayers[0], values);
     
     float result = forward_out(myModel->outLayer, myModel);
-    printf("Model output is: %.2f\n", result);
+    printf("Model output is: %f\n", result);
 
     hakai_model(myModel);
     printf("Test Successful\n");
