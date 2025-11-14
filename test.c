@@ -29,7 +29,7 @@ int main()
     myModel->layer_ids[layer1->layer_id] = 1;
 
     struct layer* layer2_in[] = {layer1};
-    struct layer* layer2 = make_output_layer(layer2_in, 2, 1, 2);
+    struct layer* layer2 = make_output_layer(layer2_in, 1, 1, 2);
     if(layer1 == NULL)
     {
         printf("Memory allocation failed at layer0\n");
@@ -42,8 +42,11 @@ int main()
 
     printf("Model creation successful\n");
 
-    // float weights
-    // load_layer()
+    float values[] = {20.5, 18.6, -4.08};
+    load_layer(myModel->inLayers[0], values);
+    
+    float result = forward_out(myModel->outLayer, myModel);
+    printf("Model output is: %.2f\n", result);
 
     hakai_model(myModel);
     printf("Test Successful\n");

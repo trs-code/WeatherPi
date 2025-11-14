@@ -36,6 +36,11 @@ struct layer
     char norm;
 };
 
+float absolute(float x)
+{
+    return (x > 0) ? x : -1.0*x;
+}
+
 float relu(float x)
 {
     // Leaky ReLU
@@ -44,8 +49,7 @@ float relu(float x)
 
 float tanh(float x)
 {
-    float x2 = x * x;
-    return 0.5f + (x * (27.0f + x2) / (54.0f + 18.0f * x2));
+    return 0.5 + (x / (0.06 + 2 * absolute(x)));
 }
 
 float relu_derivative(float x)
@@ -56,8 +60,8 @@ float relu_derivative(float x)
 
 float tanh_derivative(float x)
 {
-    float x2 = x * x;
-    return (((x * x2) + (9 * x2) + (27 * x) + 27)/((18 * x2) + 54));
+    float denom = (1.0f + absolute(x));
+    return 1.0f / (denom * denom);
 }
 
 float findMax(float* arr, int size)
@@ -208,10 +212,12 @@ struct layer* make_dense_layer(struct layer** prev, int numNodes, int numPrevLay
         goto error4;
     }
 
-    for(int i = 0; i < (numNodes + 1); i++)
+    for(int i = 0; i < (numNodes); i++)
     {
-        denseLayer->currLayerWeights[i] = 0; // Fix later to randomly initialize
+        denseLayer->currLayerWeights[i] = 1; // Fix later to randomly initialize
     }
+
+    denseLayer->currLayerWeights[numNodes] = 0;
 
     denseLayer->numNodes = numNodes;
     denseLayer->activation = 'r';
@@ -268,21 +274,21 @@ struct layer* make_output_layer(struct layer** prev, int numNodes, int numPrevLa
         j = 0;
     }
 
-    outLayer->currLayerWeights = (float *)malloc((numNodes + 1) * sizeof(float)); // Neuron weights plus a bias weight
+    outLayer->currLayerWeights = (float *)malloc((numNodes) * sizeof(float)); // Neuron weights plus a bias weight
     if(outLayer->currLayerWeights == NULL)
     {
         goto error2;
     }
 
-    outLayer->currLayerGradients = (float *)calloc((numNodes + 1),  sizeof(float)); // Neuron weights plus a bias weight
+    outLayer->currLayerGradients = (float *)calloc((numNodes),  sizeof(float)); // Neuron weights plus a bias weight
     if(outLayer->currLayerGradients == NULL)
     {
         goto error3;
     }
 
-    for(int i = 0; i < (numNodes + 1); i++)
+    for(int i = 0; i < (numNodes); i++)
     {
-        outLayer->currLayerWeights[i] = 0; // Fix later to randomly initialize
+        outLayer->currLayerWeights[i] = 1; // Fix later to randomly initialize
     }
 
     outLayer->numNodes = numNodes;
@@ -364,41 +370,23 @@ error1:
 // Layer loading
 void load_layer(struct layer* layer, float values[])
 {
-    //Size of weights array must match number of nodes in inLayer
-    for(int i = 0; i < (layer->numNodes + 1); i++)
-    {
-        memcpy(layer->currLayerWeights, weights, (layer->numNodes + 1));
-    }
+    // Size of weights array must match number of nodes in inLayer
+    memcpy(layer->currLayerWeights, values, sizeof(float)*(layer->numNodes));
 }
 
-// Works with a single layer to get an output
-float layer_forward(struct layer* layer, float x)
-{
-    float forwardVal = 0;
-
-    for(int i = 0; i < layer->numNodes; i++)
-    {
-        forwardVal += layer->currLayerWeights[i] * x;
-    }
-
-    forwardVal += layer->currLayerWeights[layer->numNodes];
-
-    switch(layer->activation)
-    {
-        case 'r':
-            return relu(forwardVal);
-        case 't':
-            return tanh(forwardVal);
-        case 'i':
-            return forwardVal;
-        default:
-            return forwardVal;
-    }    
-}
 
 float* layer_backward(struct layer* layer, float* gradients)
 {
     //finish
 }
 
+float* backward_pass(struct layer* layer, float expected, float prediction, float learning_rate)
+{
+    float diff = expected-prediction;
+    float loss = 0.5*diff*diff;
+
+    //finish
+
+
+}
 #endif

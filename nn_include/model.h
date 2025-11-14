@@ -71,39 +71,52 @@ error1:
     return NULL;
 }
 
-// Works with multiple layers to get an output
+//  Gets an output from the target layer
 float forward_out(struct layer* layer, struct model* myModel)
 {
-    // Start from out array and work backwards - DP Solution O(Number of neurons amongst all layers) time complexity
-    float output = 0;
+    float layerOut = 0;
+    float x = 0;
 
     if(myModel->layer_outs[layer->layer_id] != 0)
     {
         return myModel->layer_outs[layer->layer_id];
     }
-    
+
     if(layer->numPrevLayers == 0)
     {
-        return layer_forward(layer, 1.0f);
+        x = 1.0;
     }
-
-    for(int i = 0; i < layer->numPrevLayers; i++)
+    else
     {
-        output += layer_forward(layer->prevLayers[i], forward_out(layer->prevLayers[i], myModel));
+        for(int i = 0; i < layer->numPrevLayers; i++)
+        {
+            x += forward_out(layer->prevLayers[i], myModel);
+        }
     }
 
-    myModel->layer_outs[layer->layer_id] = output;
-    return output;
-}
+    for(int i = 0; i < layer->numNodes; i++)
+    {
+        layerOut += layer->currLayerWeights[i] * x;
+    }
 
-float* backward_pass(struct layer* layer, float expected, float prediction, float learning_rate)
-{
-    float diff = expected-prediction;
-    float loss = 0.5*diff*diff;
+    layerOut += layer->currLayerWeights[layer->numNodes];
 
-    //finish
+    switch(layer->activation)
+    {
+        case 'r':
+            layerOut = relu(layerOut);
+            break;
+        case 't':
+            layerOut = tanh(layerOut);
+            break;
+        case 'i':
+            break;
+        default:
+            return layerOut;
+    }
 
-
+    myModel->layer_outs[layer->layer_id] = layerOut;
+    return layerOut;
 }
 
 // For clearing the outputs once a forward pass is done
@@ -111,7 +124,7 @@ void clear_layer_outs(struct model* myModel)
 {
     for(int i = 0; i < (myModel->numLayers); i++)
     {
-        myModel->layer_outs[i] = 0.0f;
+        myModel->layer_outs[i] = 0;
     }
 }
 
@@ -163,6 +176,7 @@ void clear_model(struct layer** layerArr, struct model* myModel)
         }
         clear_model(layerArr[i]->prevLayers, myModel);
         hakai_layer(layerArr[i], myModel);
+        myModel->layer_ids[layerArr[i]->layer_id] = 0;
         layerArr[i] = NULL;
     }
     free(layerArr);
