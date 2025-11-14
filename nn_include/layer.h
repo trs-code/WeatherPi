@@ -47,11 +47,6 @@ float relu(float x)
     return (x > 0 ? x : 0.01*x);
 }
 
-float tanh(float x)
-{
-    return 0.5 + (x / (0.06 + 2 * absolute(x)));
-}
-
 float relu_derivative(float x)
 {
     // Leaky ReLU derivative
