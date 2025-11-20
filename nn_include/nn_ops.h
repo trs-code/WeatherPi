@@ -3,18 +3,11 @@
 #include "model_ops.h"
 #include "nn_math.h"
 
-// Layer loading
-void load_layer(struct layer* layer, float values[])
-{
-    // Size of weights array must match number of nodes in inLayer
-    memcpy(layer->currLayerWeights, values, sizeof(float)*(layer->numNodes));
-}
-
 // For clearing the gradients once no longer needed, and to also prime for next forward pass
 // Use by passing the output layer of the model into the function 
 void hakai_layer_grads(struct layer* layer)
 {
-    if(absolute(layer->currLayerGradients[0]) - 0 > 0.0000001)
+    if(absolute(layer->gradients[0][0]) - 0 > 0.0000001)
     {
         return;
     }
@@ -27,7 +20,7 @@ void hakai_layer_grads(struct layer* layer)
         }
     }
 
-    memset(layer->currLayerGradients, 0, layer->numNodes * sizeof(float));
+    memset(layer->gradients, 0, layer->numNodes * sizeof(float));
 }
 
 
@@ -36,9 +29,9 @@ float forward_out(struct layer* layer, struct model* myModel)
 {
     float x = 0;
 
-    if(absolute(myModel->layer_outs[layer->layer_id]) - 0 > 0.00000001)
+    if(absolute(myModel->model_outs[layer->layer_id]) - 0 > 0.00000001)
     {
-        return myModel->layer_outs[layer->layer_id];
+        return myModel->model_outs[layer->layer_id];
     }
 
     if(layer->numPrevLayers != 0)
@@ -59,12 +52,12 @@ float forward_out(struct layer* layer, struct model* myModel)
         float layerOut = 0;
         for(int i = 0; i < layer->numNodes; i++)
         {
-            layerOut += layer->currLayerWeights[i][0] * x;
+            layerOut += layer->weights[i][0] * x;
         }
         
-        myModel->layer_outs[layer->layer_id] = layerOut;
+        myModel->model_outs[layer->layer_id] = layerOut;
 
-        layerOut += layer->currLayerWeights[layer->numNodes][0];
+        layerOut += layer->weights[layer->numNodes][0];
 
         switch(layer->activation)
         {
@@ -86,7 +79,7 @@ float forward_out(struct layer* layer, struct model* myModel)
     {
         for(int i = 0; i < layer->numNodes; i++)
         {
-            myModel->model_outs[i] = layer->currLayerWeights[i][0] * x;
+            myModel->model_outs[i] = layer->weights[i][0] * x;
         }
         return 0.0;
     }
@@ -95,7 +88,7 @@ float forward_out(struct layer* layer, struct model* myModel)
 // Run on each input layer before clearing the layer gradients
 void sgd_backprop(struct layer* layer, struct model* myModel)
 {
-    if(absolute(layer->currLayerGradients[0]) - 0 > 0.0000001)
+    if(absolute(layer->gradients[0][0]) - 0 > 0.0000001)
     {
         return;
     }
@@ -110,9 +103,9 @@ void sgd_backprop(struct layer* layer, struct model* myModel)
 
             for(int j = 0; j < layer->numNodes; j++)
             {
-                for(int k = 0; k < layer->nextLayers[i]->numNodes; k++)
+                for(int k = 0; k < layer->prevLayers[i]->numNodes; k++)
                 {
-                    layer->currLayerGradients[j] += layer->nextLayers[i]->currLayerGradients[k] * layer->nextLayers[i]->currLayerWeights[i * layer->nextLayers[i]->numNodes + k][0];
+                    layer->gradients[j] += 0;
                 }
             }
         }
@@ -122,13 +115,13 @@ void sgd_backprop(struct layer* layer, struct model* myModel)
             switch(layer->activation)
             {
                 case 'r':
-                    layer->currLayerGradients[i] *= leaky_relu_derivative(layer->currLayerGradients[i]);
+                    layer->gradients[i][0] *= leaky_relu_derivative(layer->gradients[i][0]);
                     break;
                 case 't':
-                    layer->currLayerGradients[i] *= tanh_derivative(layer->currLayerGradients[i]);
+                    layer->gradients[i][0] *= tanh_derivative(layer->gradients[i][0]);
                     break;
                 case 'i':
-                    layer->currLayerGradients[i] *= 0;
+                    layer->gradients[i][0] *= 0;
                     break;
                 default:
                     break;
@@ -143,7 +136,7 @@ void sgd_backprop(struct layer* layer, struct model* myModel)
         }
     }
     
-    for(int i = 0; i < layer->numPrevLayers; i++) for(int j = 0; j < layer->prevLayers[i]->numNodes; j++) layer->currLayerWeights[i][j] -= myModel->learning_rate * layer->currLayerGradients[i];
+    for(int i = 0; i < layer->numPrevLayers; i++) for(int j = 0; j < layer->prevLayers[i]->numNodes; j++) layer->weights[i][j] -= myModel->learning_rate * layer->gradients[i][i];
 }
 
 

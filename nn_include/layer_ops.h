@@ -3,7 +3,7 @@
 
 #include "layer.h"
 
-void hakai_weight_matrix(float** weightMat)
+void hakai_matrix(float** weightMat)
 {
     int i = 0;
     while(weightMat[i] != NULL)
@@ -17,57 +17,38 @@ void hakai_weight_matrix(float** weightMat)
     weightMat = NULL;
 }
 
-struct layer* make_input_layer(int numNodes, int numNextLayers, int layer_id)
+// Solely to load input values into the model in a form where layer operations can be generalized into
+struct layer* make_input_layer(int numNodes, int numNextLayers, int layerID)
 {
     // Allocate space for the input layer
     struct layer *inLayer = (struct layer*)malloc(sizeof(struct layer));
-    if(inLayer == NULL)
-    {
-        return NULL;
-    }
+    if(inLayer == NULL) return NULL;
 
     inLayer->numPrevLayers = 0;
+    inLayer->numPrevNodes = 0;
     inLayer->numNextLayers = numNextLayers;
     // Enter this function with the outArray of the model and let it do its thing
     // No previous layers for an input layer
     inLayer->prevLayers = NULL;
+    // Input layer just accepts inputs, doesn't need actual weights, just something to facilitate forwarding values
+    inLayer->weights = NULL;
+    inLayer->gradients = NULL; // Input layer doesn't need gradients
 
     // Allocate space for the following layers so a forward pass is easier to implement and also navigating the layers
     inLayer->nextLayers = (struct layer**)calloc(numNextLayers, sizeof(struct layer*));
-    if(inLayer->nextLayers == NULL)
-    {
-        goto error1;
-    }
+    if(inLayer->nextLayers == NULL) goto error1;
 
-    // Input layer just accepts inputs, doesn't need weights
-    inLayer->currLayerWeights = (float**)calloc(numNodes, sizeof(float*));
-    if(inLayer->currLayerWeights == NULL)
-    {
-        goto error2;
-    }
-
-    for(int i = 0; i < numNodes; i++)
-    {
-        inLayer->currLayerWeights[i] = (float *)malloc(sizeof(float));
-        if(inLayer->currLayerWeights[i] == NULL) goto error3;
-        inLayer->currLayerWeights[i][0] = 1.0f;
-    }
-
-    inLayer->currLayerGradients = (float**)calloc(numNodes, sizeof(float*));
-    if(inLayer->currLayerGradients == NULL)
-    {
-        goto error3;
-    }
+    inLayer->activations = NULL;
+    
+    inLayer->outputs = (float *)calloc(numNodes, sizeof(float));
+    if(inLayer->outputs == NULL) goto error2;
 
     inLayer->numNodes = numNodes;
     inLayer->activation = 'i';
-    inLayer->layer_id = layer_id;
-    inLayer->numPrevNodes = {};
+    inLayer->layerID = layerID;
 
     return inLayer;
 
-error3:
-    hakai_weight_matrix(inLayer->currLayerWeights);
 error2:
     free(inLayer->nextLayers);
     inLayer->nextLayers = NULL;
@@ -78,28 +59,24 @@ error1:
     return NULL;
 }
 
-struct layer* make_dense_layer(struct layer** prev, int numNodes, int numPrevLayers, int numNextLayers, int layer_id, char norm)
+struct layer* make_dense_layer(struct layer** prev, int numNodes, int numPrevLayers, int numNextLayers, int layerID, char norm)
 {
     int j = 0;
-    int sumPrevs = 0;
 
     // Allocate space for the layer
     struct layer *denseLayer = (struct layer *)malloc(sizeof(struct layer));
-    if(denseLayer == NULL)
-    {
-        return NULL;
-    }
+    if(denseLayer == NULL) return NULL;
 
     // Set number of previous layers that feed into this layer and number of next layers that this layer feeds into
     // These make it easier to implement models with more complex structures than traditional NNs which would set these at 1
     // Also helps with backward passes
     denseLayer->numPrevLayers = numPrevLayers;
     denseLayer->numNextLayers = numNextLayers;
-    if(denseLayer->numPrevNodes == NULL) goto error1;
+    denseLayer->numPrevNodes = 0;
 
     // Allocate space for the previous layers using provided parameter - DESIGN YOUR MODEL BEFORE IMPLEMENTING CAREFULLY
     denseLayer->prevLayers = (struct layer **)malloc(sizeof(struct layer*) * numPrevLayers);
-    if(denseLayer->prevLayers == NULL) goto error2;
+    if(denseLayer->prevLayers == NULL) goto error1;
 
     // Set the previous layers as the previous layers
     memcpy(denseLayer->prevLayers, prev, sizeof(struct layer*) * numPrevLayers);
@@ -112,7 +89,7 @@ struct layer* make_dense_layer(struct layer** prev, int numNodes, int numPrevLay
             j += 1;
         }
 
-        sumPrevs += prev[i]->numNodes;
+        denseLayer->numPrevNodes += prev[i]->numNodes;
         prev[i]->nextLayers[j] = denseLayer;
         j = 0;
     }
@@ -121,50 +98,47 @@ struct layer* make_dense_layer(struct layer** prev, int numNodes, int numPrevLay
     denseLayer->nextLayers = (struct layer **)calloc(numNextLayers, sizeof(struct layer*));
     if(denseLayer->nextLayers == NULL) goto error2;
 
-    denseLayer->currLayerWeights = (float **)malloc((numNodes + 1) * sizeof(float*)); // Neuron weights plus a bias weight
-    if(denseLayer->currLayerWeights == NULL) goto error3;
+    denseLayer->weights = (float **)malloc(numNodes * sizeof(float*));
+    if(denseLayer->weights == NULL) goto error3;
 
     for(int i = 0; i < numNodes; i++)
     {
-        denseLayer->currLayerWeights[i] = (float *)malloc(sizeof(float) * sumPrevs);
-        if(denseLayer->currLayerWeights[i] == NULL) goto error4;
+        denseLayer->weights[i] = (float *)malloc(sizeof(float) * (denseLayer->numPrevNodes + 1)); // Each column is a connection to each neuron in the previous layer pus a bias
+        if(denseLayer->weights[i] == NULL) goto error4;
         
-        for(int j = 0; j < sumPrevs; j++) denseLayer->currLayerWeights[i][j] = {1.0f}; // Each column is a connection to each neuron in the previous layer pus a bias
-        denseLayer->currLayerWeights[i][sumPrevs] = 0.0f; // Initialize biases
+        for(int j = 0; j < denseLayer->numPrevNodes; j++) denseLayer->weights[i][j] = 1.0f; 
+        denseLayer->weights[i][denseLayer->numPrevNodes] = 0.0f; // Initialize biases
     }
-    
-    for(int i = 0; i < sumPrevs; i++) denseLayer->currLayerWeights[numNodes][i] = 1.0;
-    
-    denseLayer->currLayerGradients = (float **)calloc((numNodes + 1), sizeof(float)); // Each row is a neuron in this layer
-    if(denseLayer->currLayerGradients == NULL) goto error4;
+        
+    denseLayer->gradients = (float **)malloc(numNodes * sizeof(float)); // Each row is a neuron in this layer
+    if(denseLayer->gradients == NULL) goto error4;
     
     for(int i = 0; i < numNodes; i++)
     {
-        denseLayer->currLayerGradients[i] = (float *)calloc(sumPrevs + 1, sizeof(float)); // Each column is a connection to each neuron in the previous layers plus a bias
-        if(denseLayer->currLayerWeights[i] == NULL) goto error5;
-        
-        for(int j = 0; j < sumPrevs; j++) denseLayer->currLayerGradients[i][j] = 1.0f;
+        denseLayer->gradients[i] = (float *)calloc((denseLayer->numPrevNodes + 1), sizeof(float)); // Each column is a connection to each neuron in the previous layers plus a bias
+        if(denseLayer->weights[i] == NULL) goto error5;
     }
 
-    for(int i = 0; i < numNodes; i++)
-    {
-        for(int j = 0; j < sumPrevs; j++)
-        {
-            denseLayer->currLayerWeights[i][j] = 1; // Fix later to randomly initialize
-        }
-    }
+    denseLayer->activations = (float *)calloc(numNodes, sizeof(float));
+    if(denseLayer->activations == NULL) goto error5;
+    
+    denseLayer->outputs = (float *)calloc(numNodes, sizeof(float));
+    if(denseLayer->outputs == NULL) goto error6;
+    
 
     denseLayer->numNodes = numNodes;
     denseLayer->activation = 'r';
-    denseLayer->layer_id = layer_id;
-    denseLayer->numPrevNodes = sumPrevs;
+    denseLayer->layerID = layerID;
 
     return denseLayer;
 
+error6:
+    free(denseLayer->activations);
+    denseLayer->activations = NULL;
 error5:
-    hakai_weight_matrix(denseLayer->currLayerGradients);
+    hakai_matrix(denseLayer->gradients);
 error4:
-    hakai_weight_matrix(denseLayer->currLayerWeights);
+    hakai_matrix(denseLayer->weights);
 error3:
     free(denseLayer->nextLayers);
     denseLayer->nextLayers = NULL;
@@ -178,16 +152,17 @@ error1:
     return NULL;
 }
 
-struct layer* make_output_layer(struct layer** prev, int numNodes, int numPrevLayers, int layer_id)
+struct layer* make_output_layer(struct layer** prev, int numNodes, int numPrevLayers, int layerID)
 {
     int j = 0;
-    int sumPrevs = 0;
+
     struct layer *outLayer = (struct layer *)malloc(sizeof(struct layer));
     if(outLayer == NULL) return NULL;
 
     outLayer->numPrevLayers = numPrevLayers;
     outLayer->numNextLayers = 0;
     outLayer->nextLayers = NULL; // No next layers for an output layer
+    outLayer->numPrevNodes = 0;
 
     // Allocate space for the previous layers using provided parameter - DESIGN YOUR MODEL BEFORE IMPLEMENTING
     outLayer->prevLayers = (struct layer **)malloc(sizeof(struct layer*) * numPrevLayers);
@@ -201,41 +176,52 @@ struct layer* make_output_layer(struct layer** prev, int numNodes, int numPrevLa
         {
             j += 1;
         }
+
+        outLayer->numPrevNodes += prev[i]->numNodes;
         prev[i]->nextLayers[j] = outLayer;
         j = 0;
     }
 
-    outLayer->currLayerWeights = (float **)malloc((numNodes) * sizeof(float*)); // Each row is a neuron
-    if(outLayer->currLayerWeights == NULL) goto error2;
+    outLayer->weights = (float **)malloc((numNodes) * sizeof(float*)); // Each row is a neuron
+    if(outLayer->weights == NULL) goto error2;
 
     for(int i = 0; i < numNodes; i++)
     {
-        outLayer->currLayerWeights[i] = (float *)malloc(sizeof(float) * (sumPrevs)); // Each column is a weight from the neuron row to an input or a 
-        if(outLayer->currLayerWeights[i] == NULL) goto error3;
+        outLayer->weights[i] = (float *)malloc(sizeof(float) * (outLayer->numPrevNodes + 1));
+        if(outLayer->weights[i] == NULL) goto error3;
         
-        for(int j = 0; j < sumPrevs; j++) outLayer->currLayerWeights[i][j] = 1.0f; // Initialize weight connections
+        for(int j = 0; j < outLayer->numPrevNodes; j++) outLayer->weights[i][j] = 1.0f; // Initialize weight connections
+        outLayer->weights[i][outLayer->numPrevNodes] = 0.0f;
     }
     
-    outLayer->currLayerGradients = (float **)calloc(numNodes, sizeof(float*)); // Neuron weights plus a bias weight
-    if(outLayer->currLayerGradients == NULL) goto error3;
+    outLayer->gradients = (float **)calloc(numNodes, sizeof(float*)); // Neuron weights plus a bias weight
+    if(outLayer->gradients == NULL) goto error3;
 
     for(int i = 0; i < numNodes; i++)
     {
-        for(int j = 0; j < sumPrevs; j++)
-        {
-            outLayer->currLayerWeights[i][j] = 1; // Fix later to randomly initialize
-        }
+        outLayer->gradients[i] = (float *)calloc((outLayer->numPrevNodes + 1), sizeof(float));
+        if(outLayer->gradients[i] == NULL) goto error4;
     }
+
+    outLayer->activations = (float *)calloc(numNodes, sizeof(float));
+    if(outLayer->activations == NULL) goto error4;
+    
+    outLayer->outputs = (float *)calloc(numNodes, sizeof(float));
+    if(outLayer->outputs == NULL) goto error5;
 
     outLayer->numNodes = numNodes;
     outLayer->activation = 't';
-    outLayer->layer_id = layer_id;
-    outLayer->numPrevNodes = sumPrevs;
+    outLayer->layerID = layerID;
 
     return outLayer;
 
+error5:
+    free(outLayer->activations);
+    outLayer->activations = NULL;
+error4:
+    hakai_matrix(outLayer->gradients);
 error3:
-    hakai_weight_matrix(outLayer->currLayerWeights);
+    hakai_matrix(outLayer->weights);
 error2:
     free(outLayer->prevLayers);
     outLayer->prevLayers = NULL;

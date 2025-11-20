@@ -18,7 +18,7 @@ struct model* construct_model(int numLayers, int numInLayers, float learning_rat
         goto error1;
     }
 
-    myModel->layer_outs = (float *)calloc(numLayers, sizeof(float));
+    myModel->model_outs = (float *)calloc(numLayers, sizeof(float));
     if(myModel->layer_ids == NULL)
     {
         goto error2;
@@ -66,11 +66,11 @@ error4:
     free(myModel->inLayers);
     myModel->inLayers = NULL;
 error3:
-    free(myModel->layer_outs);
-    myModel->layer_outs = NULL;
+    free(myModel->model_outs);
+    myModel->model_outs = NULL;
 error2:
     free(myModel->layer_ids);
-    myModel->layer_outs = NULL;
+    myModel->model_outs = NULL;
 error1:
     free(myModel);
     myModel = NULL;
@@ -80,11 +80,11 @@ error1:
 
 
 // For clearing the outputs once no longer needed, and to also prime for next forward pass
-void hakai_layer_outs(struct model* myModel)
+void hakai_model_outs(struct model* myModel)
 {
     for(int i = 0; i < (myModel->numLayers); i++)
     {
-        myModel->layer_outs[i] = 0;
+        myModel->model_outs[i] = 0;
     }
 }
 
@@ -93,15 +93,14 @@ void hakai_layer(struct layer* layer, struct model* myModel)
 {
     int i = 0;
     
-    if(myModel->layer_ids[layer->layer_id] == 0)
+    if(myModel->layer_ids[layer->layerID] == 0)
     {
         return;
     }
 
-    free(layer->currLayerGradients);
-    layer->currLayerGradients = NULL;
+    hakai_matrix(layer->gradients);
 
-    hakai_weight_matrix(layer->currLayerWeights);
+    hakai_matrix(layer->weights);
 
     free(layer->nextLayers);
     layer->nextLayers = NULL;
@@ -109,7 +108,7 @@ void hakai_layer(struct layer* layer, struct model* myModel)
     //free(lay->prevLayers);
     layer->prevLayers = NULL;
 
-    myModel->layer_ids[layer->layer_id] = 0;
+    myModel->layer_ids[layer->layerID] = 0;
 
     while(myModel->layer_refs[i] != NULL)
     {
@@ -129,13 +128,13 @@ void clear_model(struct layer** layerArr, struct model* myModel, int layerNums)
     }
     for(int i = 0; i < layerNums; i++)
     {
-        if(myModel->layer_ids[layerArr[i]->layer_id] == 0)
+        if(myModel->layer_ids[layerArr[i]->layerID] == 0)
         {
             continue;
         }
         clear_model(layerArr[i]->prevLayers, myModel, layerArr[i]->numPrevLayers);
         hakai_layer(layerArr[i], myModel);
-        myModel->layer_ids[layerArr[i]->layer_id] = 0;
+        myModel->layer_ids[layerArr[i]->layerID] = 0;
         layerArr[i] = NULL;
     }
     free(layerArr);
@@ -153,8 +152,8 @@ void hakai_model(struct model* myModel)
     outArr[0] = myModel->outLayer;
     clear_model(outArr, myModel, myModel->numLayers);
     
-    free(myModel->layer_outs);
-    myModel->layer_outs = NULL;
+    free(myModel->model_outs);
+    myModel->model_outs = NULL;
 
     free(myModel->layer_ids);
     myModel->layer_ids = NULL;

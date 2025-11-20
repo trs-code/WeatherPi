@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #define LAYER_SIZE 56
 
@@ -18,18 +19,20 @@
 // OR I WILL PERSONALLY HUNT YOU DOWN AND STICK A NEURAL NETWORK
 // IN A PLACE WHERE THE LIGHT DON'T SHINE
 
-// 56 Bytes
+// 56 Bytes to allocate for the structure at base
 struct layer
 {
     struct layer **prevLayers;
     struct layer **nextLayers;
-    float **currLayerWeights;
-    float **currLayerGradients;
+    float **weights;
+    float **gradients;
+    float *activations;
+    float *outputs;
     int numPrevNodes;
     int numNodes;
     int numPrevLayers;
     int numNextLayers;
-    int layer_id;    
+    int layerID;    
     char activation;
 };
 
