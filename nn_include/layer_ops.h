@@ -3,18 +3,18 @@
 
 #include "layer.h"
 
-void hakai_matrix(float** weightMat)
+void hakai_matrix(float** mat)
 {
     int i = 0;
-    while(weightMat[i] != NULL)
+    while(mat[i] != NULL)
     {
-        free(weightMat[i]);
-        weightMat[i] = NULL;
+        free(mat[i]);
+        mat[i] = NULL;
         i += 1;
     }
 
-    free(weightMat);
-    weightMat = NULL;
+    free(mat);
+    mat = NULL;
 }
 
 // Solely to load input values into the model in a form where layer operations can be generalized into
@@ -27,7 +27,6 @@ struct layer* make_input_layer(int numNodes, int numNextLayers, int layerID)
     inLayer->numPrevLayers = 0;
     inLayer->numPrevNodes = 0;
     inLayer->numNextLayers = numNextLayers;
-    // Enter this function with the outArray of the model and let it do its thing
     // No previous layers for an input layer
     inLayer->prevLayers = NULL;
     // Input layer just accepts inputs, doesn't need actual weights, just something to facilitate forwarding values
@@ -125,7 +124,6 @@ struct layer* make_dense_layer(struct layer** prev, int numNodes, int numPrevLay
     denseLayer->outputs = (float *)calloc(numNodes, sizeof(float));
     if(denseLayer->outputs == NULL) goto error6;
     
-
     denseLayer->numNodes = numNodes;
     denseLayer->activation = 'r';
     denseLayer->layerID = layerID;
