@@ -1,9 +1,9 @@
 #include <stdio.h>
-#include "./nn_include/model.h"
+#include "nn_include/nn.h"
 
 int main()
 {
-    struct model *myModel = construct_model(3, 1, 0.01f);
+    struct model *myModel = construct_model(3, 1, 0.01f, 1);
     if(myModel == NULL)
     {
         printf("Memory allocation failed at model\n");
@@ -45,10 +45,17 @@ int main()
     float values[] = {20.5, 18.6, -4.08};
     load_layer(myModel->inLayers[0], values);
     
-    float result = forward_out(myModel->outLayer, myModel);
-    printf("Model output is: %f\n", result);
+    forward_out(myModel->outLayer, myModel);
+    printf("Model output is: %f\n", myModel->model_outs[0]);
 
+    hakai_layer_outs(myModel);
+    hakai_layer_grads(myModel);
     hakai_model(myModel);
+    layer0 = NULL;
+    layer1 = NULL;
+    layer2 = NULL;
+    myModel = NULL;
+    
     printf("Test Successful\n");
     return 0;
 
