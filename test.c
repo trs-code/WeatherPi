@@ -42,14 +42,13 @@ int main()
 
     printf("Model creation successful\n");
 
-    float values[] = {20.5, 18.6, -4.08};
-    load_layer(myModel->inLayers[0], values);
-    
-    forward_out(myModel->outLayer, myModel);
-    printf("Model output is: %f\n", myModel->outLayer->outputs);
+    float values[] = {5.0, 10.0, 15.0};
+    memcpy(myModel->inLayers[0]->activations, values, 3*sizeof(float));
 
-    hakai_layer_outs(myModel);
-    hakai_layer_grads(myModel);
+    forward_out(myModel->outLayer);
+
+    printf("Model output is: %f\n", myModel->outLayer->activations[0]);
+
     hakai_model(myModel);
     layer0 = NULL;
     layer1 = NULL;

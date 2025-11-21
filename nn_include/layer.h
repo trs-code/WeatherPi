@@ -31,7 +31,7 @@ struct layer
     int numPrevLayers;
     int numNextLayers;
     int layerID;    
-    char activation;
+    char activationFunction;
 };
 
 

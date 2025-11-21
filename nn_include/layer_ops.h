@@ -2,11 +2,7 @@
 #define NN_LAYER_OPS
 
 #include "layer.h"
-
-void freeNull(void* ptr)
-{
-    
-}
+#include "nn_math.h"
 
 void hakai_matrix(float** mat)
 {
@@ -32,23 +28,21 @@ struct layer* make_input_layer(int numNodes, int numNextLayers, int layerID)
     inLayer->numPrevLayers = 0;
     inLayer->numPrevNodes = 0;
     inLayer->numNextLayers = numNextLayers;
-    // No previous layers for an input layer
-    inLayer->prevLayers = NULL;
-    // Input layer just accepts inputs, doesn't need actual weights, just something to facilitate forwarding values
-    inLayer->weights = NULL;
-    inLayer->gradients = NULL; // Input layer doesn't need gradients
+    inLayer->prevLayers = NULL; // No previous layers for an input layer
+    inLayer->weights = NULL;    // Input layer just accepts inputs, doesn't need actual weights, just something to facilitate forwarding values
+    inLayer->gradients = NULL;  // Input layer doesn't need gradients
 
     // Allocate space for the following layers so a forward pass is easier to implement and also navigating the layers
     inLayer->nextLayers = (struct layer**)calloc(numNextLayers, sizeof(struct layer*));
     if(inLayer->nextLayers == NULL) goto error1;
 
-    inLayer->activations = NULL;
+    inLayer->outputs = NULL;
     
-    inLayer->outputs = (float *)calloc(numNodes, sizeof(float));
-    if(inLayer->outputs == NULL) goto error2;
+    inLayer->activations = (float *)calloc(numNodes, sizeof(float));
+    if(inLayer->activations == NULL) goto error2;
 
     inLayer->numNodes = numNodes;
-    inLayer->activation = 'i';
+    inLayer->activationFunction = 'i';
     inLayer->layerID = layerID;
 
     return inLayer;
@@ -107,11 +101,11 @@ struct layer* make_dense_layer(struct layer** prev, int numNodes, int numPrevLay
 
     for(int i = 0; i < numNodes; i++)
     {
-        denseLayer->weights[i] = (float *)malloc(sizeof(float) * (denseLayer->numPrevNodes + 1)); // Each column is a connection to each neuron in the previous layer pus a bias
+        denseLayer->weights[i] = (float *)malloc(sizeof(float) * (denseLayer->numPrevNodes)); // Each column is a connection to each neuron in the previous layer pus a bias
         if(denseLayer->weights[i] == NULL) goto error4;
         
         for(int j = 0; j < denseLayer->numPrevNodes; j++) denseLayer->weights[i][j] = 1.0f; 
-        denseLayer->weights[i][denseLayer->numPrevNodes] = 0.0f; // Initialize biases
+        //denseLayer->weights[i][denseLayer->numPrevNodes] = 0.0f; // Initialize biases
     }
         
     denseLayer->gradients = (float **)malloc(numNodes * sizeof(float)); // Each row is a neuron in this layer
@@ -119,8 +113,10 @@ struct layer* make_dense_layer(struct layer** prev, int numNodes, int numPrevLay
     
     for(int i = 0; i < numNodes; i++)
     {
-        denseLayer->gradients[i] = (float *)calloc((denseLayer->numPrevNodes + 1), sizeof(float)); // Each column is a connection to each neuron in the previous layers plus a bias
+        denseLayer->gradients[i] = (float *)calloc((denseLayer->numPrevNodes), sizeof(float)); // Each column is a connection to each neuron in the previous layers plus a bias
         if(denseLayer->weights[i] == NULL) goto error5;
+
+        //denseLayer->gradients[i][denseLayer->numPrevNodes] = 0.0f; // Initialize biases
     }
 
     denseLayer->activations = (float *)calloc(numNodes, sizeof(float));
@@ -130,7 +126,7 @@ struct layer* make_dense_layer(struct layer** prev, int numNodes, int numPrevLay
     if(denseLayer->outputs == NULL) goto error6;
     
     denseLayer->numNodes = numNodes;
-    denseLayer->activation = 'r';
+    denseLayer->activationFunction = 'r';
     denseLayer->layerID = layerID;
 
     return denseLayer;
@@ -213,7 +209,7 @@ struct layer* make_output_layer(struct layer** prev, int numNodes, int numPrevLa
     if(outLayer->outputs == NULL) goto error5;
 
     outLayer->numNodes = numNodes;
-    outLayer->activation = 't';
+    outLayer->activationFunction = 't';
     outLayer->layerID = layerID;
 
     return outLayer;
@@ -235,60 +231,23 @@ error1:
     return NULL;
 }
 
-/*
-struct layer* make_normalization_layer(struct layer* prev, int numNextLayers = 1)
+// For clearing the gradients once no longer needed, and to also prime for next backward pass
+// Use by passing the output layer of the model into the function 
+void clear_layer_numericals(struct layer* layer)
 {
-    int layerWeightsSize = sizeof(prev->currLayerWeights);
-    int prevSize = sizeof(prev);
-    struct layer *normLayer = (struct layer*)malloc(sizeof(struct layer));
-    if(normLayer == NULL)
+    if(absolute(layer->gradients[0][0]) - 0.0f > 0.0000001) return;
+
+    if(layer->numNextLayers != 0)
     {
-        return NULL;
+        for(int i = 0; i < layer->numNextLayers; i++) clear_layer_numericals(layer->nextLayers[i]);
     }
 
-    normLayer->numNodes = prev->numNodes;
-    normLayer->numPrevLayers = 1;
-    normLayer->numNextLayers = numNextLayers;
-    
-    normLayer->prevLayers = (layer **)malloc(prevSize);
-    if(normLayer->prevLayers == NULL)
-    {
-        goto error1;
-    }
-
-    normLayer->nextLayers = (layer **)malloc(sizeof(struct layer*)*numNextLayers);
-    if(normLayer->prevLayers == NULL)
-    {
-        goto error2;
-    }
-    
-    memcpy(normLayer->prevLayers, prev, prevSize);
-    normLayer->currLayerWeights = (float *)malloc(layerWeightsSize);
-    if(normLayer->currLayerWeights == NULL)
-    {
-        goto error3;
-    }
-
-    memcpy(normLayer->currLayerWeights, prev->currLayerWeights, layerWeightsSize);
-
-    minMaxNorm(normLayer->currLayerWeights, normLayer->numNodes);
-    
-    normLayer->activation = 'r';
-
-    return normLayer;
-
-error3:
-    free(normLayer->nextLayers);
-    normLayer->nextLayers = NULL;
-error2:
-    free(normLayer->prevLayers);
-    normLayer->prevLayers = NULL;
-error1:
-    free(normLayer);
-    normLayer = NULL;
-
-    return NULL;
+    for(int i = 0; i < layer->numNodes; i++) memset(layer->gradients[i], 0, layer->numPrevNodes * sizeof(float));
+    memset(layer->outputs, 0, layer->numNodes * sizeof(float));
+    memset(layer->activations, 0, layer->numNodes * sizeof(float));
 }
-*/
+
+
+struct layer* make_normalization_layer();
 
 #endif

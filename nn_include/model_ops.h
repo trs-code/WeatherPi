@@ -44,15 +44,18 @@ void hakai_layer(struct layer* layer, struct model* myModel)
 
     hakai_matrix(layer->gradients);
 
+    free(layer->outputs);
+    layer->outputs = NULL;
+
+    free(layer->activations);
+    layer->activations = NULL;
+
     hakai_matrix(layer->weights);
 
     free(layer->nextLayers);
     layer->nextLayers = NULL;
     
-    //free(lay->prevLayers);
-    layer->prevLayers = NULL;
-
-    if(myModel->layer_refs[layer->layerID] != NULL) myModel->layer_refs[layer->layerID] = layer;
+    myModel->layer_refs[layer->layerID] = layer;
 
 }
 
@@ -78,13 +81,16 @@ void clear_model(struct layer** layerArr, struct model* myModel, int layerNums)
 
 void hakai_model(struct model* myModel)
 {
-    struct layer outArr[] = (myModel->outLayer);
-    clear_model(outArr, myModel, myModel->numLayers);
+    struct layer **outArr = (struct layer**)malloc(sizeof(struct layer*));
+    if(outArr == NULL) return;
+    
+    outArr[0] = myModel->outLayer;
+    clear_model(outArr, myModel, 1);
 
     free(myModel->inLayers);
     myModel->inLayers = NULL;
 
-    for(int i = myModel->numLayers - 1; i >= 0; i--)
+    for(int i = 0; i < myModel->numLayers; i++)
     {
         free(myModel->layer_refs[i]);
         myModel->layer_refs[i] = NULL;
@@ -99,9 +105,6 @@ void hakai_model(struct model* myModel)
     free(myModel);
     myModel = NULL;
 }
-
-
-void load_target_values(float);
 
 int save_model(struct model* saveMod);
 
