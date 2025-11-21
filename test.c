@@ -17,7 +17,7 @@ int main()
         printf("Memory allocation failed at layer0\n");
         goto error2;
     }
-    myModel->layer_ids[layer0->layer_id] = 1;
+    myModel->layer_refs[layer0->layerID] = layer0;
     
     struct layer* layer1_in[] = {layer0};
     struct layer* layer1 = make_dense_layer(layer1_in, 3, 1, 1, 1, 'f');
@@ -26,7 +26,7 @@ int main()
         printf("Memory allocation failed at layer1\n");
         goto error3;
     }
-    myModel->layer_ids[layer1->layer_id] = 1;
+    myModel->layer_refs[layer1->layerID] = layer1;
 
     struct layer* layer2_in[] = {layer1};
     struct layer* layer2 = make_output_layer(layer2_in, 1, 1, 2);
@@ -35,7 +35,7 @@ int main()
         printf("Memory allocation failed at layer0\n");
         goto error4;
     }
-    myModel->layer_ids[layer2->layer_id] = 1;
+    myModel->layer_refs[layer2->layerID] = layer2;
 
     myModel->inLayers[0] = layer0;
     myModel->outLayer = layer2;
@@ -46,7 +46,7 @@ int main()
     load_layer(myModel->inLayers[0], values);
     
     forward_out(myModel->outLayer, myModel);
-    printf("Model output is: %f\n", myModel->model_outs[0]);
+    printf("Model output is: %f\n", myModel->outLayer->outputs);
 
     hakai_layer_outs(myModel);
     hakai_layer_grads(myModel);

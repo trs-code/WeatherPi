@@ -3,6 +3,11 @@
 
 #include "layer.h"
 
+void freeNull(void* ptr)
+{
+    
+}
+
 void hakai_matrix(float** mat)
 {
     int i = 0;

@@ -5,8 +5,6 @@
 #include <string.h>
 #include <time.h>
 
-#define LAYER_SIZE 56
-
 //          VERY FUCKING IMPORTANT
 // MAKE SURE AN EXIT PROCESS FREES THE MEMORY FOR
 //

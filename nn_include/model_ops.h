@@ -2,52 +2,20 @@
 #define NN_MODEL_OPS
 
 #include "model.h"
-#include "layer_ops.h"
 
 struct model* construct_model(int numLayers, int numInLayers, float learning_rate, int numOutputs)
 {
     struct model *myModel = (struct model*)malloc(sizeof(struct model));
-    if(myModel == NULL)
-    {
-        return NULL;
-    }
-
-    myModel->layer_ids = (int *)calloc(numLayers, sizeof(int));
-    if(myModel->layer_ids == NULL)
-    {
-        goto error1;
-    }
-
-    myModel->model_outs = (float *)calloc(numLayers, sizeof(float));
-    if(myModel->layer_ids == NULL)
-    {
-        goto error2;
-    }
+    if(myModel == NULL) return NULL;
 
     myModel->inLayers = (struct layer **)calloc(numInLayers, sizeof(struct layer*));
-    if(myModel->inLayers == NULL)
-    {
-        goto error3;
-    }
+    if(myModel->inLayers == NULL) goto error1;
 
     myModel->layer_refs = (struct layer **)calloc(numLayers, sizeof(struct layer*));
-    if(myModel->layer_refs == NULL)
-    {
-        goto error4;
-    }
+    if(myModel->layer_refs == NULL) goto error2;
 
     myModel->targets = (float *)calloc(numOutputs, sizeof(float));
-    if(myModel->targets == NULL)
-    {
-        goto error5;
-    }
-
-    myModel->model_outs = (float *)calloc(numOutputs, sizeof(float));
-    if(myModel->targets == NULL)
-    {
-        goto error6;
-    }
-
+    if(myModel->targets == NULL) goto error3;
 
     myModel->numLayers = numLayers;
     myModel->learning_rate = learning_rate;
@@ -56,21 +24,12 @@ struct model* construct_model(int numLayers, int numInLayers, float learning_rat
 
     return myModel;
 
-error6:
-    free(myModel->targets);
-    myModel->targets = NULL;
-error5:
+error3:
     free(myModel->layer_refs);
     myModel->layer_refs = NULL;
-error4:
+error2:
     free(myModel->inLayers);
     myModel->inLayers = NULL;
-error3:
-    free(myModel->model_outs);
-    myModel->model_outs = NULL;
-error2:
-    free(myModel->layer_ids);
-    myModel->model_outs = NULL;
 error1:
     free(myModel);
     myModel = NULL;
@@ -78,25 +37,10 @@ error1:
     return NULL;
 }
 
-
-// For clearing the outputs once no longer needed, and to also prime for next forward pass
-void hakai_model_outs(struct model* myModel)
-{
-    for(int i = 0; i < (myModel->numLayers); i++)
-    {
-        myModel->model_outs[i] = 0;
-    }
-}
-
 // Destroy an individual layer after operations are concluded
 void hakai_layer(struct layer* layer, struct model* myModel)
 {
-    int i = 0;
-    
-    if(myModel->layer_ids[layer->layerID] == 0)
-    {
-        return;
-    }
+    if(myModel->layer_refs[layer->layerID] != NULL) return;
 
     hakai_matrix(layer->gradients);
 
@@ -108,13 +52,7 @@ void hakai_layer(struct layer* layer, struct model* myModel)
     //free(lay->prevLayers);
     layer->prevLayers = NULL;
 
-    myModel->layer_ids[layer->layerID] = 0;
-
-    while(myModel->layer_refs[i] != NULL)
-    {
-        myModel->layer_refs[i] = layer;
-        i += 1;
-    }
+    if(myModel->layer_refs[layer->layerID] != NULL) myModel->layer_refs[layer->layerID] = layer;
 
 }
 
@@ -122,41 +60,29 @@ void hakai_layer(struct layer* layer, struct model* myModel)
 // One big advantage of the doubly linked list structure is being able to exploit the convergence of the model on the output layer
 void clear_model(struct layer** layerArr, struct model* myModel, int layerNums)
 {
-    if(layerArr == NULL)
-    {
-        return;
-    }
+    if(layerArr == NULL) return;
+
     for(int i = 0; i < layerNums; i++)
     {
-        if(myModel->layer_ids[layerArr[i]->layerID] == 0)
-        {
-            continue;
-        }
+        if(myModel->layer_refs[layerArr[i]->layerID] != NULL) continue;
+        
         clear_model(layerArr[i]->prevLayers, myModel, layerArr[i]->numPrevLayers);
         hakai_layer(layerArr[i], myModel);
-        myModel->layer_ids[layerArr[i]->layerID] = 0;
+        
         layerArr[i] = NULL;
     }
+    
     free(layerArr);
     layerArr = NULL;
 }
 
 void hakai_model(struct model* myModel)
 {
-    struct layer **outArr = (struct layer**)malloc(sizeof(struct layer*));
-    if(outArr == NULL)
-    {
-        return;
-    }
-
-    outArr[0] = myModel->outLayer;
+    struct layer outArr[] = (myModel->outLayer);
     clear_model(outArr, myModel, myModel->numLayers);
-    
-    free(myModel->model_outs);
-    myModel->model_outs = NULL;
 
-    free(myModel->layer_ids);
-    myModel->layer_ids = NULL;
+    free(myModel->inLayers);
+    myModel->inLayers = NULL;
 
     for(int i = myModel->numLayers - 1; i >= 0; i--)
     {

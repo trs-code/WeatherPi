@@ -3,42 +3,36 @@
 #include "model_ops.h"
 #include "nn_math.h"
 
-// For clearing the gradients once no longer needed, and to also prime for next forward pass
+// For clearing the gradients once no longer needed, and to also prime for next backward pass
 // Use by passing the output layer of the model into the function 
 void hakai_layer_grads(struct layer* layer)
 {
-    if(absolute(layer->gradients[0][0]) - 0 > 0.0000001)
-    {
-        return;
-    }
+    if(absolute(layer->gradients[0][0]) - 0.0f > 0.0000001) return;
 
     if(layer->numNextLayers != 0)
     {
-        for(int i = 0; i < layer->numNextLayers; i++)
-        {
-            hakai_layer_grads(layer->nextLayers[i]);
-        }
+        for(int i = 0; i < layer->numNextLayers; i++) hakai_layer_grads(layer->nextLayers[i]);
     }
 
-    memset(layer->gradients, 0, layer->numNodes * sizeof(float));
+    for(int i = 0; i < layer->numNodes; i++) memset(layer->gradients[i], 0, layer->numPrevNodes * sizeof(float));
 }
 
 
 //  Gets an output from the target layer
-float forward_out(struct layer* layer, struct model* myModel)
+float* forward_out(struct layer* layer, struct model* myModel)
 {
     float x = 0;
 
-    if(absolute(myModel->model_outs[layer->layer_id]) - 0 > 0.00000001)
+    if(absolute(myModel->outLayer->outputs[0]) - 0 > 0.00000001)
     {
-        return myModel->model_outs[layer->layer_id];
+        return myModel->outLayer;
     }
 
     if(layer->numPrevLayers != 0)
     {
         for(int i = 0; i < layer->numPrevLayers; i++)
         {
-            x += forward_out(layer->prevLayers[i], myModel);
+            x += forward_out(layer->prevLayers[i], myModel)[0];
         }
         
     }
@@ -49,15 +43,14 @@ float forward_out(struct layer* layer, struct model* myModel)
 
     if(layer->numNextLayers != 0)
     {
-        float layerOut = 0;
+        float layerOut[] = {0};
         for(int i = 0; i < layer->numNodes; i++)
         {
-            layerOut += layer->weights[i][0] * x;
+            layerOut[0] += layer->weights[i][0] * x;
         }
         
-        myModel->model_outs[layer->layer_id] = layerOut;
 
-        layerOut += layer->weights[layer->numNodes][0];
+        layerOut[0] += layer->weights[layer->numNodes][0];
 
         switch(layer->activation)
         {
@@ -79,9 +72,9 @@ float forward_out(struct layer* layer, struct model* myModel)
     {
         for(int i = 0; i < layer->numNodes; i++)
         {
-            myModel->model_outs[i] = layer->weights[i][0] * x;
+            myModel->outLayer->outputs[i] = layer->weights[i][0] * x;
         }
-        return 0.0;
+        return {0.0};
     }
 }
 
@@ -132,7 +125,7 @@ void sgd_backprop(struct layer* layer, struct model* myModel)
     {
         for(int i = 0; i < layer->numNodes; i++)
         {
-            float nodeLossDerivative = mse_loss_derivative(myModel->targets[i], myModel->model_outs[i]);
+            float nodeLossDerivative = mse_loss_derivative(myModel->targets[i], myModel->outLayer->outputs[i]);
         }
     }
     
