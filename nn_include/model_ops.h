@@ -42,7 +42,8 @@ void hakai_layer(struct layer* layer, struct model* myModel)
 {
     if(myModel->layer_refs[layer->layerID] != NULL) return;
 
-    hakai_matrix(layer->gradients);
+    free(layer->backErrors);
+    layer->backErrors = NULL;
 
     free(layer->outputs);
     layer->outputs = NULL;

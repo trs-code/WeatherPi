@@ -30,7 +30,7 @@ struct layer* make_input_layer(int numNodes, int numNextLayers, int layerID)
     inLayer->numNextLayers = numNextLayers;
     inLayer->prevLayers = NULL; // No previous layers for an input layer
     inLayer->weights = NULL;    // Input layer just accepts inputs, doesn't need actual weights, just something to facilitate forwarding values
-    inLayer->gradients = NULL;  // Input layer doesn't need gradients
+    inLayer->backErrors = NULL;  // Input layer doesn't need backErrors
 
     // Allocate space for the following layers so a forward pass is easier to implement and also navigating the layers
     inLayer->nextLayers = (struct layer**)calloc(numNextLayers, sizeof(struct layer*));
@@ -44,6 +44,7 @@ struct layer* make_input_layer(int numNodes, int numNextLayers, int layerID)
     inLayer->numNodes = numNodes;
     inLayer->activationFunction = 'i';
     inLayer->layerID = layerID;
+    inLayer->switchVar = '0';
 
     return inLayer;
 
@@ -107,17 +108,9 @@ struct layer* make_dense_layer(struct layer** prev, int numNodes, int numPrevLay
         for(int j = 0; j < denseLayer->numPrevNodes; j++) denseLayer->weights[i][j] = 1.0f; 
         //denseLayer->weights[i][denseLayer->numPrevNodes] = 0.0f; // Initialize biases
     }
-        
-    denseLayer->gradients = (float **)malloc(numNodes * sizeof(float)); // Each row is a neuron in this layer
-    if(denseLayer->gradients == NULL) goto error4;
     
-    for(int i = 0; i < numNodes; i++)
-    {
-        denseLayer->gradients[i] = (float *)calloc((denseLayer->numPrevNodes), sizeof(float)); // Each column is a connection to each neuron in the previous layers plus a bias
-        if(denseLayer->weights[i] == NULL) goto error5;
-
-        //denseLayer->gradients[i][denseLayer->numPrevNodes] = 0.0f; // Initialize biases
-    }
+    denseLayer->backErrors = (float *)calloc((denseLayer->numPrevNodes), sizeof(float));
+    if(denseLayer->backErrors == NULL) goto error4;
 
     denseLayer->activations = (float *)calloc(numNodes, sizeof(float));
     if(denseLayer->activations == NULL) goto error5;
@@ -128,6 +121,7 @@ struct layer* make_dense_layer(struct layer** prev, int numNodes, int numPrevLay
     denseLayer->numNodes = numNodes;
     denseLayer->activationFunction = 'r';
     denseLayer->layerID = layerID;
+    denseLayer->switchVar = '0';
 
     return denseLayer;
 
@@ -135,7 +129,8 @@ error6:
     free(denseLayer->activations);
     denseLayer->activations = NULL;
 error5:
-    hakai_matrix(denseLayer->gradients);
+    free(denseLayer->backErrors);
+    denseLayer->backErrors = NULL;
 error4:
     hakai_matrix(denseLayer->weights);
 error3:
@@ -192,15 +187,9 @@ struct layer* make_output_layer(struct layer** prev, int numNodes, int numPrevLa
         for(int j = 0; j < outLayer->numPrevNodes; j++) outLayer->weights[i][j] = 1.0f; // Initialize weight connections
         outLayer->weights[i][outLayer->numPrevNodes] = 0.0f;
     }
-    
-    outLayer->gradients = (float **)calloc(numNodes, sizeof(float*)); // Neuron weights plus a bias weight
-    if(outLayer->gradients == NULL) goto error3;
 
-    for(int i = 0; i < numNodes; i++)
-    {
-        outLayer->gradients[i] = (float *)calloc((outLayer->numPrevNodes + 1), sizeof(float));
-        if(outLayer->gradients[i] == NULL) goto error4;
-    }
+    outLayer->backErrors = (float *)calloc((outLayer->numPrevNodes), sizeof(float));
+    if(outLayer->backErrors == NULL) goto error3;
 
     outLayer->activations = (float *)calloc(numNodes, sizeof(float));
     if(outLayer->activations == NULL) goto error4;
@@ -211,6 +200,7 @@ struct layer* make_output_layer(struct layer** prev, int numNodes, int numPrevLa
     outLayer->numNodes = numNodes;
     outLayer->activationFunction = 't';
     outLayer->layerID = layerID;
+    outLayer->switchVar = '0';
 
     return outLayer;
 
@@ -218,7 +208,8 @@ error5:
     free(outLayer->activations);
     outLayer->activations = NULL;
 error4:
-    hakai_matrix(outLayer->gradients);
+    free(outLayer->backErrors);
+    outLayer->backErrors = NULL;
 error3:
     hakai_matrix(outLayer->weights);
 error2:
@@ -231,18 +222,18 @@ error1:
     return NULL;
 }
 
-// For clearing the gradients once no longer needed, and to also prime for next backward pass
+// For clearing the backErrors once no longer needed, and to also prime for next backward pass
 // Use by passing the output layer of the model into the function 
 void clear_layer_numericals(struct layer* layer)
 {
-    if(absolute(layer->gradients[0][0]) - 0.0f > 0.0000001) return;
+    if(absolute(layer->backErrors[0]) - 0.0f > 0.0000001) return;
 
-    if(layer->numNextLayers != 0)
+    if(layer->numPrevLayers != 0)
     {
-        for(int i = 0; i < layer->numNextLayers; i++) clear_layer_numericals(layer->nextLayers[i]);
+        for(int i = 0; i < layer->numPrevLayers; i++) clear_layer_numericals(layer->prevLayers[i]);
     }
 
-    for(int i = 0; i < layer->numNodes; i++) memset(layer->gradients[i], 0, layer->numPrevNodes * sizeof(float));
+    memset(layer->backErrors, 0, layer->numNodes * sizeof(float));
     memset(layer->outputs, 0, layer->numNodes * sizeof(float));
     memset(layer->activations, 0, layer->numNodes * sizeof(float));
 }

@@ -3,7 +3,7 @@
 
 int main()
 {
-    struct model *myModel = construct_model(3, 1, 0.01f, 1);
+    struct model *myModel = construct_model(3, 1, 1.0f, 1);
     if(myModel == NULL)
     {
         printf("Memory allocation failed at model\n");
@@ -42,13 +42,18 @@ int main()
 
     printf("Model creation successful\n");
 
-    float values[] = {5.0, 10.0, 15.0};
+    float values[] = {0.05, 0.10, 0.15};
     memcpy(myModel->inLayers[0]->activations, values, 3*sizeof(float));
+    float target[] = {0.920196};
+    memcpy(myModel->targets, target, sizeof(float));
 
     forward_out(myModel->outLayer);
+    sgd_backprop(myModel->outLayer, myModel);
 
     printf("Model output is: %f\n", myModel->outLayer->activations[0]);
-
+    printf("Layer 2 Backerror is: %f\n", layer2->backErrors[0]);
+    for(int i = 0; i < 3; i++) printf("Layer 1 Backerror[%d] is: %f\n", i, layer1->backErrors[0]);
+    
     hakai_model(myModel);
     layer0 = NULL;
     layer1 = NULL;

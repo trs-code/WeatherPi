@@ -40,9 +40,9 @@ float tanh(float x) // tanh fast approximation
 
 float tanh_derivative(float x) // d(tanhx)/dx fast approximation
 {
-    float x2 = (x) / (1 + (0.95 * absolute(x)));
+    float x2 = (x) / (0.8 + (1.1 * absolute(x)));
     float res = 0.5 - (x2*x2);
-    return (res > 0) ? res : 0;
+    return (res > 0.0001) ? res : 0.0001;
 }
 
 float findMax(float* arr, int size)
@@ -85,14 +85,25 @@ float cross_entropy_loss(float target, float y)
     return -1; // finish later
 }
 
-static inline float mse_loss(float target, float y)
+static inline float mse_loss_func(float target, float y)
 {
-    return 0.5 * (y - target) * (y - target);
+    return 0.5 * (target - y) * (target - y);
 }
 
-static inline float mse_loss_derivative(float target, float y)
+static inline float mse_loss_derivative_func(float target, float y)
 {
     return (target - y);
+}
+
+float mse_loss_derivative(float* target, float* y, int size)
+{
+    int sum = 0;
+    for(int i = 0; i < size; i++)
+    {
+        sum += mse_loss_derivative_func(target[i], y[i]);
+    }
+
+    return sum / size;
 }
 
 void add_array(float* dest, float* arr1, float* arr2, __ssize_t size)
@@ -116,6 +127,22 @@ void dot_product_value(float* dest, float* arr1, float value, __ssize_t size)
     for(int i = 0; i < size; i++)
     {
         dest[i] = arr1[i] * value;
+    }
+}
+
+void dot_product_matrix(float** dest, float** arr1, float** arr2, __ssize_t rows, __ssize_t cols)
+{
+    for(int i = 0; i < rows; i++)
+    {
+        for(int j = 0; j < cols; j++) dest[i][j] = arr1[i][j] * arr2[i][j];
+    }
+}
+
+void dot_product_value_matrix(float** dest, float** arr1, float value, __ssize_t rows, __ssize_t cols)
+{
+    for(int i = 0; i < rows; i++)
+    {
+        for(int j = 0; j < cols; j++) dest[i][j] = arr1[i][j] * value;
     }
 }
 

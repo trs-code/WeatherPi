@@ -5,10 +5,9 @@
 //  Gets an output from the target layer
 void forward_out(struct layer* layer)
 {
-    if(absolute(layer->activations[0]) - 0 > 0.00000001)
-    {
-        return;
-    }
+    if(layer->switchVar == '1') return;
+
+    layer->switchVar = '1';
 
     if(layer->numPrevLayers != 0)
     {
@@ -41,60 +40,73 @@ void forward_out(struct layer* layer)
     }
 }
 
-// Run on each input layer before clearing the layer gradients
-// void sgd_backprop(struct layer* layer, struct model* myModel)
-// {
-//     if(absolute(layer->gradients[0][0]) - 0 > 0.0000001)
-//     {
-//         return;
-//     }
+// Run on each output layer and then apply grads before clearing the layer backerrors - All roads spring forth from Rome algorithm
+// We pass the backerrors to each previous layer to calculate grads later
+// Backerrors can be accumulated from multiple successor layers to calculate grads due to matrix distributivity
+void sgd_backprop(struct layer* layer, struct model* myModel)
+{ // start at output layer and calculate backerrors for each previous layer
+    if(layer->switchVar == '2') return;
 
-//     if(layer->numNextLayers != 0)
-//     {
-//         for(int i = 0; i < layer->numNextLayers; i++)
-//         {
-//             struct layer* next = layer->nextLayers[i];
+    layer->switchVar = '2';
 
-//             sgd_backprop(layer->nextLayers[i], myModel);
+    if(layer->numNextLayers == 0)
+    {
+        // backErrorsForOutputLayer = mseLossDerivative · activationFunctionDerivative(outputs) - for output layer
+        float lossGrad = 0;
+        int prevsTraversed = 0;
 
-//             for(int j = 0; j < layer->numNodes; j++)
-//             {
-//                 for(int k = 0; k < layer->prevLayers[i]->numNodes; k++)
-//                 {
-//                     layer->gradients[j] += 0;
-//                 }
-//             }
-//         }
-
-//         for(int i = 0; i < layer->numNodes; i++)
-//         {
-//             switch(layer->activationFunction)
-//             {
-//                 case 'r':
-//                     layer->gradients[i][0] *= leaky_relu_derivative(layer->gradients[i][0]);
-//                     break;
-//                 case 't':
-//                     layer->gradients[i][0] *= tanh_derivative(layer->gradients[i][0]);
-//                     break;
-//                 case 'i':
-//                     layer->gradients[i][0] *= 0;
-//                     break;
-//                 default:
-//                     break;
-//             }
-//         }
-//     }
-//     else
-//     {
-//         for(int i = 0; i < layer->numNodes; i++)
-//         {
-//             float nodeLossDerivative = mse_loss_derivative(myModel->targets[i], myModel->outLayer->outputs[i]);
-//         }
-//     }
+        for(int i = 0; i < layer->numNodes; i++) layer->backErrors[i] = -1 * mse_loss_derivative_func(myModel->targets[i], layer->activations[i]) * tanh_derivative(layer->outputs[i]);
+    }
     
-//     for(int i = 0; i < layer->numPrevLayers; i++) for(int j = 0; j < layer->prevLayers[i]->numNodes; j++) layer->weights[i][j] -= myModel->learning_rate * layer->gradients[i][i];
-// }
+    // backErrorsForPreviousLayers += (thisLayersBackErrors)(thisLayersWeightMatrixWithRespectToCurrentPreviousLayer) · activationFunctionDerivative(previousLayers)
+    int prevsTraversed = 0;
+    for(int i = 0; i < layer->numPrevLayers; i++)
+    {
+        if(layer->prevLayers[i]->numPrevLayers == 0) continue;
+        for(int j = 0; j < layer->prevLayers[i]->numNodes; j++)
+        {
+            for(int k = 0; k < layer->numNodes; k++) layer->prevLayers[i]->backErrors[j] += layer->backErrors[k] * layer->weights[k][prevsTraversed + j] * leaky_relu_derivative(layer->prevLayers[i]->outputs[j]);
+            prevsTraversed += layer->prevLayers[i]->numNodes;                
+        }
+    }
 
+    for(int i = 0; i < layer->numPrevLayers; i++) if(layer->prevLayers[i]->numPrevLayers != 0) sgd_backprop(layer->prevLayers[i], myModel);
+    // calculate backErrors for previous layers' previous layers according to already established layers' backErrors - All roads spring forth from Rome
+}
+
+void calculate_and_apply_grads(struct layer* layer, struct model* myModel)
+{
+    if(layer->switchVar == '3') return;
+
+    layer->switchVar = '3';
+
+    for(int i = 0; i < layer->numPrevLayers; i++) calculate_and_apply_grads(layer->prevLayers[i], myModel);
+
+    if(layer->numPrevLayers == 0) return;
+
+    // calculate gradients from backerrors and activations for each layer and apply them to the weights
+}
+
+void zero_everything(struct layer* layer)
+{
+    if(layer->switchVar == '0') return;
+
+    layer->switchVar = '0';
+
+    for(int i = 0; i < layer->numPrevLayers; i++) zero_everything(layer->prevLayers[i]);
+    
+    for(int i = 0; i < layer->numNodes; i++)
+    {
+        for(int j = 0; j < layer->numPrevNodes; j++) 
+        {
+            layer->weights[i][j] = 0;
+            layer->backErrors[i] = 0;
+        }
+
+        layer->activations[i] = 0;
+        layer->outputs[i] = 0;
+    }
+}
 
 
 #endif

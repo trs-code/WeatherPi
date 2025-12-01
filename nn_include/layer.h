@@ -17,21 +17,22 @@
 // OR I WILL PERSONALLY HUNT YOU DOWN AND STICK A NEURAL NETWORK
 // IN A PLACE WHERE THE LIGHT DON'T SHINE
 
-// 56 Bytes to allocate for the structure at base
+// 72 Bytes to allocate for the structure at base - can add 1 more int or float or 2 more chars without adding to size of struct
 struct layer
 {
     struct layer **prevLayers;
     struct layer **nextLayers;
     float **weights;
-    float **gradients;
+    float *backErrors;
     float *activations;
     float *outputs;
     int numPrevNodes;
     int numNodes;
     int numPrevLayers;
     int numNextLayers;
-    int layerID;    
+    int layerID; // A unique number from [0, (# of layers in the Model) - 1] - maybe made redundant through switchVar?  
     char activationFunction;
+    char switchVar;
 };
 
 
