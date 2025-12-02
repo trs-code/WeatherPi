@@ -52,9 +52,6 @@ void sgd_backprop(struct layer* layer, struct model* myModel)
     if(layer->numNextLayers == 0)
     {
         // backErrorsForOutputLayer = mseLossDerivative · activationFunctionDerivative(outputs) - for output layer
-        float lossGrad = 0;
-        int prevsTraversed = 0;
-
         for(int i = 0; i < layer->numNodes; i++) layer->backErrors[i] = -1 * mse_loss_derivative_func(myModel->targets[i], layer->activations[i]) * tanh_derivative(layer->outputs[i]);
     }
     
@@ -65,47 +62,56 @@ void sgd_backprop(struct layer* layer, struct model* myModel)
         if(layer->prevLayers[i]->numPrevLayers == 0) continue;
         for(int j = 0; j < layer->prevLayers[i]->numNodes; j++)
         {
-            for(int k = 0; k < layer->numNodes; k++) layer->prevLayers[i]->backErrors[j] += layer->backErrors[k] * layer->weights[k][prevsTraversed + j] * leaky_relu_derivative(layer->prevLayers[i]->outputs[j]);
-            prevsTraversed += layer->prevLayers[i]->numNodes;                
+            for(int k = 0; k < layer->numNodes; k++) layer->prevLayers[i]->backErrors[j] += layer->backErrors[k] * layer->weights[k][prevsTraversed + j] * leaky_relu_derivative(layer->prevLayers[i]->outputs[j]);                
         }
+        prevsTraversed += layer->prevLayers[i]->numNodes;
     }
 
     for(int i = 0; i < layer->numPrevLayers; i++) if(layer->prevLayers[i]->numPrevLayers != 0) sgd_backprop(layer->prevLayers[i], myModel);
     // calculate backErrors for previous layers' previous layers according to already established layers' backErrors - All roads spring forth from Rome
 }
 
-void calculate_and_apply_grads(struct layer* layer, struct model* myModel)
+// Another all roads spring forth from Rome approach - go to the convergence point of the model and use it as the root of the undirected, cyclic graph that is this model
+void calculate_and_apply_grads(struct layer* layer, float learning_rate)
 {
     if(layer->switchVar == '3') return;
 
     layer->switchVar = '3';
 
-    for(int i = 0; i < layer->numPrevLayers; i++) calculate_and_apply_grads(layer->prevLayers[i], myModel);
-
     if(layer->numPrevLayers == 0) return;
 
+    for(int i = 0; i < layer->numPrevLayers; i++) calculate_and_apply_grads(layer->prevLayers[i], learning_rate);
+
+    int prevsTraversed = 0;
+
     // calculate gradients from backerrors and activations for each layer and apply them to the weights
+    for(int i = 0; i < layer->numPrevLayers; i ++)
+    {
+        for(int j = 0; j < layer->prevLayers[i]->numNodes; j++)
+        {
+            for(int k = 0; k < layer->numNodes; k++) layer->weights[k][j + prevsTraversed] -= learning_rate * layer->prevLayers[i]->activations[j] * layer->backErrors[k];
+        }
+        prevsTraversed += layer->prevLayers[i]->numNodes;
+    }
 }
 
+// For clearing the backErrors once no longer needed, and to also prime for next backward pass
+// Use by passing the output layer of the model into the function 
 void zero_everything(struct layer* layer)
 {
     if(layer->switchVar == '0') return;
 
     layer->switchVar = '0';
 
-    for(int i = 0; i < layer->numPrevLayers; i++) zero_everything(layer->prevLayers[i]);
-    
-    for(int i = 0; i < layer->numNodes; i++)
+    if(layer->numPrevLayers != 0)
     {
-        for(int j = 0; j < layer->numPrevNodes; j++) 
-        {
-            layer->weights[i][j] = 0;
-            layer->backErrors[i] = 0;
-        }
-
-        layer->activations[i] = 0;
-        layer->outputs[i] = 0;
+        for(int i = 0; i < layer->numPrevLayers; i++) zero_everything(layer->prevLayers[i]);
     }
+    else return;
+
+    memset(layer->backErrors, 0, layer->numNodes * sizeof(float));
+    memset(layer->outputs, 0, layer->numNodes * sizeof(float));
+    memset(layer->activations, 0, layer->numNodes * sizeof(float));
 }
 
 

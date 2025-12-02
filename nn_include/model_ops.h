@@ -53,8 +53,8 @@ void hakai_layer(struct layer* layer, struct model* myModel)
 
     hakai_matrix(layer->weights);
 
-    free(layer->nextLayers);
-    layer->nextLayers = NULL;
+    // free(layer->nextLayers);
+    // layer->nextLayers = NULL;
     
     myModel->layer_refs[layer->layerID] = layer;
 

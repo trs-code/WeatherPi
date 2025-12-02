@@ -27,14 +27,14 @@ struct layer* make_input_layer(int numNodes, int numNextLayers, int layerID)
 
     inLayer->numPrevLayers = 0;
     inLayer->numPrevNodes = 0;
-    inLayer->numNextLayers = numNextLayers;
+    //inLayer->numNextLayers = numNextLayers;
     inLayer->prevLayers = NULL; // No previous layers for an input layer
     inLayer->weights = NULL;    // Input layer just accepts inputs, doesn't need actual weights, just something to facilitate forwarding values
     inLayer->backErrors = NULL;  // Input layer doesn't need backErrors
 
     // Allocate space for the following layers so a forward pass is easier to implement and also navigating the layers
-    inLayer->nextLayers = (struct layer**)calloc(numNextLayers, sizeof(struct layer*));
-    if(inLayer->nextLayers == NULL) goto error1;
+    //inLayer->nextLayers = (struct layer**)calloc(numNextLayers, sizeof(struct layer*));
+    //if(inLayer->nextLayers == NULL) goto error1;
 
     inLayer->outputs = NULL;
     
@@ -49,8 +49,8 @@ struct layer* make_input_layer(int numNodes, int numNextLayers, int layerID)
     return inLayer;
 
 error2:
-    free(inLayer->nextLayers);
-    inLayer->nextLayers = NULL;
+    //free(inLayer->nextLayers);
+    //inLayer->nextLayers = NULL;
 error1:
     free(inLayer);
     inLayer = NULL;
@@ -60,7 +60,7 @@ error1:
 
 struct layer* make_dense_layer(struct layer** prev, int numNodes, int numPrevLayers, int numNextLayers, int layerID, char norm)
 {
-    int j = 0;
+    // int j = 0;
 
     // Allocate space for the layer
     struct layer *denseLayer = (struct layer *)malloc(sizeof(struct layer));
@@ -83,19 +83,19 @@ struct layer* make_dense_layer(struct layer** prev, int numNodes, int numPrevLay
     // Make this layer a next layer for all previous layers
     for(int i = 0; i < numPrevLayers; i++)
     {
-        while(prev[i]->nextLayers[j] != NULL)
-        {
-            j += 1;
-        }
+        // while(prev[i]->nextLayers[j] != NULL)
+        // {
+        //     j += 1;
+        // }
 
         denseLayer->numPrevNodes += prev[i]->numNodes;
-        prev[i]->nextLayers[j] = denseLayer;
-        j = 0;
+        // prev[i]->nextLayers[j] = denseLayer;
+        //j = 0;
     }
 
     // Allocate space for the next layers using provided parameter
-    denseLayer->nextLayers = (struct layer **)calloc(numNextLayers, sizeof(struct layer*));
-    if(denseLayer->nextLayers == NULL) goto error2;
+    //denseLayer->nextLayers = (struct layer **)calloc(numNextLayers, sizeof(struct layer*));
+    //if(denseLayer->nextLayers == NULL) goto error2;
 
     denseLayer->weights = (float **)malloc(numNodes * sizeof(float*));
     if(denseLayer->weights == NULL) goto error3;
@@ -134,8 +134,8 @@ error5:
 error4:
     hakai_matrix(denseLayer->weights);
 error3:
-    free(denseLayer->nextLayers);
-    denseLayer->nextLayers = NULL;
+    // free(denseLayer->nextLayers);
+    // denseLayer->nextLayers = NULL;
 error2:
     free(denseLayer->prevLayers);
     denseLayer->prevLayers = NULL;
@@ -148,14 +148,14 @@ error1:
 
 struct layer* make_output_layer(struct layer** prev, int numNodes, int numPrevLayers, int layerID)
 {
-    int j = 0;
+    // int j = 0;
 
     struct layer *outLayer = (struct layer *)malloc(sizeof(struct layer));
     if(outLayer == NULL) return NULL;
 
     outLayer->numPrevLayers = numPrevLayers;
     outLayer->numNextLayers = 0;
-    outLayer->nextLayers = NULL; // No next layers for an output layer
+    // outLayer->nextLayers = NULL; // No next layers for an output layer
     outLayer->numPrevNodes = 0;
 
     // Allocate space for the previous layers using provided parameter - DESIGN YOUR MODEL BEFORE IMPLEMENTING
@@ -166,14 +166,14 @@ struct layer* make_output_layer(struct layer** prev, int numNodes, int numPrevLa
 
     for(int i = 0; i < numPrevLayers; i++)
     {
-        while(prev[i]->nextLayers[j] != NULL)
-        {
-            j += 1;
-        }
+        // while(prev[i]->nextLayers[j] != NULL)
+        // {
+        //     j += 1;
+        // }
 
         outLayer->numPrevNodes += prev[i]->numNodes;
-        prev[i]->nextLayers[j] = outLayer;
-        j = 0;
+        // prev[i]->nextLayers[j] = outLayer;
+        // j = 0;
     }
 
     outLayer->weights = (float **)malloc((numNodes) * sizeof(float*)); // Each row is a neuron
@@ -221,23 +221,6 @@ error1:
 
     return NULL;
 }
-
-// For clearing the backErrors once no longer needed, and to also prime for next backward pass
-// Use by passing the output layer of the model into the function 
-void clear_layer_numericals(struct layer* layer)
-{
-    if(absolute(layer->backErrors[0]) - 0.0f > 0.0000001) return;
-
-    if(layer->numPrevLayers != 0)
-    {
-        for(int i = 0; i < layer->numPrevLayers; i++) clear_layer_numericals(layer->prevLayers[i]);
-    }
-
-    memset(layer->backErrors, 0, layer->numNodes * sizeof(float));
-    memset(layer->outputs, 0, layer->numNodes * sizeof(float));
-    memset(layer->activations, 0, layer->numNodes * sizeof(float));
-}
-
 
 struct layer* make_normalization_layer();
 

@@ -48,11 +48,19 @@ int main()
     memcpy(myModel->targets, target, sizeof(float));
 
     forward_out(myModel->outLayer);
+    for(int i = 0; i < 3; i++) printf("Layer 1 Activation[%d] is: %f\n", i, layer1->activations[i]);
+    printf("%f\n", tanh_derivative(0.9));
+    printf("Layer 2 Activation is: %f\n", layer2->activations[0]);
     sgd_backprop(myModel->outLayer, myModel);
 
     printf("Model output is: %f\n", myModel->outLayer->activations[0]);
     printf("Layer 2 Backerror is: %f\n", layer2->backErrors[0]);
-    for(int i = 0; i < 3; i++) printf("Layer 1 Backerror[%d] is: %f\n", i, layer1->backErrors[0]);
+    for(int i = 0; i < 3; i++) printf("Layer 1 Backerror[%d] is: %f\n\n", i, layer1->backErrors[i]);
+    calculate_and_apply_grads(myModel->outLayer, myModel->learning_rate);
+    printf("Layer 2 Weights:\n");
+    for(int i = 0; i < 3; i++) printf("Layer 2 Weight[%d] is: %f\n", i, layer2->weights[0][i]);
+    printf("\nLayer 1 Weights:\n");
+    for(int i = 0; i < 3; i++) printf("[%f] [%f] [%f]\n", i, layer1->weights[i][0], layer1->weights[i][1], layer1->weights[i][2]);
     
     hakai_model(myModel);
     layer0 = NULL;
