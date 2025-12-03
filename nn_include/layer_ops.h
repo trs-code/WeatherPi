@@ -41,6 +41,9 @@ struct layer* make_input_layer(int numNodes, int numNextLayers, int layerID)
     inLayer->activations = (float *)calloc(numNodes, sizeof(float));
     if(inLayer->activations == NULL) goto error2;
 
+    inLayer->biases = (float *)calloc((numNodes), sizeof(float)); // Bias for each neuron
+    if(inLayer->biases == NULL) goto error3;
+
     inLayer->numNodes = numNodes;
     inLayer->activationFunction = 'i';
     inLayer->layerID = layerID;
@@ -48,6 +51,9 @@ struct layer* make_input_layer(int numNodes, int numNextLayers, int layerID)
 
     return inLayer;
 
+error3:
+    free(inLayer->activations);
+    inLayer->activations = NULL;
 error2:
     //free(inLayer->nextLayers);
     //inLayer->nextLayers = NULL;
@@ -100,23 +106,28 @@ struct layer* make_dense_layer(struct layer** prev, int numNodes, int numPrevLay
     denseLayer->weights = (float **)malloc(numNodes * sizeof(float*));
     if(denseLayer->weights == NULL) goto error3;
 
+    denseLayer->biases = (float *)malloc(numNodes * sizeof(float)); // Bias for each neuron
+    if(denseLayer->biases == NULL) goto error4;
+
     for(int i = 0; i < numNodes; i++)
     {
         denseLayer->weights[i] = (float *)malloc(sizeof(float) * (denseLayer->numPrevNodes)); // Each column is a connection to each neuron in the previous layer pus a bias
-        if(denseLayer->weights[i] == NULL) goto error4;
+        if(denseLayer->weights[i] == NULL) goto error5;
         
         for(int j = 0; j < denseLayer->numPrevNodes; j++) denseLayer->weights[i][j] = 1.0f; 
-        //denseLayer->weights[i][denseLayer->numPrevNodes] = 0.0f; // Initialize biases
+        denseLayer->biases[i] = 0.0f; // Initialize biases
     }
     
-    denseLayer->backErrors = (float *)calloc((denseLayer->numPrevNodes), sizeof(float));
-    if(denseLayer->backErrors == NULL) goto error4;
+    denseLayer->backErrors = (float *)calloc((numNodes), sizeof(float));
+    if(denseLayer->backErrors == NULL) goto error5;
 
     denseLayer->activations = (float *)calloc(numNodes, sizeof(float));
-    if(denseLayer->activations == NULL) goto error5;
+    if(denseLayer->activations == NULL) goto error6;
     
     denseLayer->outputs = (float *)calloc(numNodes, sizeof(float));
-    if(denseLayer->outputs == NULL) goto error6;
+    if(denseLayer->outputs == NULL) goto error7;
+
+    
     
     denseLayer->numNodes = numNodes;
     denseLayer->activationFunction = 'r';
@@ -125,14 +136,18 @@ struct layer* make_dense_layer(struct layer** prev, int numNodes, int numPrevLay
 
     return denseLayer;
 
-error6:
+
+error7:
     free(denseLayer->activations);
     denseLayer->activations = NULL;
-error5:
+error6:
     free(denseLayer->backErrors);
     denseLayer->backErrors = NULL;
-error4:
+error5:
     hakai_matrix(denseLayer->weights);
+error4:
+    free(denseLayer->biases);
+    denseLayer->biases = NULL;
 error3:
     // free(denseLayer->nextLayers);
     // denseLayer->nextLayers = NULL;
@@ -176,26 +191,30 @@ struct layer* make_output_layer(struct layer** prev, int numNodes, int numPrevLa
         // j = 0;
     }
 
-    outLayer->weights = (float **)malloc((numNodes) * sizeof(float*)); // Each row is a neuron
+    outLayer->weights = (float **)malloc(numNodes * sizeof(float*)); // Each row is a neuron
     if(outLayer->weights == NULL) goto error2;
+
+    outLayer->biases = (float *)malloc(numNodes * sizeof(float)); // Bias for each neuron
+    if(outLayer->biases == NULL) goto error3;
 
     for(int i = 0; i < numNodes; i++)
     {
         outLayer->weights[i] = (float *)malloc(sizeof(float) * (outLayer->numPrevNodes + 1));
-        if(outLayer->weights[i] == NULL) goto error3;
+        if(outLayer->weights[i] == NULL) goto error4;
         
         for(int j = 0; j < outLayer->numPrevNodes; j++) outLayer->weights[i][j] = 1.0f; // Initialize weight connections
-        outLayer->weights[i][outLayer->numPrevNodes] = 0.0f;
+        outLayer->biases[i] = 0.0f;
     }
 
-    outLayer->backErrors = (float *)calloc((outLayer->numPrevNodes), sizeof(float));
-    if(outLayer->backErrors == NULL) goto error3;
+    outLayer->backErrors = (float *)calloc(numNodes, sizeof(float));
+    if(outLayer->backErrors == NULL) goto error4;
 
     outLayer->activations = (float *)calloc(numNodes, sizeof(float));
-    if(outLayer->activations == NULL) goto error4;
+    if(outLayer->activations == NULL) goto error5;
     
     outLayer->outputs = (float *)calloc(numNodes, sizeof(float));
-    if(outLayer->outputs == NULL) goto error5;
+    if(outLayer->outputs == NULL) goto error6;
+
 
     outLayer->numNodes = numNodes;
     outLayer->activationFunction = 't';
@@ -204,14 +223,17 @@ struct layer* make_output_layer(struct layer** prev, int numNodes, int numPrevLa
 
     return outLayer;
 
-error5:
+error6:
     free(outLayer->activations);
     outLayer->activations = NULL;
-error4:
+error5:
     free(outLayer->backErrors);
     outLayer->backErrors = NULL;
-error3:
+error4:
     hakai_matrix(outLayer->weights);
+error3:
+    free(outLayer->biases);
+    outLayer->biases = NULL;
 error2:
     free(outLayer->prevLayers);
     outLayer->prevLayers = NULL;

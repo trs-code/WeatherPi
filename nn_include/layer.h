@@ -18,12 +18,13 @@
 // IN A PLACE WHERE THE LIGHT DON'T SHINE
 
 // 64 Bytes to allocate for the structure at base
-// Extra # bytes for each layer: 40 + 8m + 8n + 4np + 12n  -> m previous layers, n current nodes, p previous nodes
+// Extra # bytes for each layer: 40 + 8m + 8n + 4np + 16n  -> m previous layers, n current nodes, p previous nodes
 struct layer
 {
     struct layer **prevLayers; // Very necessary to operate model
     // struct layer **nextLayers; // Might not be needed for actual operation of the model
     float **weights; // n nodes * p previous nodes - weight matrix
+    float *biases;
     float *backErrors; // Only necessary for backpropagation, not necessary for an inference model - n values
     float *activations; // Activation value passed through activation function, output of the node that is passed forward - n values
     float *outputs; // Sum of all previous nodes according to each previous node weight - n values

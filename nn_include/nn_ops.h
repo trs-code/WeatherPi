@@ -1,5 +1,6 @@
 #ifndef NN_OPS
 #define NN_OPS
+#include <immintrin.h>
 #include "model_ops.h"
 
 //  Gets an output from the target layer
@@ -22,7 +23,7 @@ void forward_out(struct layer* layer)
                 for(int k = 0; k < layer->prevLayers[j]->numNodes; k++) layer->outputs[i] += layer->prevLayers[j]->activations[k] * layer->weights[i][numPrevsTraversed + k];
                 numPrevsTraversed += layer->prevLayers[j]->numNodes;
             }
-            
+            layer->outputs[i] += layer->biases[i];
             numPrevsTraversed = 0;
         } 
     }
@@ -72,7 +73,7 @@ void sgd_backprop(struct layer* layer, struct model* myModel)
 }
 
 // Another all roads spring forth from Rome approach - go to the convergence point of the model and use it as the root of the undirected, cyclic graph that is this model
-void calculate_and_apply_grads(struct layer* layer, float learning_rate)
+void calculate_and_apply_grads(struct layer* layer, float learningRate)
 {
     if(layer->switchVar == '3') return;
 
@@ -80,22 +81,24 @@ void calculate_and_apply_grads(struct layer* layer, float learning_rate)
 
     if(layer->numPrevLayers == 0) return;
 
-    for(int i = 0; i < layer->numPrevLayers; i++) calculate_and_apply_grads(layer->prevLayers[i], learning_rate);
+    for(int i = 0; i < layer->numPrevLayers; i++) calculate_and_apply_grads(layer->prevLayers[i], learningRate);
+
+    for(int i = 0; i < layer->numNodes; i++) layer->biases[i] -= learningRate * layer->backErrors[i];
 
     int prevsTraversed = 0;
 
-    // calculate gradients from backerrors and activations for each layer and apply them to the weights
+    // calculate gradients from backerrors and activations for each layer and apply them to the weights_mm256_mul_ps(vector_a, scalar_vector);
     for(int i = 0; i < layer->numPrevLayers; i ++)
     {
         for(int j = 0; j < layer->prevLayers[i]->numNodes; j++)
         {
-            for(int k = 0; k < layer->numNodes; k++) layer->weights[k][j + prevsTraversed] -= learning_rate * layer->prevLayers[i]->activations[j] * layer->backErrors[k];
+            for(int k = 0; k < layer->numNodes; k++) layer->weights[k][j + prevsTraversed] -= learningRate * layer->prevLayers[i]->activations[j] * layer->backErrors[k];
         }
         prevsTraversed += layer->prevLayers[i]->numNodes;
     }
 }
 
-// For clearing the backErrors once no longer needed, and to also prime for next backward pass
+// For clearing the backErrors once no longer needed, and to also prime for next forward and backward pass
 // Use by passing the output layer of the model into the function 
 void zero_everything(struct layer* layer)
 {
@@ -109,9 +112,9 @@ void zero_everything(struct layer* layer)
     }
     else return;
 
-    memset(layer->backErrors, 0, layer->numNodes * sizeof(float));
-    memset(layer->outputs, 0, layer->numNodes * sizeof(float));
-    memset(layer->activations, 0, layer->numNodes * sizeof(float));
+    memset(layer->backErrors, 0.0f, layer->numNodes * sizeof(float));
+    memset(layer->outputs, 0.0f, layer->numNodes * sizeof(float));
+    memset(layer->activations, 0.0f, layer->numNodes * sizeof(float));
 }
 
 

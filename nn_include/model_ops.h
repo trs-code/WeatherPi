@@ -51,6 +51,9 @@ void hakai_layer(struct layer* layer, struct model* myModel)
     free(layer->activations);
     layer->activations = NULL;
 
+    free(layer->biases);
+    layer->biases = NULL;
+
     hakai_matrix(layer->weights);
 
     // free(layer->nextLayers);
