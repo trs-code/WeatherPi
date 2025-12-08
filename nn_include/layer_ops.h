@@ -4,14 +4,12 @@
 #include "layer.h"
 #include "nn_math.h"
 
-void hakai_matrix(float** mat)
+void hakai_matrix(float** mat, int rows)
 {
-    int i = 0;
-    while(mat[i] != NULL)
+    for(int i = 0; i < rows; i++)
     {
         free(mat[i]);
         mat[i] = NULL;
-        i += 1;
     }
 
     free(mat);
@@ -36,12 +34,12 @@ struct layer* make_input_layer(int numNodes, int numNextLayers, int layerID)
     //inLayer->nextLayers = (struct layer**)calloc(numNextLayers, sizeof(struct layer*));
     //if(inLayer->nextLayers == NULL) goto error1;
 
-    inLayer->outputs = NULL;
+    inLayer->preActivations = NULL;
     
-    inLayer->activations = (float *)calloc(numNodes, sizeof(float));
-    if(inLayer->activations == NULL) goto error2;
+    inLayer->outputs = (float *)calloc(numNodes, sizeof(float));
+    if(inLayer->outputs == NULL) goto error2;
 
-    inLayer->biases = (float *)calloc((numNodes), sizeof(float)); // Bias for each neuron
+    inLayer->biases = (float *)calloc((numNodes), sizeof(float)); // Bias for each neuron - 0 for inputs
     if(inLayer->biases == NULL) goto error3;
 
     inLayer->numNodes = numNodes;
@@ -52,8 +50,8 @@ struct layer* make_input_layer(int numNodes, int numNextLayers, int layerID)
     return inLayer;
 
 error3:
-    free(inLayer->activations);
-    inLayer->activations = NULL;
+    free(inLayer->outputs);
+    inLayer->outputs = NULL;
 error2:
     //free(inLayer->nextLayers);
     //inLayer->nextLayers = NULL;
@@ -64,7 +62,7 @@ error1:
     return NULL;
 }
 
-struct layer* make_dense_layer(struct layer** prev, int numNodes, int numPrevLayers, int numNextLayers, int layerID, char norm)
+struct layer* make_dense_layer(struct layer** prev, int numNodes, int numPrevLayers, int numNextLayers, int layerID)
 {
     // int j = 0;
 
@@ -121,11 +119,11 @@ struct layer* make_dense_layer(struct layer** prev, int numNodes, int numPrevLay
     denseLayer->backErrors = (float *)calloc((numNodes), sizeof(float));
     if(denseLayer->backErrors == NULL) goto error5;
 
-    denseLayer->activations = (float *)calloc(numNodes, sizeof(float));
-    if(denseLayer->activations == NULL) goto error6;
-    
     denseLayer->outputs = (float *)calloc(numNodes, sizeof(float));
-    if(denseLayer->outputs == NULL) goto error7;
+    if(denseLayer->outputs == NULL) goto error6;
+    
+    denseLayer->preActivations = (float *)calloc(numNodes, sizeof(float));
+    if(denseLayer->preActivations == NULL) goto error7;
 
     
     
@@ -138,13 +136,13 @@ struct layer* make_dense_layer(struct layer** prev, int numNodes, int numPrevLay
 
 
 error7:
-    free(denseLayer->activations);
-    denseLayer->activations = NULL;
+    free(denseLayer->outputs);
+    denseLayer->outputs = NULL;
 error6:
     free(denseLayer->backErrors);
     denseLayer->backErrors = NULL;
 error5:
-    hakai_matrix(denseLayer->weights);
+    hakai_matrix(denseLayer->weights, numNodes);
 error4:
     free(denseLayer->biases);
     denseLayer->biases = NULL;
@@ -209,11 +207,11 @@ struct layer* make_output_layer(struct layer** prev, int numNodes, int numPrevLa
     outLayer->backErrors = (float *)calloc(numNodes, sizeof(float));
     if(outLayer->backErrors == NULL) goto error4;
 
-    outLayer->activations = (float *)calloc(numNodes, sizeof(float));
-    if(outLayer->activations == NULL) goto error5;
-    
     outLayer->outputs = (float *)calloc(numNodes, sizeof(float));
-    if(outLayer->outputs == NULL) goto error6;
+    if(outLayer->outputs == NULL) goto error5;
+    
+    outLayer->preActivations = (float *)calloc(numNodes, sizeof(float));
+    if(outLayer->preActivations == NULL) goto error6;
 
 
     outLayer->numNodes = numNodes;
@@ -224,13 +222,13 @@ struct layer* make_output_layer(struct layer** prev, int numNodes, int numPrevLa
     return outLayer;
 
 error6:
-    free(outLayer->activations);
-    outLayer->activations = NULL;
+    free(outLayer->outputs);
+    outLayer->outputs = NULL;
 error5:
     free(outLayer->backErrors);
     outLayer->backErrors = NULL;
 error4:
-    hakai_matrix(outLayer->weights);
+    hakai_matrix(outLayer->weights, numNodes);
 error3:
     free(outLayer->biases);
     outLayer->biases = NULL;

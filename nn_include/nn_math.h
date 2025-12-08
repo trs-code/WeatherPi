@@ -1,10 +1,10 @@
 #ifndef NN_MATH
 #define NN_MATH
 
-float clip(float x)
+float clip(float x, float upper, float lower)
 {
-    if(x > 1.0f) return 1.0f;
-    if(x < 0.0f) return 0.0f;
+    if(x > upper) return upper;
+    if(x < lower) return lower;
     return x;
 }
 
@@ -35,7 +35,7 @@ static inline float leaky_relu_derivative(float x)
 
 float tanh(float x) // tanh fast approximation
 {
-    return clip(0.5f + (x / (1.3f + 1.6f * absolute(x))));
+    return clip(0.5f + (x / (1.3f + 1.6f * absolute(x))), 1.0f, 0.0f);
 }
 
 float tanh_derivative(float x) // d(tanhx)/dx fast approximation
