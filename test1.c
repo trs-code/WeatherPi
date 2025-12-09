@@ -3,7 +3,7 @@
 
 int main()
 {
-    layer* inLayer = make_input_layer(3, 1, 0);
+    layer* inLayer = make_input_layer(3, 1);
     if(inLayer == NULL)
     {
         printf("Memory allocation failed at inLayer\n");
@@ -11,7 +11,7 @@ int main()
     }
     
     layer* layer0_in[] = {inLayer};
-    layer* layer0 = make_dense_layer(layer0_in, 3, 1, 1, 1);
+    layer* layer0 = make_dense_layer(layer0_in, 3, 1, 1);
     if(layer0 == NULL)
     {
         printf("Memory allocation failed at layer0\n");
@@ -19,7 +19,7 @@ int main()
     }
 
     layer* outLayer_in[] = {layer0};
-    layer* outLayer = make_output_layer(outLayer_in, 1, 1, 2);
+    layer* outLayer = make_output_layer(outLayer_in, 1, 1);
     if(outLayer == NULL)
     {
         printf("Memory allocation failed at outLayer\n");

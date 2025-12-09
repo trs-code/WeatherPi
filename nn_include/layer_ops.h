@@ -16,7 +16,7 @@ void hakai_matrix(float** mat, int rows)
 }
 
 // Solely to load input values into the model in a form where layer operations can be generalized into
-layer* make_input_layer(int numNodes, int numNextLayers, int layerID)
+layer* make_input_layer(int numNodes, int numNextLayers)
 {
     // Allocate space for the input layer
     layer *inLayer = (layer*)malloc(sizeof(layer));
@@ -43,7 +43,7 @@ layer* make_input_layer(int numNodes, int numNextLayers, int layerID)
 
     inLayer->numNodes = numNodes;
     inLayer->activationFunction = 'i';
-    inLayer->layerID = layerID;
+    inLayer->layerID = -1;
     inLayer->switchVar = '0';
 
     return inLayer;
@@ -61,7 +61,7 @@ error1:
     return NULL;
 }
 
-layer* make_dense_layer(layer** prev, int numNodes, int numPrevLayers, int numNextLayers, int layerID)
+layer* make_dense_layer(layer** prev, int numNodes, int numPrevLayers, int numNextLayers)
 {
     // int j = 0;
 
@@ -128,7 +128,7 @@ layer* make_dense_layer(layer** prev, int numNodes, int numPrevLayers, int numNe
     
     denseLayer->numNodes = numNodes;
     denseLayer->activationFunction = 'r';
-    denseLayer->layerID = layerID;
+    denseLayer->layerID = -1;
     denseLayer->switchVar = '0';
 
     return denseLayer;
@@ -158,7 +158,7 @@ error1:
     return NULL;
 }
 
-layer* make_output_layer(layer** prev, int numNodes, int numPrevLayers, int layerID)
+layer* make_output_layer(layer** prev, int numNodes, int numPrevLayers)
 {
     // int j = 0;
 
@@ -215,7 +215,7 @@ layer* make_output_layer(layer** prev, int numNodes, int numPrevLayers, int laye
 
     outLayer->numNodes = numNodes;
     outLayer->activationFunction = 't';
-    outLayer->layerID = layerID;
+    outLayer->layerID = -1;
     outLayer->switchVar = '0';
 
     return outLayer;

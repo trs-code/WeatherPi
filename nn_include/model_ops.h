@@ -4,13 +4,32 @@
 #include "model.h"
 #include "nn_math.h"
 
+int assign_layer_ids(layer* myLayer, int currMaxID)
+{
+    int idMax = currMaxID;
+
+    if(myLayer->layerID != -1) return idMax;
+
+    myLayer->layerID = idMax;
+
+    if(myLayer->numPrevLayers == 0)
+    {
+        return idMax;
+    }
+
+    for (int i = 0; i < myLayer->numPrevLayers; i++)
+    {
+        idMax = max(idMax, assign_layer_ids(myLayer->prevLayers[i], idMax + 1));
+    }
+
+    return idMax;
+    
+}
+
 model* construct_model(layer** inLayers, layer* outLayer,int numLayers, int numInLayers, float learning_rate, int numOutputs)
 {
     model *myModel = (model*)malloc(sizeof(model));
     if(myModel == NULL) return NULL;
-
-    myModel->inLayers = inLayers;
-    myModel->outLayer = outLayer;
 
     myModel->layer_refs = (layer **)calloc(numLayers, sizeof(layer*));
     if(myModel->layer_refs == NULL) goto error2;
@@ -19,10 +38,14 @@ model* construct_model(layer** inLayers, layer* outLayer,int numLayers, int numI
     myModel->targets = (float *)calloc(numOutputs, sizeof(float));
     if(myModel->targets == NULL) goto error3;
 
+    myModel->inLayers = inLayers;
+    myModel->outLayer = outLayer;
     myModel->numLayers = numLayers;
     myModel->learning_rate = learning_rate;
     myModel->numInLayers = numInLayers;
     myModel->numOutputs = numOutputs;
+
+    assign_layer_ids(outLayer, 0);
 
     return myModel;
 

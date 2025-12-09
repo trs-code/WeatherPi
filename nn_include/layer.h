@@ -24,7 +24,7 @@ typedef struct layer layer;
 struct layer
 {
     layer** prevLayers; // Very necessary to operate model
-    // struct layer **nextLayers; // Might not be needed for actual operation of the model
+    // layer **nextLayers; // Might not be needed for actual operation of the model
     float **weights; // n nodes * p previous nodes - weight matrix
     float *biases;
     float *backErrors; // Only necessary for backpropagation, not necessary for an inference model - n values

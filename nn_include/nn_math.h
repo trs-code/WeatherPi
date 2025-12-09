@@ -146,4 +146,9 @@ void dot_product_value_matrix(float** dest, float** arr1, float value, __ssize_t
     }
 }
 
+static inline int max(int a, int b)
+{
+    return (a > b) ? a : b;
+}
+
 #endif
