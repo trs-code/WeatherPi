@@ -2,7 +2,6 @@
 #define NN_LAYER_OPS
 
 #include "layer.h"
-#include "nn_math.h"
 
 void hakai_matrix(float** mat, int rows)
 {
@@ -17,10 +16,10 @@ void hakai_matrix(float** mat, int rows)
 }
 
 // Solely to load input values into the model in a form where layer operations can be generalized into
-struct layer* make_input_layer(int numNodes, int numNextLayers, int layerID)
+layer* make_input_layer(int numNodes, int numNextLayers, int layerID)
 {
     // Allocate space for the input layer
-    struct layer *inLayer = (struct layer*)malloc(sizeof(struct layer));
+    layer *inLayer = (layer*)malloc(sizeof(layer));
     if(inLayer == NULL) return NULL;
 
     inLayer->numPrevLayers = 0;
@@ -62,12 +61,12 @@ error1:
     return NULL;
 }
 
-struct layer* make_dense_layer(struct layer** prev, int numNodes, int numPrevLayers, int numNextLayers, int layerID)
+layer* make_dense_layer(layer** prev, int numNodes, int numPrevLayers, int numNextLayers, int layerID)
 {
     // int j = 0;
 
     // Allocate space for the layer
-    struct layer *denseLayer = (struct layer *)malloc(sizeof(struct layer));
+    layer *denseLayer = (layer *)malloc(sizeof(layer));
     if(denseLayer == NULL) return NULL;
 
     // Set number of previous layers that feed into this layer and number of next layers that this layer feeds into
@@ -78,11 +77,11 @@ struct layer* make_dense_layer(struct layer** prev, int numNodes, int numPrevLay
     denseLayer->numPrevNodes = 0;
 
     // Allocate space for the previous layers using provided parameter - DESIGN YOUR MODEL BEFORE IMPLEMENTING CAREFULLY
-    denseLayer->prevLayers = (struct layer **)malloc(sizeof(struct layer*) * numPrevLayers);
+    denseLayer->prevLayers = (layer **)malloc(sizeof(layer*) * numPrevLayers);
     if(denseLayer->prevLayers == NULL) goto error1;
 
     // Set the previous layers as the previous layers
-    memcpy(denseLayer->prevLayers, prev, sizeof(struct layer*) * numPrevLayers);
+    memcpy(denseLayer->prevLayers, prev, sizeof(layer*) * numPrevLayers);
 
     // Make this layer a next layer for all previous layers
     for(int i = 0; i < numPrevLayers; i++)
@@ -159,11 +158,11 @@ error1:
     return NULL;
 }
 
-struct layer* make_output_layer(struct layer** prev, int numNodes, int numPrevLayers, int layerID)
+layer* make_output_layer(layer** prev, int numNodes, int numPrevLayers, int layerID)
 {
     // int j = 0;
 
-    struct layer *outLayer = (struct layer *)malloc(sizeof(struct layer));
+    layer *outLayer = (layer *)malloc(sizeof(layer));
     if(outLayer == NULL) return NULL;
 
     outLayer->numPrevLayers = numPrevLayers;
@@ -172,10 +171,10 @@ struct layer* make_output_layer(struct layer** prev, int numNodes, int numPrevLa
     outLayer->numPrevNodes = 0;
 
     // Allocate space for the previous layers using provided parameter - DESIGN YOUR MODEL BEFORE IMPLEMENTING
-    outLayer->prevLayers = (struct layer **)malloc(sizeof(struct layer*) * numPrevLayers);
+    outLayer->prevLayers = (layer **)malloc(sizeof(layer*) * numPrevLayers);
     if(outLayer->prevLayers == NULL) goto error1;
 
-    memcpy(outLayer->prevLayers, prev, sizeof(struct layer*) * numPrevLayers);
+    memcpy(outLayer->prevLayers, prev, sizeof(layer*) * numPrevLayers);
 
     for(int i = 0; i < numPrevLayers; i++)
     {
@@ -242,6 +241,6 @@ error1:
     return NULL;
 }
 
-struct layer* make_normalization_layer();
+layer* make_normalization_layer();
 
 #endif

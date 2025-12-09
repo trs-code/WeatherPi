@@ -19,9 +19,11 @@
 
 // 72 Bytes to allocate for the structure at base
 // Extra # bytes for each layer: 40 + 8m + 8n + 4np + 16n  -> m previous layers, n current nodes, p previous nodes
+
+typedef struct layer layer;
 struct layer
 {
-    struct layer **prevLayers; // Very necessary to operate model
+    layer** prevLayers; // Very necessary to operate model
     // struct layer **nextLayers; // Might not be needed for actual operation of the model
     float **weights; // n nodes * p previous nodes - weight matrix
     float *biases;

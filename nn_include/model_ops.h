@@ -2,16 +2,17 @@
 #define NN_MODEL_OPS
 
 #include "model.h"
+#include "nn_math.h"
 
-struct model* construct_model(int numLayers, int numInLayers, float learning_rate, int numOutputs)
+model* construct_model(layer** inLayers, layer* outLayer,int numLayers, int numInLayers, float learning_rate, int numOutputs)
 {
-    struct model *myModel = (struct model*)malloc(sizeof(struct model));
+    model *myModel = (model*)malloc(sizeof(model));
     if(myModel == NULL) return NULL;
 
-    myModel->inLayers = (struct layer **)calloc(numInLayers, sizeof(struct layer*));
-    if(myModel->inLayers == NULL) goto error1;
+    myModel->inLayers = inLayers;
+    myModel->outLayer = outLayer;
 
-    myModel->layer_refs = (struct layer **)calloc(numLayers, sizeof(struct layer*));
+    myModel->layer_refs = (layer **)calloc(numLayers, sizeof(layer*));
     if(myModel->layer_refs == NULL) goto error2;
     for(int i = 0; i < numLayers; i++) myModel->layer_refs[i] = NULL;
 
@@ -39,42 +40,39 @@ error1:
 }
 
 // Destroy an individual layer after operations are concluded but a model hasn't been built yet
-void hakai_layer_mfree(struct layer* layer)
+void hakai_layer_mfree(layer* myLayer)
 {    
-    free(layer->outputs);
-    layer->outputs = NULL;
+    free(myLayer->outputs);
+    myLayer->outputs = NULL;
 
-    free(layer->biases);
-    layer->biases = NULL;
+    free(myLayer->biases);
+    myLayer->biases = NULL;
 
-    if(layer->activationFunction == 'i') goto free;
+    if(myLayer->activationFunction == 'i') goto free;
     
-    free(layer->backErrors);
-    layer->backErrors = NULL;
+    free(myLayer->backErrors);
+    myLayer->backErrors = NULL;
 
-    free(layer->prevLayers);
-    layer->prevLayers = NULL;
+    free(myLayer->prevLayers);
+    myLayer->prevLayers = NULL;
 
-    free(layer->preActivations);
-    layer->preActivations = NULL;
+    free(myLayer->preActivations);
+    myLayer->preActivations = NULL;
 
-    hakai_matrix(layer->weights, layer->numNodes);
+    hakai_matrix(myLayer->weights, myLayer->numNodes);
     
-    // if(layer->numNextLayers == 0) return;
+    // if(myLayer->numNextLayers == 0) return;
 
-    // free(layer->nextLayers);
-    // layer->nextLayers = NULL;
+    // free(myLayer->nextLayers);
+    // myLayer->nextLayers = NULL;
 
 free:
-    free(layer);
-    layer = NULL;
+    free(myLayer);
+    myLayer = NULL;
 }
 
-void hakai_model_mfree(struct model* myModel)
+void hakai_model_mfree(model* myModel)
 {
-    free(myModel->inLayers);
-    myModel->inLayers = NULL;
-
     free(myModel->layer_refs);
     myModel->layer_refs = NULL;
 
@@ -86,35 +84,35 @@ void hakai_model_mfree(struct model* myModel)
 }
 
 // Destroy an individual layer after operations are concluded
-void hakai_layer(struct layer* layer, struct model* myModel)
+void hakai_layer(layer* myLayer, model* myModel)
 {
-    if(layer == NULL) return;
-    if(myModel->layer_refs[layer->layerID] != NULL) return;
+    if(myLayer == NULL) return;
+    if(myModel->layer_refs[myLayer->layerID] != NULL) return;
 
-    free(layer->backErrors);
-    layer->backErrors = NULL;
+    free(myLayer->backErrors);
+    myLayer->backErrors = NULL;
 
-    free(layer->preActivations);
-    layer->preActivations = NULL;
+    free(myLayer->preActivations);
+    myLayer->preActivations = NULL;
 
-    free(layer->outputs);
-    layer->outputs = NULL;
+    free(myLayer->outputs);
+    myLayer->outputs = NULL;
 
-    free(layer->biases);
-    layer->biases = NULL;
+    free(myLayer->biases);
+    myLayer->biases = NULL;
 
-    if(layer->activationFunction != 'i') hakai_matrix(layer->weights, layer->numNodes);
+    if(myLayer->activationFunction != 'i') hakai_matrix(myLayer->weights, myLayer->numNodes);
 
-    // free(layer->nextLayers);
-    // layer->nextLayers = NULL;
+    // free(myLayer->nextLayers);
+    // myLayer->nextLayers = NULL;
     
-    myModel->layer_refs[layer->layerID] = layer;
+    myModel->layer_refs[myLayer->layerID] = myLayer;
 }
 
 
 // Enter this function with the outArray of the model and let it do its thing
 // One big advantage of the doubly linked list structure is being able to exploit the convergence of the model on the output layer
-void clear_model(struct layer** layerArr, struct model* myModel, int layerNums)
+void clear_model(layer** layerArr, model* myModel, int layerNums)
 {
     if(layerArr == NULL) return;
 
@@ -136,16 +134,13 @@ void clear_model(struct layer** layerArr, struct model* myModel, int layerNums)
 }
 
 
-void hakai_model(struct model* myModel)
+void hakai_model(model* myModel)
 {
-    struct layer **outArr = (struct layer**)malloc(sizeof(struct layer*));
+    layer **outArr = (layer**)malloc(sizeof(layer*));
     if(outArr == NULL) return;
     
     outArr[0] = myModel->outLayer;
     clear_model(outArr, myModel, 1);
-
-    free(myModel->inLayers);
-    myModel->inLayers = NULL;
 
     for(int i = 0; i < myModel->numLayers; i++)
     {
@@ -164,37 +159,37 @@ void hakai_model(struct model* myModel)
 }
 
 //  Gets an output from the target layer
-void forward_out(struct layer* layer)
+void forward_out(layer* myLayer)
 {
-    if(layer->switchVar == '1') return;
+    if(myLayer->switchVar == '1') return;
 
-    layer->switchVar = '1';
+    myLayer->switchVar = '1';
 
-    if(layer->numPrevLayers != 0)
+    if(myLayer->numPrevLayers != 0)
     {
         int numPrevsTraversed = 0;
         
-        for(int i = 0; i < layer->numPrevLayers; i++) forward_out(layer->prevLayers[i]);
+        for(int i = 0; i < myLayer->numPrevLayers; i++) forward_out(myLayer->prevLayers[i]);
 
-        for(int i = 0; i < layer->numNodes; i++) 
+        for(int i = 0; i < myLayer->numNodes; i++) 
         {
-            for(int j = 0; j < layer->numPrevLayers; j++)
+            for(int j = 0; j < myLayer->numPrevLayers; j++)
             {
-                for(int k = 0; k < layer->prevLayers[j]->numNodes; k++) layer->preActivations[i] += layer->prevLayers[j]->outputs[k] * layer->weights[i][numPrevsTraversed + k];
-                numPrevsTraversed += layer->prevLayers[j]->numNodes;
+                for(int k = 0; k < myLayer->prevLayers[j]->numNodes; k++) myLayer->preActivations[i] += myLayer->prevLayers[j]->outputs[k] * myLayer->weights[i][numPrevsTraversed + k];
+                numPrevsTraversed += myLayer->prevLayers[j]->numNodes;
             }
-            layer->preActivations[i] += layer->biases[i];
+            myLayer->preActivations[i] += myLayer->biases[i];
             numPrevsTraversed = 0;
         } 
     }
 
-    switch(layer->activationFunction)
+    switch(myLayer->activationFunction)
     {
         case 'r':
-            for(int i = 0; i < layer->numNodes; i++) layer->outputs[i] = leaky_relu(layer->preActivations[i]);
+            for(int i = 0; i < myLayer->numNodes; i++) myLayer->outputs[i] = leaky_relu(myLayer->preActivations[i]);
             break;
         case 't':
-            for(int i = 0; i < layer->numNodes; i++) layer->outputs[i] = tanh(layer->preActivations[i]);
+            for(int i = 0; i < myLayer->numNodes; i++) myLayer->outputs[i] = tanh(myLayer->preActivations[i]);
             break;
         default:
             break;
@@ -204,82 +199,82 @@ void forward_out(struct layer* layer)
 // Run on each output layer and then apply grads before clearing the layer backerrors - All roads spring forth from Rome algorithm
 // We pass the backerrors to each previous layer to calculate grads later
 // Backerrors can be accumulated from multiple successor layers to calculate grads due to matrix distributivity
-void sgd_backprop(struct layer* layer, struct model* myModel)
+void sgd_backprop(layer* myLayer, model* myModel)
 { // start at output layer and calculate backerrors for each previous layer
-    if(layer->switchVar == '2') return;
+    if(myLayer->switchVar == '2') return;
 
-    layer->switchVar = '2';
+    myLayer->switchVar = '2';
 
-    if(layer->numNextLayers == 0)
+    if(myLayer->numNextLayers == 0)
     {
         // backErrorsForOutputLayer = mseLossDerivative · activationFunctionDerivative(preActivations) - for output layer
-        for(int i = 0; i < layer->numNodes; i++) layer->backErrors[i] = -1 * mse_loss_derivative_func(myModel->targets[i], layer->outputs[i]) * tanh_derivative(layer->preActivations[i]);
+        for(int i = 0; i < myLayer->numNodes; i++) myLayer->backErrors[i] = -1 * mse_loss_derivative_func(myModel->targets[i], myLayer->outputs[i]) * tanh_derivative(myLayer->preActivations[i]);
     }
     
     // backErrorsForPreviousLayers += (thisLayersBackErrors)(thisLayersWeightMatrixWithRespectToCurrentPreviousLayer) · activationFunctionDerivative(previousLayers)
     int prevsTraversed = 0;
-    for(int i = 0; i < layer->numPrevLayers; i++)
+    for(int i = 0; i < myLayer->numPrevLayers; i++)
     {
-        if(layer->prevLayers[i]->numPrevLayers == 0) continue;
-        for(int j = 0; j < layer->prevLayers[i]->numNodes; j++)
+        if(myLayer->prevLayers[i]->numPrevLayers == 0) continue;
+        for(int j = 0; j < myLayer->prevLayers[i]->numNodes; j++)
         {
-            for(int k = 0; k < layer->numNodes; k++) layer->prevLayers[i]->backErrors[j] += layer->backErrors[k] * layer->weights[k][prevsTraversed + j] * leaky_relu_derivative(layer->prevLayers[i]->preActivations[j]);                
+            for(int k = 0; k < myLayer->numNodes; k++) myLayer->prevLayers[i]->backErrors[j] += myLayer->backErrors[k] * myLayer->weights[k][prevsTraversed + j] * leaky_relu_derivative(myLayer->prevLayers[i]->preActivations[j]);                
         }
-        prevsTraversed += layer->prevLayers[i]->numNodes;
+        prevsTraversed += myLayer->prevLayers[i]->numNodes;
     }
 
-    for(int i = 0; i < layer->numPrevLayers; i++) if(layer->prevLayers[i]->numPrevLayers != 0) sgd_backprop(layer->prevLayers[i], myModel);
+    for(int i = 0; i < myLayer->numPrevLayers; i++) if(myLayer->prevLayers[i]->numPrevLayers != 0) sgd_backprop(myLayer->prevLayers[i], myModel);
     // calculate backErrors for previous layers' previous layers according to already established layers' backErrors - All roads spring forth from Rome
 }
 
 // Another all roads spring forth from Rome approach - go to the convergence point of the model and use it as the root of the undirected, cyclic graph that is this model
-void calculate_and_apply_grads(struct layer* layer, float learningRate)
+void calculate_and_apply_grads(layer* myLayer, float learningRate)
 {
-    if(layer->switchVar == '3') return;
+    if(myLayer->switchVar == '3') return;
 
-    layer->switchVar = '3';
+    myLayer->switchVar = '3';
 
-    if(layer->numPrevLayers == 0) return;
+    if(myLayer->numPrevLayers == 0) return;
 
-    for(int i = 0; i < layer->numPrevLayers; i++) calculate_and_apply_grads(layer->prevLayers[i], learningRate);
+    for(int i = 0; i < myLayer->numPrevLayers; i++) calculate_and_apply_grads(myLayer->prevLayers[i], learningRate);
 
-    for(int i = 0; i < layer->numNodes; i++) layer->biases[i] -= learningRate * layer->backErrors[i];
+    for(int i = 0; i < myLayer->numNodes; i++) myLayer->biases[i] -= learningRate * myLayer->backErrors[i];
 
     int prevsTraversed = 0;
 
     // calculate gradients from backerrors and activations for each layer and apply them to the weights_mm256_mul_ps(vector_a, scalar_vector);
-    for(int i = 0; i < layer->numPrevLayers; i ++)
+    for(int i = 0; i < myLayer->numPrevLayers; i ++)
     {
-        for(int j = 0; j < layer->prevLayers[i]->numNodes; j++)
+        for(int j = 0; j < myLayer->prevLayers[i]->numNodes; j++)
         {
-            for(int k = 0; k < layer->numNodes; k++) layer->weights[k][j + prevsTraversed] -= learningRate * layer->prevLayers[i]->outputs[j] * layer->backErrors[k];
+            for(int k = 0; k < myLayer->numNodes; k++) myLayer->weights[k][j + prevsTraversed] -= learningRate * myLayer->prevLayers[i]->outputs[j] * myLayer->backErrors[k];
         }
-        prevsTraversed += layer->prevLayers[i]->numNodes;
+        prevsTraversed += myLayer->prevLayers[i]->numNodes;
     }
 }
 
 // For clearing the backErrors once no longer needed, and to also prime for next forward and backward pass
 // Use by passing the output layer of the model into the function 
-void zero_everything(struct layer* layer)
+void zero_everything(layer* myLayer)
 {
-    if(layer->switchVar == '0') return;
+    if(myLayer->switchVar == '0') return;
 
-    layer->switchVar = '0';
+    myLayer->switchVar = '0';
 
-    if(layer->numPrevLayers != 0)
+    if(myLayer->numPrevLayers != 0)
     {
-        for(int i = 0; i < layer->numPrevLayers; i++) zero_everything(layer->prevLayers[i]);
+        for(int i = 0; i < myLayer->numPrevLayers; i++) zero_everything(myLayer->prevLayers[i]);
     }
     else return;
 
-    memset(layer->backErrors, 0.0f, layer->numNodes * sizeof(float));
-    memset(layer->preActivations, 0.0f, layer->numNodes * sizeof(float));
-    memset(layer->outputs, 0.0f, layer->numNodes * sizeof(float));
+    memset(myLayer->backErrors, 0.0f, myLayer->numNodes * sizeof(float));
+    memset(myLayer->preActivations, 0.0f, myLayer->numNodes * sizeof(float));
+    memset(myLayer->outputs, 0.0f, myLayer->numNodes * sizeof(float));
 }
 
-int save_model(struct model* saveMod, FILE* modelFile);
+int save_model(model* saveMod, FILE* modelFile);
 
-struct model* load_model(char* filename[]);
+model* load_model(char* filename[]);
 
 
 

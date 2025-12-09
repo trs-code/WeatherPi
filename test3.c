@@ -3,46 +3,44 @@
 
 int main()
 {
-    struct model *myModel = construct_model(4, 1, 1.0f, 1);
-    if(myModel == NULL)
-    {
-        printf("Memory allocation failed at model\n");
-        goto error1;
-    }
-    
-    struct layer* inLayer = make_input_layer(3, 1, 0);
+    layer* inLayer = make_input_layer(3, 1, 0);
     if(inLayer == NULL)
     {
         printf("Memory allocation failed at inLayer\n");
-        goto error2;
+        goto error1;
     }
-    struct layer* layer_in[] = {inLayer};
+    layer* layer_in[] = {inLayer};
 
-    struct layer* layer0 = make_dense_layer(layer_in, 2, 1, 1, 1);
+    layer* layer0 = make_dense_layer(layer_in, 2, 1, 1, 1);
     if(layer0 == NULL)
     {
         printf("Memory allocation failed at layer0\n");
-        goto error3;
+        goto error2;
     }
     
     
-    struct layer* layer1 = make_dense_layer(layer_in, 1, 1, 1, 2);
+    layer* layer1 = make_dense_layer(layer_in, 1, 1, 1, 2);
     if(layer1 == NULL)
     {
         printf("Memory allocation failed at layer1\n");
-        goto error4;
+        goto error3;
     }
 
-    struct layer* outLayer_in[] = {layer0, layer1};
-    struct layer* outLayer = make_output_layer(outLayer_in, 1, 2, 3);
+    layer* outLayer_in[] = {layer0, layer1};
+    layer* outLayer = make_output_layer(outLayer_in, 1, 2, 3);
     if(layer1 == NULL)
     {
         printf("Memory allocation failed at outLayer\n");
-        goto error5;
+        goto error4;
     }
 
-    myModel->inLayers[0] = inLayer;
-    myModel->outLayer = outLayer;
+    layer* inLayers[] = {inLayer};
+    model *myModel = construct_model(inLayers, outLayer, 4, 1, 1.0f, 1);
+    if(myModel == NULL)
+    {
+        printf("Memory allocation failed at model\n");
+        goto error5;
+    }
 
     printf("Model creation successful\n\n");
 
@@ -94,13 +92,13 @@ int main()
     return 0;
 
 error5:
-    hakai_layer_mfree(layer1);
+    hakai_layer_mfree(outLayer);
 error4:
-    hakai_layer_mfree(layer0);
+    hakai_layer_mfree(layer1);
 error3:
-    hakai_layer_mfree(inLayer);
+    hakai_layer_mfree(layer0);
 error2:
-    hakai_model_mfree(myModel);
+    hakai_layer_mfree(inLayer);
 error1:
     exit(EXIT_FAILURE);
 }

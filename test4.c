@@ -2,64 +2,61 @@
 #include "nn_include/nn.h"
 
 int main()
-{
-    struct model *myModel = construct_model(6, 2, 1.0f, 1);
-    if(myModel == NULL)
-    {
-        printf("Memory allocation failed at model\n");
-        goto error1;
-    }
-    
-    struct layer* inLayer0 = make_input_layer(2, 1, 0);
+{   
+    layer* inLayer0 = make_input_layer(2, 1, 0);
     if(inLayer0 == NULL)
     {
         printf("Memory allocation failed at inLayer0\n");
-        goto error2;
+        goto error1;
     }
 
-    struct layer* inLayer1 = make_input_layer(1, 1, 1);
+    layer* inLayer1 = make_input_layer(1, 1, 1);
     if(inLayer1 == NULL)
     {
         printf("Memory allocation failed at inLayer1\n");
-        goto error4;
+        goto error2;
     }
 
-    struct layer* layer_in0[] = {inLayer0};
-    struct layer* layer_in1[] = {inLayer1};
+    layer* layer_in0[] = {inLayer0};
+    layer* layer_in1[] = {inLayer1};
 
-    struct layer* layer0 = make_dense_layer(layer_in0, 2, 1, 1, 2);
+    layer* layer0 = make_dense_layer(layer_in0, 2, 1, 1, 2);
     if(layer0 == NULL)
     {
         printf("Memory allocation failed at layer0\n");
         goto error3;
     }
     
-    struct layer* layer1 = make_dense_layer(layer_in1, 1, 1, 1, 3);
+    layer* layer1 = make_dense_layer(layer_in1, 1, 1, 1, 3);
     if(layer1 == NULL)
     {
         printf("Memory allocation failed at layer1\n");
-        goto error5;
+        goto error4;
     }
 
-    struct layer* layer_in2[] = {layer0, layer1};
-    struct layer* layer2 = make_dense_layer(layer_in2, 3, 2, 1, 4);
+    layer* layer_in2[] = {layer0, layer1};
+    layer* layer2 = make_dense_layer(layer_in2, 3, 2, 1, 4);
     if(layer2 == NULL)
     {
         printf("Memory allocation failed at layer2\n");
-        goto error6;
+        goto error5;
     }
 
-    struct layer* outLayer_in[] = {layer2};
-    struct layer* outLayer = make_output_layer(outLayer_in, 1, 1, 5);
+    layer* outLayer_in[] = {layer2};
+    layer* outLayer = make_output_layer(outLayer_in, 1, 1, 5);
     if(outLayer == NULL)
     {
         printf("Memory allocation failed at outLayer\n");
-        goto error7;
+        goto error6;
     }
 
-    myModel->inLayers[0] = inLayer0;
-    myModel->inLayers[1] = inLayer1;
-    myModel->outLayer = outLayer;
+    layer* inLayers[] = {inLayer0, inLayer1};
+    model *myModel = construct_model(inLayers, outLayer, 6, 2, 1.0f, 1);
+    if(myModel == NULL)
+    {
+        printf("Memory allocation failed at model\n");
+        goto error7;
+    }
 
     printf("Model creation successful\n\n");
 
@@ -113,17 +110,17 @@ int main()
     return 0;
 
 error7:
-    hakai_layer_mfree(layer2);
+    hakai_model_mfree(myModel);
 error6:
-    hakai_layer_mfree(layer1);
+    hakai_layer_mfree(layer2);
 error5:
-    hakai_layer_mfree(inLayer1);
+    hakai_layer_mfree(layer1);
 error4:
     hakai_layer_mfree(layer0);
 error3:
-    hakai_layer_mfree(inLayer0);
+    hakai_layer_mfree(inLayer1);
 error2:
-    hakai_model_mfree(myModel);
+    hakai_layer_mfree(inLayer0);
 error1:
     exit(EXIT_FAILURE);
 }
