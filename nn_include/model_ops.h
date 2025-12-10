@@ -1,32 +1,27 @@
 #ifndef NN_MODEL_OPS
 #define NN_MODEL_OPS
 
+#include <stdio.h>
 #include "model.h"
 #include "nn_math.h"
 
-int assign_layer_ids(layer* myLayer, int currMaxID)
+int assign_layer_ids(layer* myLayer, int currID)
 {
-    int idMax = currMaxID;
-
-    if(myLayer->layerID != -1) return idMax;
-
-    myLayer->layerID = idMax;
-
-    if(myLayer->numPrevLayers == 0)
-    {
-        return idMax;
-    }
+    //Post order traversal so the layers can be readily identified before any of their dependencies
+    int myID = currID;
+    if(myLayer->layerID != -1) return currID;
 
     for (int i = 0; i < myLayer->numPrevLayers; i++)
     {
-        idMax = max(idMax, assign_layer_ids(myLayer->prevLayers[i], idMax + 1));
+        myID = assign_layer_ids(myLayer->prevLayers[i], myID);
     }
 
-    return idMax;
+    myLayer->layerID = myID;
+    return myID + 1;
     
 }
 
-model* construct_model(layer** inLayers, layer* outLayer,int numLayers, int numInLayers, float learning_rate, int numOutputs)
+model* construct_model(layer** inLayers, layer* outLayer,int numLayers, int numInLayers, float learning_rate)
 {
     model *myModel = (model*)malloc(sizeof(model));
     if(myModel == NULL) return NULL;
@@ -35,15 +30,14 @@ model* construct_model(layer** inLayers, layer* outLayer,int numLayers, int numI
     if(myModel->layer_refs == NULL) goto error2;
     for(int i = 0; i < numLayers; i++) myModel->layer_refs[i] = NULL;
 
-    myModel->targets = (float *)calloc(numOutputs, sizeof(float));
-    if(myModel->targets == NULL) goto error3;
-
     myModel->inLayers = inLayers;
     myModel->outLayer = outLayer;
     myModel->numLayers = numLayers;
     myModel->learning_rate = learning_rate;
     myModel->numInLayers = numInLayers;
-    myModel->numOutputs = numOutputs;
+
+    myModel->targets = (float *)calloc(myModel->outLayer->numNodes, sizeof(float));
+    if(myModel->targets == NULL) goto error3;
 
     assign_layer_ids(outLayer, 0);
 
@@ -295,9 +289,115 @@ void zero_everything(layer* myLayer)
     memset(myLayer->outputs, 0.0f, myLayer->numNodes * sizeof(float));
 }
 
-int save_model(model* saveMod, FILE* modelFile);
+void traverse_model_fill_layer_list(layer* myLayer, layer** layerList)
+{
+    if(layerList[myLayer->layerID] != NULL) return;
+    for(int i = 0; i < myLayer->numPrevLayers; i++) traverse_model_fill_layer_list(myLayer->prevLayers[i], layerList); // if input layer then the for loop won't even initiate
+    layerList[myLayer->layerID] = myLayer;
+}
 
-model* load_model(char* filename[]);
+int save_model(model* saveModel, const char* modelFileName)
+{
+    layer** layerList = (layer **)calloc(saveModel->numLayers, sizeof(layer*));
+    if(layerList == NULL) goto error1;
+
+    traverse_model_fill_layer_list(saveModel->outLayer, layerList);
+
+    FILE *modFile = fopen(modelFileName, "w");
+    if(modFile == NULL) goto error2;
+
+    for(int i = 0; i < saveModel->numLayers; i++)
+    {
+        int offset = 6;
+        int lineLength = 6;
+        if(layerList[i]->numPrevLayers != 0)
+        {
+            offset += 1;
+            lineLength += layerList[i]->numPrevLayers;
+            lineLength += 16 * (layerList[i]->numNodes * (layerList[i]->numPrevNodes + 1));
+            lineLength += 2;
+        }
+
+        char *line = (char *)malloc(lineLength);
+        if(line == NULL) goto error3;
+
+        if(layerList[i]->numPrevLayers == 0)
+        {
+            line[0] = (char)(layerList[i]->layerID + 33); // not likely to be more than 93 so we can just encode with the printable ascii value
+            line[1] = '0';
+            line[2] = (char)(layerList[i]->numNodes + 33); // would need to be adjusted for larger applications like chatgpt which can have just under 13k nodes in a layer
+            line[3] = (char)(layerList[i]->numNextLayers + 33);
+            line[4] = layerList[i]->activationFunction;
+            line[5] = '\0';
+            
+            fputs(line, modFile);
+            fputs("\n", modFile);
+            continue;
+        }
+        else if(layerList[i]->numNextLayers == 0) 
+        {
+            line[1] = '2'; // Only reason for separate else if and else branches is differentiating the outlayer with hidden layers
+        }
+        else
+        {
+            line[1] = '1';
+        }
+
+        char fltBuff[16];
+
+        line[0] = (char)(layerList[i]->layerID + 33); // not likely to be more than 255 so we can just encode with the ascii value
+        line[2] = (char)(layerList[i]->numNodes + 33);
+        line[3] = (char)(layerList[i]->numNextLayers + 33);
+        line[4] = (char)(layerList[i]->numPrevNodes + 33);
+        line[5] = (char)(layerList[i]->numPrevLayers + 33);
+        line[6] = layerList[i]->activationFunction;
+
+        for(int j = 0; j < layerList[i]->numPrevLayers; j++)
+        {
+            line[offset] = (char)(layerList[i]->prevLayers[j]->layerID + 33);
+            offset += 1;
+        }
+
+        for(int j = 0; j < layerList[i]->numNodes; j++)
+        {
+            for(int k = 0; k < layerList[i]->numPrevNodes; k++)
+            {
+                snprintf(fltBuff, 16UL, "%.14f", layerList[i]->weights[j][k]);
+                for(int l = 0; l < 15; l++) line[offset + l] = fltBuff[l];
+                offset += 15;
+            }
+        }
+
+        for(int j = 0; j < layerList[i]->numNodes; j++)
+        {
+            snprintf((char*)fltBuff, 16UL, "%.14f", layerList[i]->biases[j]);
+            for(int l = 0; l < 16; l++) line[offset + l] = fltBuff[l];
+            offset += 16;
+        }
+
+        line[lineLength - 1] = '\0';
+        
+        fputs(line, modFile);
+        fputs("\n", modFile);
+
+        free(line);
+    }
+
+    fclose(modFile);
+    free(layerList);
+    layerList = NULL;
+    return 0;
+
+error3:
+    fclose(modFile);
+error2:
+    free(layerList);
+    layerList = NULL;
+error1:
+    return -1;
+}
+
+model* load_model(const char* filename);
 
 
 

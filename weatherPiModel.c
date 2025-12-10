@@ -74,7 +74,7 @@ int main()
     }
 
     layer* inLayers[] = {inLayer0, inLayer1, inLayer2};
-    model *wethrModel = construct_model(inLayers, outLayer, 9, 3, 0.01f, 1);
+    model *wethrModel = construct_model(inLayers, outLayer, 9, 3, 0.01f);
     if(wethrModel == NULL)
     {
         printf("Memory allocation failed at wethrModel\n");
@@ -109,7 +109,7 @@ int main()
     }
     printf("\nModel output is: %f\nTarget is : %f", wethrModel->outLayer->outputs[0], testTarg[0]);
 
-
+    save_model(wethrModel, "wethrModel.cml");
     hakai_model(wethrModel);
     printf("\nSuccess\n");
     return 0;

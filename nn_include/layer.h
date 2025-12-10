@@ -26,7 +26,7 @@ struct layer
     layer** prevLayers; // Very necessary to operate model
     // layer **nextLayers; // Might not be needed for actual operation of the model
     float **weights; // n nodes * p previous nodes - weight matrix
-    float *biases;
+    float *biases; // n biases - 1 for each node
     float *backErrors; // Only necessary for backpropagation, not necessary for an inference model - n values
     float *outputs; // Activation value passed through activation function, output of the node that is passed forward - n values
     float *preActivations; // Sum of all previous nodes according to each previous node weight - n values
