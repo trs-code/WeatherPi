@@ -3,14 +3,14 @@
 
 int main()
 {   
-    layer* inLayer0 = make_input_layer(2, 1);
+    layer* inLayer0 = make_input_layer(2);
     if(inLayer0 == NULL)
     {
         printf("Memory allocation failed at inLayer0\n");
         goto error1;
     }
 
-    layer* inLayer1 = make_input_layer(1, 1);
+    layer* inLayer1 = make_input_layer(1);
     if(inLayer1 == NULL)
     {
         printf("Memory allocation failed at inLayer1\n");

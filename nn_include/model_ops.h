@@ -21,7 +21,7 @@ int assign_layer_ids(layer* myLayer, int currID)
     
 }
 
-model* construct_model(layer** inLayers, layer* outLayer,int numLayers, int numInLayers, float learning_rate)
+model* construct_model(layer** inLayers, layer* outLayer, int numLayers, int numInLayers, float learning_rate)
 {
     model *myModel = (model*)malloc(sizeof(model));
     if(myModel == NULL) return NULL;
@@ -296,6 +296,17 @@ void traverse_model_fill_layer_list(layer* myLayer, layer** layerList)
     layerList[myLayer->layerID] = myLayer;
 }
 
+void int2bin(int x, int numBits, char* bitBuff)
+{
+    int myX = x;
+
+    for(int i = 0; i < numBits; i++)
+    {
+        bitBuff[i] = (myX & 1) ? '1' : '0';
+        myX >>= 1; 
+    }
+}
+
 int save_model(model* saveModel, const char* modelFileName)
 {
     layer** layerList = (layer **)calloc(saveModel->numLayers, sizeof(layer*));
@@ -306,71 +317,129 @@ int save_model(model* saveModel, const char* modelFileName)
     FILE *modFile = fopen(modelFileName, "w");
     if(modFile == NULL) goto error2;
 
+    int offset = 0;
+    int lineLength = 41;
+    char bitBuff[33] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+    char fltBuff[20] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+
+    lineLength += 16 * saveModel->numInLayers;
+
+    char *line = (char *)calloc(lineLength, sizeof(char));
+    if(line == NULL) goto error3;
+    
+    int2bin(saveModel->numLayers, 16, bitBuff);
+    for(int i = 0; i < 16; i++) line[offset + i] = bitBuff[i]; // big endian representation
+    offset += 16;
+
+    int2bin(saveModel->numInLayers, 16, bitBuff);
+    for(int i = 0; i < 16; i++) line[offset + i] = bitBuff[i]; // big endian representation
+    offset += 16;
+
+    for(int i = 0; i < saveModel->numInLayers; i++)
+    {
+        int2bin(saveModel->inLayers[i]->layerID, 16, bitBuff);
+        for(int j = 0; j < 16; j++) line[offset + j] = bitBuff[j]; // big endian representation
+        offset += 16;
+    }
+
+    snprintf(fltBuff, 9UL, "%.8f", saveModel->learning_rate);
+    for(int l = 0; l < 8; l++) line[offset + l] = fltBuff[l];
+    offset += 8;
+
+    line[lineLength - 1] = '\0';
+
+    fputs(line, modFile);
+    fputs("\n", modFile);
+
+    free(line);
+    line = NULL;
+
     for(int i = 0; i < saveModel->numLayers; i++)
     {
-        int offset = 6;
-        int lineLength = 6;
+        lineLength = 29;
         if(layerList[i]->numPrevLayers != 0)
         {
-            offset += 1;
-            lineLength += layerList[i]->numPrevLayers;
+            lineLength += 16 * layerList[i]->numPrevLayers;
             lineLength += 16 * (layerList[i]->numNodes * (layerList[i]->numPrevNodes + 1));
-            lineLength += 2;
+            lineLength += 65;
         }
+        offset = 0;
 
-        char *line = (char *)malloc(lineLength);
+        line = (char *)calloc(lineLength, sizeof(char));
         if(line == NULL) goto error3;
 
-        if(layerList[i]->numPrevLayers == 0)
+        if(layerList[i]->numNextLayers == 0) 
         {
-            line[0] = (char)(layerList[i]->layerID + 33); // not likely to be more than 93 so we can just encode with the printable ascii value
-            line[1] = '0';
-            line[2] = (char)(layerList[i]->numNodes + 33); // would need to be adjusted for larger applications like chatgpt which can have just under 13k nodes in a layer
-            line[3] = (char)(layerList[i]->numNextLayers + 33);
-            line[4] = layerList[i]->activationFunction;
-            line[5] = '\0';
-            
-            fputs(line, modFile);
-            fputs("\n", modFile);
-            continue;
-        }
-        else if(layerList[i]->numNextLayers == 0) 
-        {
-            line[1] = '2'; // Only reason for separate else if and else branches is differentiating the outlayer with hidden layers
+            line[0] = '2'; // Only reason for separate else if and else branches is differentiating the outlayer with hidden layers
         }
         else
         {
-            line[1] = '1';
+            line[0] = '1';
         }
 
-        char fltBuff[16];
+        offset += 1;
 
-        line[0] = (char)(layerList[i]->layerID + 33); // not likely to be more than 255 so we can just encode with the ascii value
-        line[2] = (char)(layerList[i]->numNodes + 33);
-        line[3] = (char)(layerList[i]->numNextLayers + 33);
-        line[4] = (char)(layerList[i]->numPrevNodes + 33);
-        line[5] = (char)(layerList[i]->numPrevLayers + 33);
-        line[6] = layerList[i]->activationFunction;
+        int2bin(layerList[i]->layerID, 11, bitBuff);
+        for(int j = 0; j < 11; j++) line[offset + j] = bitBuff[j]; // big endian representation
+        offset += 11;
+
+        int2bin(layerList[i]->numNodes, 16, bitBuff);
+        for(int j = 0; j < 16; j++) line[offset+ j] = bitBuff[j];
+        offset += 16;
+
+        if(layerList[i]->numPrevLayers == 0)
+        {
+            line[0] = '0';
+
+            line[offset] = '\0';
+            
+            fputs(line, modFile);
+            fputs("\n", modFile);
+            
+            free(line);
+            line = NULL;
+            continue;
+        }
+
+        int2bin(layerList[i]->numNextLayers, 16, bitBuff);
+        for(int j = 0; j < 16; j++) line[offset+ j] = bitBuff[j];
+        offset += 16;
+
+        int2bin(layerList[i]->numPrevNodes, 32, bitBuff);
+        for(int j = 0; j < 32; j++) line[offset+ j] = bitBuff[j];
+        offset += 32;
+        
+        int2bin(layerList[i]->numPrevLayers, 16, bitBuff);
+        for(int j = 0; j < 16; j++) line[offset+ j] = bitBuff[j];
+        offset += 16;
+        
+        line[offset] = layerList[i]->activationFunction;
+        offset += 1;
 
         for(int j = 0; j < layerList[i]->numPrevLayers; j++)
         {
-            line[offset] = (char)(layerList[i]->prevLayers[j]->layerID + 33);
-            offset += 1;
+            int2bin(layerList[i]->prevLayers[j]->layerID, 16, bitBuff);
+            for(int k = 0; k < 16; k++) line[offset + k] = bitBuff[k];
+            offset += 16;
         }
 
         for(int j = 0; j < layerList[i]->numNodes; j++)
         {
             for(int k = 0; k < layerList[i]->numPrevNodes; k++)
             {
-                snprintf(fltBuff, 16UL, "%.14f", layerList[i]->weights[j][k]);
-                for(int l = 0; l < 15; l++) line[offset + l] = fltBuff[l];
-                offset += 15;
+                if(layerList[i]->weights[j][k] < 0) snprintf(fltBuff, 17UL, "%.15f", layerList[i]->weights[j][k]);
+                else snprintf(fltBuff, 17UL, "%.16f", layerList[i]->weights[j][k]);
+                
+                for(int l = 0; l < 16; l++) line[offset + l] = fltBuff[l];
+                offset += 16;
             }
         }
 
         for(int j = 0; j < layerList[i]->numNodes; j++)
         {
-            snprintf((char*)fltBuff, 16UL, "%.14f", layerList[i]->biases[j]);
+            if(layerList[i]->biases[j] < 0) snprintf((char*)fltBuff, 17UL, "%.15f", layerList[i]->biases[j]);
+            else snprintf((char*)fltBuff, 17UL, "%.15f", layerList[i]->biases[j]);
+            
             for(int l = 0; l < 16; l++) line[offset + l] = fltBuff[l];
             offset += 16;
         }
@@ -381,10 +450,12 @@ int save_model(model* saveModel, const char* modelFileName)
         fputs("\n", modFile);
 
         free(line);
+        line = NULL;
     }
 
     fclose(modFile);
     free(layerList);
+    free(line);
     layerList = NULL;
     return 0;
 
@@ -395,6 +466,23 @@ error2:
     layerList = NULL;
 error1:
     return -1;
+}
+
+int bin2int(const char* bin, int size)
+{
+    int retVal = 0;
+    int currCount = 1;
+
+    for(int i = 0; i < size; i++)
+    {
+        if(bin[i] == '1')
+        {
+            retVal += currCount;
+        }
+        currCount <<= 2;
+    }
+
+    return retVal;
 }
 
 model* load_model(const char* filename);

@@ -16,7 +16,7 @@ void hakai_matrix(float** mat, int rows)
 }
 
 // Solely to load input values into the model in a form where layer operations can be generalized into
-layer* make_input_layer(int numNodes, int numNextLayers)
+layer* make_input_layer(int numNodes)
 {
     // Allocate space for the input layer
     layer *inLayer = (layer*)malloc(sizeof(layer));
@@ -24,11 +24,12 @@ layer* make_input_layer(int numNodes, int numNextLayers)
 
     inLayer->numPrevLayers = 0;
     inLayer->numPrevNodes = 0;
-    //inLayer->numNextLayers = numNextLayers;
+    inLayer->numNextLayers = 0; // Not true but this variable isn't currently utilized for anything so no need to waste our time on it
     inLayer->prevLayers = NULL; // No previous layers for an input layer
     inLayer->weights = NULL;    // Input layer just accepts inputs, doesn't need actual weights, just something to facilitate forwarding values
     inLayer->backErrors = NULL;  // Input layer doesn't need backErrors
 
+    //Actually turns out I don't need this, keeping it around in case it proves needed in the future
     // Allocate space for the following layers so a forward pass is easier to implement and also navigating the layers
     //inLayer->nextLayers = (struct layer**)calloc(numNextLayers, sizeof(struct layer*));
     //if(inLayer->nextLayers == NULL) goto error1;
@@ -111,7 +112,7 @@ layer* make_dense_layer(layer** prev, int numNodes, int numPrevLayers, int numNe
         denseLayer->weights[i] = (float *)malloc(sizeof(float) * (denseLayer->numPrevNodes)); // Each column is a connection to each neuron in the previous layer pus a bias
         if(denseLayer->weights[i] == NULL) goto error5;
         
-        for(int j = 0; j < denseLayer->numPrevNodes; j++) denseLayer->weights[i][j] = 1.0f; 
+        for(int j = 0; j < denseLayer->numPrevNodes; j++) denseLayer->weights[i][j] = 1.0; 
         denseLayer->biases[i] = 0.0f; // Initialize biases
     }
     

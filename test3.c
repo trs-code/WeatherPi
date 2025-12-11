@@ -3,7 +3,7 @@
 
 int main()
 {
-    layer* inLayer = make_input_layer(3, 1);
+    layer* inLayer = make_input_layer(3);
     if(inLayer == NULL)
     {
         printf("Memory allocation failed at inLayer\n");

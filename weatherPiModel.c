@@ -4,21 +4,21 @@
 int main()
 {
 
-    layer* inLayer0 = make_input_layer(3, 1);
+    layer* inLayer0 = make_input_layer(3);
     if(inLayer0 == NULL)
     {
         printf("Memory allocation failed at inLayer0\n");
         goto error1;
     }
 
-    layer* inLayer1 = make_input_layer(3, 1);
+    layer* inLayer1 = make_input_layer(3);
     if(inLayer0 == NULL)
     {
         printf("Memory allocation failed at inLayer1\n");
         goto error2;
     }
 
-    layer* inLayer2 = make_input_layer(3, 1);
+    layer* inLayer2 = make_input_layer(3);
     if(inLayer0 == NULL)
     {
         printf("Memory allocation failed at inLayer2\n");
@@ -89,7 +89,7 @@ int main()
     float testIn0[] = {33.08, 55.83, 30.27};
     float testIn1[] = {-0.9, 4.43, 0.03};
     float testIn2[] = {-0.66, 0.32, 0.02};
-    float testTarg[] = {0};
+    float testTarg[] = {0.0f};
 
     // memcpy(wethrModel->inLayers[0]->outputs, testIn0, 3*sizeof(float));
     // memcpy(wethrModel->inLayers[1]->outputs, testIn1, 3*sizeof(float));
@@ -107,9 +107,9 @@ int main()
         sgd_backprop(wethrModel->outLayer, wethrModel);
         calculate_and_apply_grads(wethrModel->outLayer, wethrModel->learning_rate);
     }
-    printf("\nModel output is: %f\nTarget is : %f", wethrModel->outLayer->outputs[0], testTarg[0]);
+    printf("\nModel output is: %f\nTarget is : %f\n", wethrModel->outLayer->outputs[0], testTarg[0]);
 
-    save_model(wethrModel, "wethrModel.cml");
+    save_model(wethrModel, "weathrModel.cml");
     hakai_model(wethrModel);
     printf("\nSuccess\n");
     return 0;

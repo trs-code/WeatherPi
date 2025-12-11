@@ -3,7 +3,7 @@
 
 int main()
 {
-    layer* inLayer = make_input_layer(3, 1);
+    layer* inLayer = make_input_layer(3);
     if(inLayer == NULL)
     {
         printf("Memory allocation failed at inLayer\n");
@@ -27,7 +27,7 @@ int main()
     }
 
     layer* inLayers[] = {inLayer};
-    model *myModel = construct_model(inLayers, outLayer, 3, 1, 1.0f, 1);
+    model *myModel = construct_model(inLayers, outLayer, 3, 1, 1.0f);
     if(myModel == NULL)
     {
         printf("Memory allocation failed at model\n");
@@ -73,15 +73,7 @@ int main()
     // printf("\nLayer 2 pre-activation is: %f\n", layer2->preActivations[0]);
     // for(int i = 0; i < 3; i++) printf("Layer 1 pre-activation[%d] is: %f\n", i, layer1->preActivations[i]);
 
-    // layer* layers[3] = {layer0, layer1, layer2};
-    // for(int i = 0; i < 3; i++)
-    // {
-    //     hakai_layer_mfree(layers[i]);
-    // }
-
-    // hakai_layer_mfree(layer0);
-    // hakai_layer_mfree(layer1);
-    // hakai_layer_mfree(layer2);
+    save_model(myModel, "testModel1.cml");
 
     hakai_model(myModel);
     
