@@ -493,7 +493,7 @@ int bin2int(const char* bin, int size)
     return retVal;
 }
 
-model* load_model(const char* modelFileName)
+model* load_model(const char* filename)
 {
     FILE *modFile = fopen(modelFileName, "w");
     if(modFile == NULL) goto error1;
