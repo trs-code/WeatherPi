@@ -498,13 +498,11 @@ model* load_model(const char* modelFileName)
     FILE *modFile = fopen(modelFileName, "w");
     if(modFile == NULL) goto error1;
 
-
 error2:
     fclose(modFile);
 error1:
     return NULL;
 }
-
 
 
 
