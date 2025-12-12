@@ -74,7 +74,7 @@ int main()
     }
 
     layer* inLayers[] = {inLayer0, inLayer1, inLayer2};
-    model *wethrModel = construct_model(inLayers, outLayer, 9, 3, 0.01f);
+    model *wethrModel = construct_model(inLayers, outLayer, 9, 3, 0.1f);
     if(wethrModel == NULL)
     {
         printf("Memory allocation failed at wethrModel\n");
@@ -96,7 +96,7 @@ int main()
     // memcpy(wethrModel->inLayers[2]->outputs, testIn2, 3*sizeof(float));
     // memcpy(wethrModel->targets, testTarg, sizeof(float));
 
-    for(int i = 0; i < 10000; i++)
+    for(int i = 0; i < 500; i++)
     {
         memcpy(wethrModel->inLayers[0]->outputs, testIn0, 3*sizeof(float));
         memcpy(wethrModel->inLayers[1]->outputs, testIn1, 3*sizeof(float));

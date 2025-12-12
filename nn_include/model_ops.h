@@ -30,19 +30,25 @@ model* construct_model(layer** inLayers, layer* outLayer, int numLayers, int num
     if(myModel->layer_refs == NULL) goto error2;
     for(int i = 0; i < numLayers; i++) myModel->layer_refs[i] = NULL;
 
-    myModel->inLayers = inLayers;
+    myModel->inLayers = (layer **)calloc(numInLayers, sizeof(layer*));
+    if(myModel->layer_refs == NULL) goto error2;
+    for(int i = 0; i < numInLayers; i++) myModel->inLayers[i] = inLayers[i];
+    
     myModel->outLayer = outLayer;
     myModel->numLayers = numLayers;
     myModel->learning_rate = learning_rate;
     myModel->numInLayers = numInLayers;
 
     myModel->targets = (float *)calloc(myModel->outLayer->numNodes, sizeof(float));
-    if(myModel->targets == NULL) goto error3;
+    if(myModel->targets == NULL) goto error4;
 
     assign_layer_ids(outLayer, 0);
 
     return myModel;
 
+error4:
+    free(myModel->inLayers);
+    myModel->inLayers = NULL;
 error3:
     free(myModel->layer_refs);
     myModel->layer_refs = NULL;
@@ -167,6 +173,9 @@ void hakai_model(model* myModel)
 
     free(myModel->layer_refs);
     myModel->layer_refs = NULL;
+
+    free(myModel->inLayers);
+    myModel->inLayers = NULL;
 
     free(myModel->targets);
     myModel->targets = NULL;
@@ -397,6 +406,11 @@ int save_model(model* saveModel, const char* modelFileName)
 
             line[offset] = '\0';
             
+            int2bin(lineLength, 24, bitBuff);
+            
+            for(int j = 0; j < 24; j++) fputc(bitBuff[j], modFile);
+            fputc('\n', modFile);
+            
             fputs(line, modFile);
             fputs("\n", modFile);
             
@@ -406,15 +420,15 @@ int save_model(model* saveModel, const char* modelFileName)
         }
 
         int2bin(layerList[i]->numNextLayers, 16, bitBuff);
-        for(int j = 0; j < 16; j++) line[offset+ j] = bitBuff[j];
+        for(int j = 0; j < 16; j++) line[offset + j] = bitBuff[j];
         offset += 16;
 
         int2bin(layerList[i]->numPrevNodes, 32, bitBuff);
-        for(int j = 0; j < 32; j++) line[offset+ j] = bitBuff[j];
+        for(int j = 0; j < 32; j++) line[offset + j] = bitBuff[j];
         offset += 32;
         
         int2bin(layerList[i]->numPrevLayers, 16, bitBuff);
-        for(int j = 0; j < 16; j++) line[offset+ j] = bitBuff[j];
+        for(int j = 0; j < 16; j++) line[offset + j] = bitBuff[j];
         offset += 16;
         
         line[offset] = layerList[i]->activationFunction;
@@ -441,8 +455,8 @@ int save_model(model* saveModel, const char* modelFileName)
 
         for(int j = 0; j < layerList[i]->numNodes; j++)
         {
-            if(layerList[i]->biases[j] < 0) snprintf((char*)fltBuff, 17UL, "%.15f", layerList[i]->biases[j]);
-            else snprintf((char*)fltBuff, 17UL, "%.15f", layerList[i]->biases[j]);
+            if(layerList[i]->biases[j] < 0) snprintf(fltBuff, 17UL, "%.15f", layerList[i]->biases[j]);
+            else snprintf(fltBuff, 17UL, "%.16f", layerList[i]->biases[j]);
             
             for(int l = 0; l < 16; l++) line[offset + l] = fltBuff[l];
             offset += 16;
@@ -463,12 +477,13 @@ int save_model(model* saveModel, const char* modelFileName)
 
     fclose(modFile);
     free(layerList);
-    free(line);
     layerList = NULL;
+    modFile = NULL;
     return 0;
 
 error3:
     fclose(modFile);
+    modFile = NULL;
 error2:
     free(layerList);
     layerList = NULL;
@@ -487,17 +502,177 @@ int bin2int(const char* bin, int size)
         {
             retVal += currCount;
         }
-        currCount <<= 2;
+        currCount <<= 1;
     }
 
     return retVal;
 }
 
-model* load_model(const char* filename)
+model* load_model(const char* modelFileName)
 {
-    FILE *modFile = fopen(modelFileName, "w");
+    FILE *modFile = fopen(modelFileName, "r");
     if(modFile == NULL) goto error1;
 
+    layer** layerArr = (layer**)NULL;
+    int outLayerID = 0;
+    int lineLength = 0;
+    int offset = 0;
+    int numLayers = 0;
+    int numInLayers = 0;
+    int numNextLayers = 0;
+    int numPrevLayers = 0;
+    int numPrevNodes = 0;
+    int layerID = 0;
+    int numNodes = 0;
+    float learningRate = 1.0f;
+    char activationFunction = '\0';
+    char layerType = '\0';
+    char lineLengthBuff[26] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"; // Line length of next line string will always be 24 characters
+    char fltBuff[17] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+    fgets(lineLengthBuff, 26, modFile);
+
+    lineLength = bin2int(lineLengthBuff, 24) + 2;
+
+    char *line = (char *)calloc(lineLength, sizeof(char));
+    if(line == NULL) goto error2;
+
+    fgets(line, lineLength, modFile);
+    numLayers = bin2int(line, 16);
+    numInLayers = bin2int(&line[16], 16);
+    offset += 32;
+
+    int *inLayerIDs = (int *)calloc(numInLayers, sizeof(int));
+    if(inLayerIDs == NULL) goto error3;
+
+    for(int i = 0; i < numInLayers; i++)
+    {
+        inLayerIDs[i] = bin2int(&line[offset], 16);
+        offset += 16;
+    }
+
+    for(int i = 0; i < 8; i++) fltBuff[i] = line[offset + i];
+
+    learningRate = atof(fltBuff);
+
+    free(line);
+    line = NULL;
+
+    layer** modelLayers = (layer**)calloc(numLayers, sizeof(layer*));
+    if(modelLayers == NULL) goto error4;
+
+    for(int i = 0; i < numLayers; i++)
+    {
+        fgets(lineLengthBuff, 26, modFile);
+
+        lineLength = bin2int(lineLengthBuff, 24) + 2;
+
+        line = (char *)calloc(lineLength, sizeof(char));
+        if(line == NULL) goto error5;
+
+        fgets(line, lineLength, modFile);
+
+        offset = 0;
+        numNodes = 0;
+        numPrevNodes = 0;
+        learningRate = 1.0f;
+
+        layerType = line[0];
+
+        layerID = bin2int(&line[1], 11);
+        
+        numNodes = bin2int(&line[12], 16);
+
+        if(layerType == '0')
+        {
+            modelLayers[layerID] = make_input_layer(numNodes);
+            
+            free(line);
+            line == NULL;
+            
+            continue;
+        }
+
+        numNextLayers = bin2int(&line[28], 16);
+
+        numPrevNodes = bin2int(&line[44], 32);
+
+        numPrevLayers = bin2int(&line[76], 16);
+
+        activationFunction = line[92];
+        offset = 93;
+
+        layerArr = (layer**)calloc(numPrevLayers, sizeof(layer*));
+        if(layerArr == NULL) goto error6;
+
+        for(int j = 0; j < numPrevLayers; j++)
+        {
+            layerArr[j] = modelLayers[bin2int(&line[offset], 16)];
+            offset += 16;
+        }
+
+        if(layerType == '1')
+        {
+            modelLayers[layerID] = make_dense_layer(layerArr, numNodes, numPrevLayers, numNextLayers);
+        }
+        else
+        {
+            modelLayers[layerID] = make_output_layer(layerArr, numNodes, numPrevLayers);
+            outLayerID = layerID;
+        }
+
+        for(int j = 0; j < numNodes; j++)
+        {
+            for(int k = 0; k < numPrevNodes; k++)
+            {
+                for(int l = 0; l < 16; l++) fltBuff[l] = line[offset+l];
+                offset += 16;
+                modelLayers[layerID]->weights[j][k] = atof(fltBuff);
+            }
+        }
+
+        for(int j = 0; j < numNodes; j++)
+        {
+            for(int k = 0; k < 16; k++) fltBuff[k] = line[offset+k];
+            offset += 16;
+            modelLayers[layerID]->biases[j] = atof(fltBuff);
+        }
+
+        free(line);
+        line = NULL;
+        free(layerArr);
+        layerArr = NULL;
+    }
+
+    fclose(modFile);
+    modFile = NULL;
+
+    layerArr = (layer**)calloc(numInLayers, sizeof(layer*));
+
+    for(int i = 0; i < numInLayers; i++) layerArr[i] = modelLayers[inLayerIDs[i]];
+
+    model* myModel = construct_model(layerArr, modelLayers[outLayerID], numLayers, numInLayers, learningRate);
+
+    free(inLayerIDs);
+    inLayerIDs = NULL;
+    free(modelLayers);
+    modelLayers = NULL;
+    free(layerArr);
+    layerArr = NULL;
+
+    return myModel;
+
+error6:
+    free(line);
+    line = NULL;
+error5:
+    free(modelLayers);
+    modelLayers = NULL;
+error4:
+    free(inLayerIDs);
+    inLayerIDs = NULL;
+error3:
+    free(line);
+    line = NULL;
 error2:
     fclose(modFile);
 error1:

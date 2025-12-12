@@ -1,6 +1,7 @@
 #ifndef NN_LAYER_OPS
 #define NN_LAYER_OPS
 
+#include <time.h>
 #include "layer.h"
 
 void hakai_matrix(float** mat, int rows)
@@ -18,6 +19,7 @@ void hakai_matrix(float** mat, int rows)
 // Solely to load input values into the model in a form where layer operations can be generalized into
 layer* make_input_layer(int numNodes)
 {
+    srand(time(NULL));
     // Allocate space for the input layer
     layer *inLayer = (layer*)malloc(sizeof(layer));
     if(inLayer == NULL) return NULL;
@@ -112,8 +114,8 @@ layer* make_dense_layer(layer** prev, int numNodes, int numPrevLayers, int numNe
         denseLayer->weights[i] = (float *)malloc(sizeof(float) * (denseLayer->numPrevNodes)); // Each column is a connection to each neuron in the previous layer pus a bias
         if(denseLayer->weights[i] == NULL) goto error5;
         
-        for(int j = 0; j < denseLayer->numPrevNodes; j++) denseLayer->weights[i][j] = 1.0; 
-        denseLayer->biases[i] = 0.0f; // Initialize biases
+        for(int j = 0; j < denseLayer->numPrevNodes; j++) denseLayer->weights[i][j] = ((rand() % 100000) + 50000)/100000; 
+        denseLayer->biases[i] = ((rand() % 100000) + 50000)/100000; // Initialize biases
     }
     
     denseLayer->backErrors = (float *)calloc((numNodes), sizeof(float));
@@ -200,8 +202,8 @@ layer* make_output_layer(layer** prev, int numNodes, int numPrevLayers)
         outLayer->weights[i] = (float *)malloc(sizeof(float) * (outLayer->numPrevNodes + 1));
         if(outLayer->weights[i] == NULL) goto error4;
         
-        for(int j = 0; j < outLayer->numPrevNodes; j++) outLayer->weights[i][j] = 1.0f; // Initialize weight connections
-        outLayer->biases[i] = 0.0f;
+        for(int j = 0; j < outLayer->numPrevNodes; j++) outLayer->weights[i][j] = ((rand() % 100000) + 50000)/100000; // Initialize weight connections
+        outLayer->biases[i] = ((rand() % 100000) + 50000)/100000;
     }
 
     outLayer->backErrors = (float *)calloc(numNodes, sizeof(float));
