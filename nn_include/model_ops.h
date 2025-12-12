@@ -348,6 +348,10 @@ int save_model(model* saveModel, const char* modelFileName)
 
     line[lineLength - 1] = '\0';
 
+    int2bin(lineLength, 24, bitBuff);
+        
+    for(int i = 0; i < 24; i++) fputc(bitBuff[i], modFile);
+    fputc('\n', modFile);
     fputs(line, modFile);
     fputs("\n", modFile);
 
@@ -444,8 +448,12 @@ int save_model(model* saveModel, const char* modelFileName)
             offset += 16;
         }
 
-        line[lineLength - 1] = '\0';
+        line[offset] = '\0';
+
+        int2bin(lineLength, 24, bitBuff);
         
+        for(int j = 0; j < 24; j++) fputc(bitBuff[j], modFile);
+        fputc('\n', modFile);
         fputs(line, modFile);
         fputs("\n", modFile);
 
@@ -485,9 +493,17 @@ int bin2int(const char* bin, int size)
     return retVal;
 }
 
-model* load_model(const char* filename);
+model* load_model(const char* modelFileName)
+{
+    FILE *modFile = fopen(modelFileName, "w");
+    if(modFile == NULL) goto error1;
 
 
+error2:
+    fclose(modFile);
+error1:
+    return NULL;
+}
 
 
 #endif
