@@ -37,7 +37,7 @@ void train_model_sgd(model* myModel, int epochs, int numSamples, float** inputs,
         }
 
         averageLoss /= numSamples;
-        printf("Average loss for epoch %d: %f\n", e, averageLoss);      
+        printf("Average training loss for epoch %d: %f\n", e, averageLoss);      
     }
 }
 
@@ -59,8 +59,6 @@ int read_csv(const char* fileName, int numSamples, int numInputs, int numOutputs
     fgets(buffer, 128, datFile); // Sacrificial getline for the header info line
     flush_buffer(buffer, 80);
     
-    printf("successful");
-
     *inArrs = (float**)malloc(numSamples * sizeof(float *));
     *outArrs = (float**)malloc(numSamples * sizeof(float *));
 
@@ -76,6 +74,8 @@ int read_csv(const char* fileName, int numSamples, int numInputs, int numOutputs
         {
             while(buffer[offset] != ',')
             {
+                if(offset > 127) goto error1;
+                
                 fltBuffer[fltTraversed] = buffer[offset];
                 offset += 1;
                 fltTraversed += 1;
@@ -86,6 +86,7 @@ int read_csv(const char* fileName, int numSamples, int numInputs, int numOutputs
             flush_buffer(fltBuffer, 24);
             fltTraversed = 0;
         }
+        printf("\n");
 
         for(int j = 0; j < numOutputs; j++)
         {
