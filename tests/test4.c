@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "nn_include/nn.h"
+#include "../nn_include/nn.h"
 
 int main()
 {   
@@ -17,41 +17,36 @@ int main()
         goto error2;
     }
 
-    layer* layer_in0[] = {inLayer0};
-    layer* layer_in1[] = {inLayer1};
 
-    layer* layer0 = make_dense_layer(layer_in0, 2, 1, 1);
+    layer* layer0 = make_dense_layer((layer**[]){&inLayer0}, 2, 1, 1);
     if(layer0 == NULL)
     {
         printf("Memory allocation failed at layer0\n");
         goto error3;
     }
     
-    layer* layer1 = make_dense_layer(layer_in1, 1, 1, 1);
+    layer* layer1 = make_dense_layer((layer**[]){&inLayer1}, 1, 1, 1);
     if(layer1 == NULL)
     {
         printf("Memory allocation failed at layer1\n");
         goto error4;
     }
 
-    layer* layer_in2[] = {layer0, layer1};
-    layer* layer2 = make_dense_layer(layer_in2, 3, 2, 1);
+    layer* layer2 = make_dense_layer((layer**[]){&layer0, &layer1}, 3, 2, 1);
     if(layer2 == NULL)
     {
         printf("Memory allocation failed at layer2\n");
         goto error5;
     }
 
-    layer* outLayer_in[] = {layer2};
-    layer* outLayer = make_output_layer(outLayer_in, 1, 1);
+    layer* outLayer = make_output_layer((layer**[]){&layer2}, 1, 1);
     if(outLayer == NULL)
     {
         printf("Memory allocation failed at outLayer\n");
         goto error6;
     }
 
-    layer* inLayers[] = {inLayer0, inLayer1};
-    model *myModel = construct_model(inLayers, outLayer, 6, 2, 1.0f, 1);
+    model *myModel = construct_model((layer**[]){&inLayer0, &inLayer1}, &outLayer, 6, 2, 1.0f);
     if(myModel == NULL)
     {
         printf("Memory allocation failed at model\n");
@@ -60,16 +55,13 @@ int main()
 
     printf("Model creation successful\n\n");
 
-    float values0[] = {0.04, 0.05};
-    float values1[] = {0.1};
-    memcpy(myModel->inLayers[0]->outputs, values0, 2*sizeof(float));
-    memcpy(myModel->inLayers[1]->outputs, values1, sizeof(float));
+    memcpy((*myModel->inLayers[0])->outputs, (float[]){0.04, 0.05}, 2*sizeof(float));
+    memcpy((*myModel->inLayers[1])->outputs, (float[]){0.1}, sizeof(float));
 
-    float target[] = {0.905405};
-    memcpy(myModel->targets, target, sizeof(float));
+    memcpy(myModel->targets, (float[]){0.905405}, sizeof(float));
 
     forward_out(myModel->outLayer);
-    sgd_backprop(myModel->outLayer, myModel);
+    sgd_backprop(myModel->outLayer, &myModel);
     // printf("Layer 0 Activation[0] is: %f\n", layer0->outputs[0]);
     // printf("Layer 0 Activation[1] is: %f\n", layer0->outputs[1]);
     // printf("Layer 1 Activation[0] is: %f\n", layer0->outputs[0]);
@@ -104,23 +96,23 @@ int main()
     // printf("Layer 0 Backerror[1] is: %f\n", layer0->preActivations[1]);
     // printf("Layer 1 Backerror[0] is: %f\n", layer1->preActivations[0]);;
 
-    hakai_model(myModel);
+    hakai_model(&myModel);
     
     printf("Test Successful\n");
     return 0;
 
 error7:
-    hakai_model_mfree(myModel);
+    hakai_layer_mfree(&outLayer);
 error6:
-    hakai_layer_mfree(layer2);
+    hakai_layer_mfree(&layer2);
 error5:
-    hakai_layer_mfree(layer1);
+    hakai_layer_mfree(&layer1);
 error4:
-    hakai_layer_mfree(layer0);
+    hakai_layer_mfree(&layer0);
 error3:
-    hakai_layer_mfree(inLayer1);
+    hakai_layer_mfree(&inLayer1);
 error2:
-    hakai_layer_mfree(inLayer0);
+    hakai_layer_mfree(&inLayer0);
 error1:
     exit(EXIT_FAILURE);
 }

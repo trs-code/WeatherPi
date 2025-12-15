@@ -29,20 +29,14 @@ layer* make_input_layer(int numNodes)
     inLayer->numNextLayers = 0; // Not true but this variable isn't currently utilized for anything so no need to waste our time on it
     inLayer->prevLayers = NULL; // No previous layers for an input layer
     inLayer->weights = NULL;    // Input layer just accepts inputs, doesn't need actual weights, just something to facilitate forwarding values
+    inLayer->biases = NULL;
     inLayer->backErrors = NULL;  // Input layer doesn't need backErrors
 
-    //Actually turns out I don't need this, keeping it around in case it proves needed in the future
-    // Allocate space for the following layers so a forward pass is easier to implement and also navigating the layers
-    //inLayer->nextLayers = (struct layer**)calloc(numNextLayers, sizeof(struct layer*));
-    //if(inLayer->nextLayers == NULL) goto error1;
 
     inLayer->preActivations = NULL;
     
     inLayer->outputs = (float *)calloc(numNodes, sizeof(float));
-    if(inLayer->outputs == NULL) goto error2;
-
-    inLayer->biases = (float *)calloc((numNodes), sizeof(float)); // Bias for each neuron - 0 for inputs
-    if(inLayer->biases == NULL) goto error3;
+    if(inLayer->outputs == NULL) goto error1;
 
     inLayer->numNodes = numNodes;
     inLayer->activationFunction = 'i';
@@ -51,12 +45,9 @@ layer* make_input_layer(int numNodes)
 
     return inLayer;
 
-error3:
+error2:
     free(inLayer->outputs);
     inLayer->outputs = NULL;
-error2:
-    //free(inLayer->nextLayers);
-    //inLayer->nextLayers = NULL;
 error1:
     free(inLayer);
     inLayer = NULL;
@@ -64,7 +55,7 @@ error1:
     return NULL;
 }
 
-layer* make_dense_layer(layer** prev, int numNodes, int numPrevLayers, int numNextLayers)
+layer* make_dense_layer(layer*** prev, int numNodes, int numPrevLayers, int numNextLayers)
 {
     // int j = 0;
 
@@ -80,54 +71,38 @@ layer* make_dense_layer(layer** prev, int numNodes, int numPrevLayers, int numNe
     denseLayer->numPrevNodes = 0;
 
     // Allocate space for the previous layers using provided parameter - DESIGN YOUR MODEL BEFORE IMPLEMENTING CAREFULLY
-    denseLayer->prevLayers = (layer **)malloc(sizeof(layer*) * numPrevLayers);
+    denseLayer->prevLayers = (layer ***)malloc(sizeof(layer**) * numPrevLayers);
     if(denseLayer->prevLayers == NULL) goto error1;
 
     // Set the previous layers as the previous layers
-    memcpy(denseLayer->prevLayers, prev, sizeof(layer*) * numPrevLayers);
+    for(int i = 0; i < numPrevLayers; i++) denseLayer->prevLayers[i] = prev[i];
 
     // Make this layer a next layer for all previous layers
-    for(int i = 0; i < numPrevLayers; i++)
-    {
-        // while(prev[i]->nextLayers[j] != NULL)
-        // {
-        //     j += 1;
-        // }
-
-        denseLayer->numPrevNodes += prev[i]->numNodes;
-        // prev[i]->nextLayers[j] = denseLayer;
-        //j = 0;
-    }
-
-    // Allocate space for the next layers using provided parameter
-    //denseLayer->nextLayers = (struct layer **)calloc(numNextLayers, sizeof(struct layer*));
-    //if(denseLayer->nextLayers == NULL) goto error2;
+    for(int i = 0; i < numPrevLayers; i++) denseLayer->numPrevNodes += (*denseLayer->prevLayers[i])->numNodes;
 
     denseLayer->weights = (float **)malloc(numNodes * sizeof(float*));
-    if(denseLayer->weights == NULL) goto error3;
+    if(denseLayer->weights == NULL) goto error2;
 
     denseLayer->biases = (float *)malloc(numNodes * sizeof(float)); // Bias for each neuron
-    if(denseLayer->biases == NULL) goto error4;
+    if(denseLayer->biases == NULL) goto error3;
 
     for(int i = 0; i < numNodes; i++)
     {
         denseLayer->weights[i] = (float *)malloc(sizeof(float) * (denseLayer->numPrevNodes)); // Each column is a connection to each neuron in the previous layer pus a bias
-        if(denseLayer->weights[i] == NULL) goto error5;
+        if(denseLayer->weights[i] == NULL) goto error4;
         
         for(int j = 0; j < denseLayer->numPrevNodes; j++) denseLayer->weights[i][j] = ((rand() % 100000) + 50000)/100000; 
         denseLayer->biases[i] = ((rand() % 100000) + 50000)/100000; // Initialize biases
     }
     
     denseLayer->backErrors = (float *)calloc((numNodes), sizeof(float));
-    if(denseLayer->backErrors == NULL) goto error5;
+    if(denseLayer->backErrors == NULL) goto error4;
 
     denseLayer->outputs = (float *)calloc(numNodes, sizeof(float));
-    if(denseLayer->outputs == NULL) goto error6;
+    if(denseLayer->outputs == NULL) goto error5;
     
     denseLayer->preActivations = (float *)calloc(numNodes, sizeof(float));
-    if(denseLayer->preActivations == NULL) goto error7;
-
-    
+    if(denseLayer->preActivations == NULL) goto error6;
     
     denseLayer->numNodes = numNodes;
     denseLayer->activationFunction = 'r';
@@ -137,20 +112,17 @@ layer* make_dense_layer(layer** prev, int numNodes, int numPrevLayers, int numNe
     return denseLayer;
 
 
-error7:
+error6:
     free(denseLayer->outputs);
     denseLayer->outputs = NULL;
-error6:
+error5:
     free(denseLayer->backErrors);
     denseLayer->backErrors = NULL;
-error5:
-    hakai_matrix(denseLayer->weights, numNodes);
 error4:
+    hakai_matrix(denseLayer->weights, numNodes);
+error3:
     free(denseLayer->biases);
     denseLayer->biases = NULL;
-error3:
-    // free(denseLayer->nextLayers);
-    // denseLayer->nextLayers = NULL;
 error2:
     free(denseLayer->prevLayers);
     denseLayer->prevLayers = NULL;
@@ -161,7 +133,7 @@ error1:
     return NULL;
 }
 
-layer* make_output_layer(layer** prev, int numNodes, int numPrevLayers)
+layer* make_output_layer(layer*** prev, int numNodes, int numPrevLayers)
 {
     // int j = 0;
 
@@ -170,26 +142,15 @@ layer* make_output_layer(layer** prev, int numNodes, int numPrevLayers)
 
     outLayer->numPrevLayers = numPrevLayers;
     outLayer->numNextLayers = 0;
-    // outLayer->nextLayers = NULL; // No next layers for an output layer
     outLayer->numPrevNodes = 0;
 
     // Allocate space for the previous layers using provided parameter - DESIGN YOUR MODEL BEFORE IMPLEMENTING
-    outLayer->prevLayers = (layer **)malloc(sizeof(layer*) * numPrevLayers);
+    outLayer->prevLayers = (layer ***)malloc(sizeof(layer**) * numPrevLayers);
     if(outLayer->prevLayers == NULL) goto error1;
 
-    memcpy(outLayer->prevLayers, prev, sizeof(layer*) * numPrevLayers);
+    for(int i = 0; i < numPrevLayers; i++) outLayer->prevLayers[i] = prev[i];
 
-    for(int i = 0; i < numPrevLayers; i++)
-    {
-        // while(prev[i]->nextLayers[j] != NULL)
-        // {
-        //     j += 1;
-        // }
-
-        outLayer->numPrevNodes += prev[i]->numNodes;
-        // prev[i]->nextLayers[j] = outLayer;
-        // j = 0;
-    }
+    for(int i = 0; i < numPrevLayers; i++) outLayer->numPrevNodes += (*outLayer->prevLayers[i])->numNodes;
 
     outLayer->weights = (float **)malloc(numNodes * sizeof(float*)); // Each row is a neuron
     if(outLayer->weights == NULL) goto error2;
@@ -244,6 +205,7 @@ error1:
     return NULL;
 }
 
-layer* make_normalization_layer();
+// layer* make_normalization_layer();
+// layer* make_convolutional_layer();
 
 #endif
