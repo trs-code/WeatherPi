@@ -12,6 +12,7 @@ typedef struct
     float learning_rate;    // Learning rate for the NN
     int numLayers;          // Number of total layers in the NN
     int numInLayers;        // Number of input layers in the NN
+    char loss_fn;
 } model;
 
 #endif

@@ -4,16 +4,16 @@
 #include <time.h>
 #include "layer.h"
 
-void hakai_matrix(float** mat, int rows)
+void hakai_matrix(float*** mat, int rows)
 {
     for(int i = 0; i < rows; i++)
     {
-        free(mat[i]);
-        mat[i] = NULL;
+        free((*mat)[i]);
+        (*mat)[i] = NULL;
     }
 
-    free(mat);
-    mat = NULL;
+    free(*mat);
+    *mat = NULL;
 }
 
 // Solely to load input values into the model in a form where layer operations can be generalized into
@@ -55,7 +55,7 @@ error1:
     return NULL;
 }
 
-layer* make_dense_layer(layer*** prev, int numNodes, int numPrevLayers, int numNextLayers)
+layer* make_dense_layer(layer*** prev, int numNodes, int numPrevLayers, int numNextLayers, char activation_function)
 {
     // int j = 0;
 
@@ -105,7 +105,7 @@ layer* make_dense_layer(layer*** prev, int numNodes, int numPrevLayers, int numN
     if(denseLayer->preActivations == NULL) goto error6;
     
     denseLayer->numNodes = numNodes;
-    denseLayer->activationFunction = 'r';
+    denseLayer->activationFunction = activation_function;
     denseLayer->layerID = -1;
     denseLayer->switchVar = '0';
 
@@ -119,7 +119,7 @@ error5:
     free(denseLayer->backErrors);
     denseLayer->backErrors = NULL;
 error4:
-    hakai_matrix(denseLayer->weights, numNodes);
+    hakai_matrix(&(denseLayer->weights), numNodes);
 error3:
     free(denseLayer->biases);
     denseLayer->biases = NULL;
@@ -133,7 +133,7 @@ error1:
     return NULL;
 }
 
-layer* make_output_layer(layer*** prev, int numNodes, int numPrevLayers)
+layer* make_output_layer(layer*** prev, int numNodes, int numPrevLayers, char activation_function)
 {
     // int j = 0;
 
@@ -178,7 +178,7 @@ layer* make_output_layer(layer*** prev, int numNodes, int numPrevLayers)
 
 
     outLayer->numNodes = numNodes;
-    outLayer->activationFunction = 't';
+    outLayer->activationFunction = activation_function;
     outLayer->layerID = -1;
     outLayer->switchVar = '0';
 
@@ -191,7 +191,7 @@ error5:
     free(outLayer->backErrors);
     outLayer->backErrors = NULL;
 error4:
-    hakai_matrix(outLayer->weights, numNodes);
+    hakai_matrix(&(outLayer->weights), numNodes);
 error3:
     free(outLayer->biases);
     outLayer->biases = NULL;

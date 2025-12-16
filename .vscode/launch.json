@@ -1,4 +1,19 @@
-// {
+{
+    "configurations": [{
+        "type": "lldb",
+        "request": "launch",
+        "name": "Custom launch",
+        "targetCreateCommands": [
+            "target create ${workspaceFolder}/tests/${fileBasenameNoExtension}"
+        ],
+        "processCreateCommands": [
+            "settings set target.run-args value1 value2 value3",
+            "process launch"
+        ], 
+        "args": ["-lm", ]
+    }
+    ]
+} // {
 //     // Use IntelliSense to learn about possible attributes.
 //     // Hover to view descriptions of existing attributes.
 //     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
@@ -31,3 +46,4 @@
 
 //     ]
 // }
+

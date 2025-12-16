@@ -1,5 +1,6 @@
 #ifndef NN_MATH
 #define NN_MATH
+#include <math.h>
 
 float clip(float x, float upper, float lower)
 {
@@ -33,16 +34,22 @@ static inline float leaky_relu_derivative(float x)
     return (x > 0) ? 1 : (0.01);
 }
 
-float tanh(float x) // tanh fast approximation
+float fast_tanh(float x) // tanh fast approximation
 {
-    return clip(0.5f + (x / (1.3f + 1.6f * absolute(x))), 1.0f, 0.0f);
+    return clip(2* (x / (1.3f + 1.6f * absolute(x))), 1.0f, 0.0f);
 }
 
-float tanh_derivative(float x) // d(tanhx)/dx fast approximation
+float fast_tanh_derivative(float x) // d(tanhx)/dx fast approximation
 {
     float x2 = (x) / (0.8 + (1.1 * absolute(x)));
-    float res = 0.5 - (x2*x2);
+    float res = 1 - (2*x2*x2);
     return (res > 0.0001) ? res : 0.0001;
+}
+
+float tanh_derivative(float x)
+{
+    float x2 = tanh(x) * tanh(x); 
+    return (1-x2);
 }
 
 float findMax(float* arr, int size)
@@ -85,26 +92,16 @@ float cross_entropy_loss(float target, float y)
     return -1; // finish later
 }
 
-static inline float mse_loss_func(float target, float y)
+static inline float mse_loss(float target, float y)
 {
     return 0.5 * (target - y) * (target - y);
 }
 
-static inline float mse_loss_derivative_func(float target, float y)
+static inline float mse_loss_derivative(float target, float y)
 {
     return (target - y);
 }
 
-float mse_loss_derivative(float* target, float* y, int size)
-{
-    int sum = 0;
-    for(int i = 0; i < size; i++)
-    {
-        sum += mse_loss_derivative_func(target[i], y[i]);
-    }
-
-    return sum / size;
-}
 
 void add_array(float* dest, float* arr1, float* arr2, __ssize_t size)
 {
@@ -149,6 +146,92 @@ void dot_product_value_matrix(float** dest, float** arr1, float value, __ssize_t
 static inline int max(int a, int b)
 {
     return (a > b) ? a : b;
+}
+
+float sigmoid(float x) {
+    return 1.0 / (1.0 + exp(-1*x));
+}
+
+float sigmoid_derivative(float x) {
+    float y = sigmoid(x);
+    return y * (1.0 - y);
+}
+
+float fast_sigmoid(float x) {
+    return 0.5 + 0.5 * (x / (1.3 + abs(x)));
+}
+
+float fast_sigmoid_derivative(float x) {
+    float y = fast_sigmoid(x);
+    return y * (1.0 - y);
+}
+
+float loss_derivative(float target, float y, char lossFunction)
+{
+    switch(lossFunction)
+    {
+        case 'q':
+            return mse_loss_derivative(target, y);
+        default:
+            return 1;
+    }
+}
+
+float activation_derivative(float x, char activationFunction)
+{
+    switch(activationFunction)
+    {
+        case 'u':
+            return leaky_relu_derivative(x);
+        case 'r':
+            return relu_derivative(x);
+        case 't':
+            return tanh_derivative(x);
+        case 'h':
+            return fast_tanh_derivative(x);
+        case 's':
+            return sigmoid_derivative(x);
+        case 'g':
+            return fast_sigmoid_derivative(x);
+        case 'i':
+            return 1;
+        default:
+            return 1;
+    }
+}
+
+float loss_function(float target, float y, char lossFunction)
+{
+    switch(lossFunction)
+    {
+        case 'q':
+            return mse_loss(target, y);
+        default:
+            return 1;
+    }
+}
+
+float activation_function(float x, char activationFunction)
+{
+    switch(activationFunction)
+    {
+        case 'u':
+            return leaky_relu(x);
+        case 'r':
+            return relu(x);
+        case 't':
+            return tanh(x);
+        case 'h':
+            return fast_tanh(x);
+        case 's':
+            return sigmoid(x);
+        case 'g':
+            return fast_sigmoid(x);
+        case 'i':
+            return x;
+        default:
+            return 1;
+    }
 }
 
 #endif

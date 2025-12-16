@@ -13,7 +13,7 @@ void train_model_sgd(model* myModel, int epochs, int numSamples, float** inputs,
     int inputsTraversed = 0;
     float averageLoss = 0.0;
     
-    for(int e = 0; e < epochs; e++)
+    for(int e = 1; e < (epochs + 1); e++)
     {
         averageLoss = 0.0;
         for(int i = 0; i < numSamples; i++)
@@ -31,7 +31,7 @@ void train_model_sgd(model* myModel, int epochs, int numSamples, float** inputs,
             sgd_backprop(myModel->outLayer, &myModel);
             calculate_and_apply_grads(myModel->outLayer, myModel->learning_rate);
 
-            for(int j = 0; j < (*myModel->outLayer)->numNodes; j++) averageLoss += (mse_loss_func(myModel->targets[j], (*myModel->outLayer)->outputs[j])) / (*myModel->outLayer)->numNodes;
+            for(int j = 0; j < (*myModel->outLayer)->numNodes; j++) averageLoss += ((myModel->targets[j], (*myModel->outLayer)->outputs[j])) / (*myModel->outLayer)->numNodes;
             
             zero_everything(myModel->outLayer);
         }
@@ -86,7 +86,6 @@ int read_csv(const char* fileName, int numSamples, int numInputs, int numOutputs
             flush_buffer(fltBuffer, 24);
             fltTraversed = 0;
         }
-        printf("\n");
 
         for(int j = 0; j < numOutputs; j++)
         {
@@ -114,24 +113,67 @@ error1:
     return -1;
 }
 
-void batch_train_sgd(model* myModel, int epochs, int numSamples, int batchSize, float** inputs, float *targets); //Automatically normalizes the batch into a single sample
+void mini_batch_train_sgd(model* myModel, int epochs, int numSamples, int batchSize, float** inputs, float**targets) //Automatically normalizes the batch into a single sample
+{
+    int inputsTraversed = 0;
+    int numFullBatches = 0;
+    int numLeftOver = 0;
+    float averageLoss = 0.0;
+    
+    numFullBatches = numSamples / batchSize;
+    numLeftOver = numSamples % batchSize;
+    for(int e = 1; e < (epochs + 1); e++)
+    {
+        averageLoss = 0.0;
+        for(int i = 0; i < numFullBatches; i++)
+        {
+            zero_everything(myModel->outLayer);
+
+            inputsTraversed = 0;
+            for(int j = 0; j < myModel->numInLayers; j++)
+            {
+                for(int k = 0; k < (*myModel->inLayers[j])->numNodes; k++) (*myModel->inLayers[j])->outputs[k] += inputs[i][k + inputsTraversed];
+                inputsTraversed += (*myModel->inLayers[j])->numNodes;
+            }
+
+            inputsTraversed = 0;
+            for(int j = 0; j < myModel->numInLayers; j++)
+            {
+                for(int k = 0; k < (*myModel->inLayers[j])->numNodes; k++) (*myModel->inLayers[j])->outputs[k] /= batchSize;
+                inputsTraversed += (*myModel->inLayers[j])->numNodes;
+            }
+
+            memcpy(myModel->targets, targets[i], sizeof(float) * (*myModel->outLayer)->numNodes);
+            
+            forward_out(myModel->outLayer);
+            sgd_backprop(myModel->outLayer, &myModel);
+            calculate_and_apply_grads(myModel->outLayer, myModel->learning_rate);
+
+            for(int j = 0; j < (*myModel->outLayer)->numNodes; j++) averageLoss += (loss_derivative(myModel->targets[j], (*myModel->outLayer)->outputs[j], myModel->loss_fn)) / (*myModel->outLayer)->numNodes;         
+        }
+
+        zero_everything(myModel->outLayer);
+        averageLoss /= (numFullBatches + (numLeftOver / batchSize));
+        printf("Average training loss for epoch %d: %f\n", e, averageLoss);  
+    }
+}
 
 void train_model_adam(model* myModel, int epochs, int numSamples, float** inputs, float *targets, float initialFirstMomentum, float initialSecondMomentum);
 
 void batch_train_adam(model* myModel, int epochs, int numSamples, int batchSize, float** inputs, float *targets, float initialFirstMomentum, float initialSecondMomentum);
 
-float* model_inference(model* myModel, float** inputs)
+float* model_inference(model* myModel, float* inputs)
 {
-    // int inputsTraversed = 0;
-    // for(int i = 0; j < myModel->numInLayers; j++)
-    // {
-    //     for(int k = 0; k < myModel->inLayers[j]->numNodes; k++) myModel->inLayers[j]->outputs[k] = inputs[i][k + inputsTraversed];
-    //     inputsTraversed += myModel->inLayers[j]->numNodes;
-    // }
+    int inputsTraversed = 0;
+    for(int i = 0; i < myModel->numInLayers; i++)
+    {
+        for(int j = 0; j < (*myModel->inLayers[i])->numNodes; j++) (*myModel->inLayers[i])->outputs[j] = inputs[j + inputsTraversed];
+        inputsTraversed += (*myModel->inLayers[i])->numNodes;
+    }
 
-    // forward_out(myModel->outLayer);
+    forward_out(myModel->outLayer);
 
-    // return myModel->outLayer->outputs;
+    return (*myModel->outLayer)->outputs;
 }
 
 

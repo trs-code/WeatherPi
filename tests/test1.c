@@ -1,9 +1,9 @@
 #include <stdio.h>
+#include <math.h>
 #include "../nn_include/nn.h"
 
 int main()
 {
-    printf("%d\n", RAND_MAX);
     layer* inLayer = make_input_layer(3);
 
     if(inLayer == NULL)
@@ -12,21 +12,21 @@ int main()
         goto error1;
     }
     
-    layer* layer0 = make_dense_layer((layer**[]){&inLayer}, 3, 1, 1);
+    layer* layer0 = make_dense_layer((layer**[]){&inLayer}, 3, 1, 1, 'u');
     if(layer0 == NULL)
     {
         printf("Memory allocation failed at layer0\n");
         goto error2;
     }
 
-    layer* outLayer = make_output_layer((layer**[]){&layer0}, 1, 1);
+    layer* outLayer = make_output_layer((layer**[]){&layer0}, 1, 1, 'g');
     if(outLayer == NULL)
     {
         printf("Memory allocation failed at outLayer\n");
         goto error3;
     }
 
-    model *myModel = construct_model((layer**[]){&inLayer}, &outLayer, 3, 1, 1.0f);
+    model *myModel = construct_model((layer**[]){&inLayer}, &outLayer, 3, 1, 1.0f, 'q');
     if(myModel == NULL)
     {
         printf("Memory allocation failed at model\n");

@@ -21,19 +21,21 @@ int assign_layer_ids(layer** myLayer, int currID)
     
 }
 
-model* construct_model(layer*** inLayers, layer** outLayer, int numLayers, int numInLayers, float learning_rate)
+model* construct_model(layer*** inLayers, layer** outLayer, int numLayers, int numInLayers, float learning_rate, char loss_fn)
 {
     model *myModel = (model*)malloc(sizeof(model));
     if(myModel == NULL) return NULL;
 
-    myModel->inLayers = (layer ***)calloc(numInLayers, sizeof(layer**));
+    myModel->inLayers = (layer ***)malloc(numInLayers * sizeof(layer**));
     if(myModel->inLayers == NULL) goto error1;
-    for(int i = 0; i < numInLayers; i++) myModel->inLayers[i] = inLayers[i];
+    
+    memcpy(myModel->inLayers, inLayers, sizeof(layer**) * numInLayers);
     
     myModel->outLayer = outLayer;
     myModel->numLayers = numLayers;
     myModel->learning_rate = learning_rate;
     myModel->numInLayers = numInLayers;
+    myModel->loss_fn = loss_fn;
 
     myModel->targets = (float *)calloc((*myModel->outLayer)->numNodes, sizeof(float));
     if(myModel->targets == NULL) goto error2;
@@ -61,30 +63,25 @@ void hakai_layer_mfree(layer** myLayer)
     free((*myLayer)->outputs);
     (*myLayer)->outputs = NULL;
 
-    free((*myLayer)->biases);
-    (*myLayer)->biases = NULL;
+    if((*myLayer)->activationFunction != 'i')
+    {
+        free((*myLayer)->backErrors);
+        (*myLayer)->backErrors = NULL;
 
-    if((*myLayer)->activationFunction == 'i') goto free;
-    
-    free((*myLayer)->backErrors);
-    (*myLayer)->backErrors = NULL;
+        free((*myLayer)->prevLayers);
+        (*myLayer)->prevLayers = NULL;
 
-    free((*myLayer)->prevLayers);
-    (*myLayer)->prevLayers = NULL;
+        free((*myLayer)->preActivations);
+        (*myLayer)->preActivations = NULL;
 
-    free((*myLayer)->preActivations);
-    (*myLayer)->preActivations = NULL;
+        free((*myLayer)->biases);
+        (*myLayer)->biases = NULL;
 
-    hakai_matrix((*myLayer)->weights, (*myLayer)->numNodes);
-    
-    // if((*myLayer)->numNextLayers == 0) return;
+        hakai_matrix(&((*myLayer)->weights), (*myLayer)->numNodes);
+    }
 
-    // free((*myLayer)->nextLayers);
-    // (*myLayer)->nextLayers = NULL;
-
-free:
     free(*myLayer);
-    *myLayer = NULL;
+    *myLayer = NULL;    
 }
 
 void hakai_model_mfree(model** myModel)
@@ -106,7 +103,7 @@ void hakai_layer(layer** myLayer)
 
     if((*myLayer)->activationFunction != 'i')
     {
-        hakai_matrix((*myLayer)->weights, (*myLayer)->numNodes);
+        hakai_matrix(&((*myLayer)->weights), (*myLayer)->numNodes);
 
         free((*myLayer)->backErrors);
         (*myLayer)->backErrors = NULL;
@@ -171,7 +168,7 @@ void forward_out(layer** myLayer)
 
     (*myLayer)->switchVar = '1';
 
-    if((*myLayer)->numPrevLayers != 0)
+    if((*myLayer)->activationFunction != 'i')
     {
         int numPrevsTraversed = 0;
         
@@ -186,21 +183,12 @@ void forward_out(layer** myLayer)
             }
             (*myLayer)->preActivations[i] += (*myLayer)->biases[i];
             numPrevsTraversed = 0;
-        } 
-    }
-
-    switch((*myLayer)->activationFunction)
-    {
-        case 'r':
-            for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->outputs[i] = leaky_relu((*myLayer)->preActivations[i]);
-            break;
-        case 't':
-            for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->outputs[i] = tanh((*myLayer)->preActivations[i]);
-            break;
-        default:
-            break;
+        }
+        
+        for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->outputs[i] = activation_function((*myLayer)->preActivations[i], (*myLayer)->activationFunction);
     }
 }
+
 
 // Run on each output layer and then apply grads before clearing the layer backerrors - All roads spring forth from Rome algorithm
 // We pass the backerrors to each previous layer to calculate grads later
@@ -210,22 +198,16 @@ void sgd_backprop(layer** myLayer, model** myModel)
     if((*myLayer)->switchVar == '2') return;
 
     (*myLayer)->switchVar = '2';
-
-    if((*myLayer)->numNextLayers == 0)
-    {
-        // backErrorsForOutputLayer = mseLossDerivative · activationFunctionDerivative(preActivations) - for output layer
-        for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->backErrors[i] = -1 * mse_loss_derivative_func((*myModel)->targets[i], (*myLayer)->outputs[i]) * tanh_derivative((*myLayer)->preActivations[i]);
-    }
+    
+    // backErrorsForOutputLayer = lossDerivative · activationFunctionDerivative(preActivations) - for output layer
+    if((*myLayer)->numNextLayers == 0) for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->backErrors[i] = -1 * loss_derivative((*myModel)->targets[i], (*myLayer)->outputs[i], (*myModel)->loss_fn) * activation_derivative((*myLayer)->preActivations[i], (*myLayer)->activationFunction);
     
     // backErrorsForPreviousLayers += (thisLayersBackErrors)(thisLayersWeightMatrixWithRespectToCurrentPreviousLayer) · activationFunctionDerivative(previousLayers)
     int prevsTraversed = 0;
     for(int i = 0; i < (*myLayer)->numPrevLayers; i++)
     {
-        if((*(*myLayer)->prevLayers[i])->numPrevLayers == 0) continue;
-        for(int j = 0; j < (*(*myLayer)->prevLayers[i])->numNodes; j++)
-        {
-            for(int k = 0; k < (*myLayer)->numNodes; k++) (*(*myLayer)->prevLayers[i])->backErrors[j] += (*myLayer)->backErrors[k] * (*myLayer)->weights[k][prevsTraversed + j] * leaky_relu_derivative((*(*myLayer)->prevLayers[i])->preActivations[j]);                
-        }
+        if((*(*myLayer)->prevLayers[i])->activationFunction == 'i') continue;
+        for(int j = 0; j < (*(*myLayer)->prevLayers[i])->numNodes; j++) for(int k = 0; k < (*myLayer)->numNodes; k++) (*(*myLayer)->prevLayers[i])->backErrors[j] += (*myLayer)->backErrors[k] * (*myLayer)->weights[k][prevsTraversed + j] * activation_derivative((*(*myLayer)->prevLayers[i])->preActivations[j], (*myLayer)->activationFunction);
         prevsTraversed += (*(*myLayer)->prevLayers[i])->numNodes;
     }
 
@@ -307,7 +289,7 @@ int save_model(model** saveModel, const char* modelFileName)
     if(modFile == NULL) goto error2;
 
     int offset = 0;
-    int lineLength = 41;
+    int lineLength = 42;
     char bitBuff[33] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
     char fltBuff[20] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
 
@@ -334,6 +316,8 @@ int save_model(model** saveModel, const char* modelFileName)
     snprintf(fltBuff, 10UL, "%.8f", (*saveModel)->learning_rate);
     for(int l = 0; l < 8; l++) line[offset + l] = fltBuff[l];
     offset += 8;
+
+    line[offset] = (*saveModel)->loss_fn;
 
     line[lineLength - 1] = '\0';
 
@@ -511,6 +495,7 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
     int numNodes = 0;
     float learningRate = 1.0f;
     char activationFunction = '\0';
+    char loss_fn = '\0';
     char layerType = '\0';
     char lineLengthBuff[26] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"; // Line length of next line string will always be 24 characters
     char fltBuff[17] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
@@ -536,8 +521,11 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
     }
 
     for(int i = 0; i < 8; i++) fltBuff[i] = line[offset + i];
+    offset += 8;
 
     learningRate = atof(fltBuff);
+
+    loss_fn = line[offset];
 
     free(line);
     line = NULL;
@@ -597,11 +585,11 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
 
         if(layerType == '1')
         {
-            (*modelLayers)[layerID] = make_dense_layer(layerArr, numNodes, numPrevLayers, numNextLayers);
+            (*modelLayers)[layerID] = make_dense_layer(layerArr, numNodes, numPrevLayers, numNextLayers, activationFunction);
         }
         else
         {
-            (*modelLayers)[layerID] = make_output_layer(layerArr, numNodes, numPrevLayers);
+            (*modelLayers)[layerID] = make_output_layer(layerArr, numNodes, numPrevLayers, activationFunction);
             outLayerID = layerID;
         }
 
@@ -638,7 +626,7 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
 
     for(int i = 0; i < numInLayers; i++) layerArr[i] = &(*(modelLayers)[inLayerIDs[i]]);
 
-    model* myModel = construct_model(layerArr, &(*modelLayers)[outLayerID], numLayers, numInLayers, learningRate);
+    model* myModel = construct_model(layerArr, &(*modelLayers)[outLayerID], numLayers, numInLayers, learningRate, loss_fn);
 
     free(inLayerIDs);
     inLayerIDs = NULL;

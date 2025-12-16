@@ -3,135 +3,76 @@
 
 int main()
 {
+    char filename[] = "dataset/THPDiffs.csv";
+    int numIns = 9;
+    int numOuts = 1;
+    int numSamples = 60000;
+    float** inArrays = (float**)NULL;
+    float** outArrays = (float**)NULL; 
 
     layer* inLayer0 = make_input_layer(3);
-    if(inLayer0 == NULL)
-    {
-        printf("Memory allocation failed at inLayer0\n");
-        goto error1;
-    }
+    if(inLayer0 == NULL) goto error1;
 
     layer* inLayer1 = make_input_layer(3);
-    if(inLayer0 == NULL)
-    {
-        printf("Memory allocation failed at inLayer1\n");
-        goto error2;
-    }
+    if(inLayer0 == NULL) goto error2;
 
     layer* inLayer2 = make_input_layer(3);
-    if(inLayer0 == NULL)
-    {
-        printf("Memory allocation failed at inLayer2\n");
-        goto error3;
-    }
+    if(inLayer0 == NULL) goto error3;
 
-    layer* inLayerPrev0[] = {inLayer0}; 
-    layer* denseLayer0 = make_dense_layer(inLayerPrev0, 3, 1, 1);
-    if(denseLayer0 == NULL)
-    {
-        printf("Memory allocation failed at denseLayer0\n");
-        goto error4;
-    }
+    layer* denseLayer0 = make_dense_layer((layer**[]){&inLayer0}, 3, 1, 1, 'u');
+    if(denseLayer0 == NULL) goto error4;
 
-    layer* inLayerPrev1[] = {inLayer1};
-    layer* denseLayer1 = make_dense_layer(inLayerPrev1, 3, 1, 1);
-    if(denseLayer1 == NULL)
-    {
-        printf("Memory allocation failed at denseLayer1\n");
-        goto error5;
-    }
+    layer* denseLayer1 = make_dense_layer((layer**[]){&inLayer1}, 3, 1, 1, 'u');
+    if(denseLayer1 == NULL) goto error5;
 
-    layer* inLayerPrev2[] = {inLayer2};
-    layer* denseLayer2 = make_dense_layer(inLayerPrev2, 3, 1, 1);
-    if(denseLayer2 == NULL)
-    {
-        printf("Memory allocation failed at denseLayer2\n");
-        goto error6;
-    }
+    layer* denseLayer2 = make_dense_layer((layer**[]){&inLayer2}, 3, 1, 1, 'u');
+    if(denseLayer2 == NULL) goto error6;
 
-    layer* denseLayer3Prev[] = {denseLayer0, denseLayer1, denseLayer2};
-    layer* denseLayer3 = make_dense_layer(denseLayer3Prev, 9, 3, 1);
-    if(denseLayer3 == NULL)
-    {
-        printf("Memory allocation failed at denseLayer3\n");
-        goto error7;
-    }
+    layer* denseLayer3 = make_dense_layer((layer**[]){&denseLayer0, &denseLayer1, &denseLayer2}, 9, 3, 1, 'u');
+    if(denseLayer3 == NULL) goto error7;
 
-    layer* denseLayer4Prev[] = {denseLayer3};
-    layer* denseLayer4 = make_dense_layer(denseLayer4Prev, 3, 1, 1);
-    if(denseLayer4 == NULL)
-    {
-        printf("Memory allocation failed at denseLayer5\n");
-        goto error8;
-    }
+    layer* denseLayer4 = make_dense_layer((layer**[]){&denseLayer3}, 3, 1, 1, 'u');
+    if(denseLayer4 == NULL) goto error8;
 
-    layer* outLayerPrev[] = {denseLayer4};
-    layer* outLayer = make_output_layer(outLayerPrev, 1, 1);
-    if(denseLayer2 == NULL)
-    {
-        printf("Memory allocation failed at outLayer\n");
-        goto error9;
-    }
+    layer* outLayer = make_output_layer((layer**[]){&denseLayer4}, 1, 1, 's');
+    if(denseLayer2 == NULL) goto error9;
 
-    layer* inLayers[] = {inLayer0, inLayer1, inLayer2};
-    model *wethrModel = construct_model(inLayers, outLayer, 9, 3, 0.1f);
-    if(wethrModel == NULL)
-    {
-        printf("Memory allocation failed at wethrModel\n");
-        goto error10;
-    }
+    model *wethrModel = construct_model((layer**[]){&inLayer0, &inLayer1, &inLayer2}, &outLayer, 9, 3, 0.1f, 'q');
+    if(wethrModel == NULL) goto error10;
 
-    wethrModel->inLayers[0] = inLayer0;
-    wethrModel->inLayers[1] = inLayer1;
-    wethrModel->inLayers[2] = inLayer2;
-    wethrModel->outLayer = outLayer;
-    // Line 216 - 33.08,55.83,30.27,-0.9,4.43,0.03,-0.66,0.32,0.02,0
-    float testIn0[] = {33.08, 55.83, 30.27};
-    float testIn1[] = {-0.9, 4.43, 0.03};
-    float testIn2[] = {-0.66, 0.32, 0.02};
-    float testTarg[] = {0.0f};
+    if(read_csv(filename, numSamples, numIns, numOuts, &inArrays, &outArrays) != 0) goto error11;
 
-    // memcpy(wethrModel->inLayers[0]->outputs, testIn0, 3*sizeof(float));
-    // memcpy(wethrModel->inLayers[1]->outputs, testIn1, 3*sizeof(float));
-    // memcpy(wethrModel->inLayers[2]->outputs, testIn2, 3*sizeof(float));
-    // memcpy(wethrModel->targets, testTarg, sizeof(float));
+    train_model_sgd(wethrModel, 1000, numSamples, inArrays, outArrays);
 
-    for(int i = 0; i < 500; i++)
-    {
-        memcpy(wethrModel->inLayers[0]->outputs, testIn0, 3*sizeof(float));
-        memcpy(wethrModel->inLayers[1]->outputs, testIn1, 3*sizeof(float));
-        memcpy(wethrModel->inLayers[2]->outputs, testIn2, 3*sizeof(float));
-        memcpy(wethrModel->targets, testTarg, sizeof(float));
-        zero_everything(wethrModel->outLayer);
-        forward_out(wethrModel->outLayer);
-        sgd_backprop(wethrModel->outLayer, wethrModel);
-        calculate_and_apply_grads(wethrModel->outLayer, wethrModel->learning_rate);
-    }
-    printf("\nModel output is: %f\nTarget is : %f\n", wethrModel->outLayer->outputs[0], testTarg[0]);
-
-    save_model(wethrModel, "weathrModel.cml");
-    hakai_model(wethrModel);
+    save_model(&wethrModel, "weathrModel.cml");
+    hakai_matrix(&inArrays, numSamples);
+    hakai_matrix(&outArrays, numSamples);
+    hakai_model(&wethrModel);
     printf("\nSuccess\n");
     return 0;
 
+error11:
+    hakai_matrix(&inArrays, numSamples);
+    hakai_matrix(&outArrays, numSamples);
+    hakai_model(&wethrModel);
 error10:
-    hakai_layer_mfree(outLayer);
+    hakai_layer_mfree(&outLayer);
 error9:
-    hakai_layer_mfree(denseLayer4);
+    hakai_layer_mfree(&denseLayer4);
 error8:
-    hakai_layer_mfree(denseLayer3);
+    hakai_layer_mfree(&denseLayer3);
 error7:
-    hakai_layer_mfree(denseLayer2);
+    hakai_layer_mfree(&denseLayer2);
 error6:
-    hakai_layer_mfree(denseLayer1);
+    hakai_layer_mfree(&denseLayer1);
 error5:
-    hakai_layer_mfree(denseLayer0);
+    hakai_layer_mfree(&denseLayer0);
 error4:
-    hakai_layer_mfree(inLayer2);
+    hakai_layer_mfree(&inLayer2);
 error3:
-    hakai_layer_mfree(inLayer1);
+    hakai_layer_mfree(&inLayer1);
 error2:
-    hakai_layer_mfree(inLayer0);
+    hakai_layer_mfree(&inLayer0);
 error1:    
     exit(EXIT_FAILURE);
 }

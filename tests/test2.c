@@ -17,21 +17,21 @@ int main()
         goto error2;
     }
     
-    layer* layer0 = make_dense_layer((layer**[]){&inLayer0, &inLayer1}, 3, 2, 1);
+    layer* layer0 = make_dense_layer((layer**[]){&inLayer0, &inLayer1}, 3, 2, 1, 'u');
     if(layer0 == NULL)
     {
         printf("Memory allocation failed at layer0\n");
         goto error3;
     }
 
-    layer* outLayer = make_output_layer((layer**[]){&layer0}, 1, 1);
+    layer* outLayer = make_output_layer((layer**[]){&layer0}, 1, 1, 'g');
     if(outLayer == NULL)
     {
         printf("Memory allocation failed at outLayer\n");
         goto error4;
     }
 
-    model *myModel = construct_model((layer**[]){&inLayer0, &inLayer1}, &outLayer, 4, 2, 1.0f);
+    model *myModel = construct_model((layer**[]){&inLayer0, &inLayer1}, &outLayer, 4, 2, 1.0f, 'q');
     if(myModel == NULL)
     {
         printf("Memory allocation failed at model\n");
