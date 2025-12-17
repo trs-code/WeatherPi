@@ -5,17 +5,16 @@
 #include <string.h>
 #include <time.h>
 
-//          VERY FUCKING IMPORTANT
-// MAKE SURE AN EXIT PROCESS FREES THE MEMORY FOR
+//                                         VERY IMPORTANT
+//                           MAKE SURE AN EXIT PROCESS FREES THE MEMORY FOR
 //
-//                      EVERY
-//                      SINGLE
-//                      LAYER
+//                                              EVERY
+//                                              SINGLE
+//                                              LAYER
 //
 // STARTING FROM THE OUTPUT AND ITERATE THROUGH THE LINKED LIST FREEING THE MEMORY FOR EACH LAYER WEIGHTS AND LAYER
-// WHEN OPERATIONS ARE CONCLUDED
-// OR I WILL PERSONALLY HUNT YOU DOWN AND STICK A NEURAL NETWORK
-// IN A PLACE WHERE THE LIGHT DON'T SHINE
+//                                      WHEN OPERATIONS ARE CONCLUDED
+
 
 // 72 Bytes to allocate for the structure at base
 // Extra # bytes for each layer: 40 + 8m + 8n + 4np + 16n  -> m previous layers, n current nodes, p previous nodes

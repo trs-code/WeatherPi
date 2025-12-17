@@ -20,8 +20,8 @@ int main()
         printf("%f\n", outArrays[i][0]);
     }
 
-    hakai_matrix(inArrays, numSamples);
-    hakai_matrix(outArrays, numSamples);
+    hakai_matrix(&inArrays, numSamples);
+    hakai_matrix(&outArrays, numSamples);
     return 0;
 
 }

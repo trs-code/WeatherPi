@@ -3,7 +3,7 @@
 
 #include "layer_ops.h"
 
-// 40 Bytes for an empty model husk - update this after training testing is complete
+// 40 Bytes for an empty model husk 
 typedef struct
 {   
     layer ***inLayers;      // References to the input layers of the model - entry point for model operations, array of pointers to layer allocation pointers

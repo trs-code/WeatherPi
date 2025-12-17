@@ -3,20 +3,50 @@
 #include <immintrin.h>
 #include "model_ops.h"
 
+
+
 // IMPORTANT
 // Engineer data according to dimensions of input layers so first n inputs correspond to n nodes of first input layer
 // Next m inputs correspond to m nodes of second input layer
 // So on and so forth
 
-void train_model_sgd(model* myModel, int epochs, int numSamples, float** inputs, float **targets)
+void train_model_sgd(model* myModel, int epochs, int numSamples, float** inputs, float **targets, float valSplit)
 {
     int inputsTraversed = 0;
-    float averageLoss = 0.0;
+    float trainingLoss = 0.0;
+    float validationLoss = 0.0;
+    int trainSamples = (int)(valSplit * numSamples);
+    int valSamples = numSamples - trainSamples;
+
     
     for(int e = 1; e < (epochs + 1); e++)
     {
-        averageLoss = 0.0;
-        for(int i = 0; i < numSamples; i++)
+        trainingLoss = 0.0;
+        validationLoss = 0.0;
+        
+        for(int i = 0; i < trainSamples; i++)
+        {
+            inputsTraversed = 0;
+            for(int j = 0; j < myModel->numInLayers; j++)
+            {
+                for(int k = 0; k < (*myModel->inLayers[j])->numNodes; k++) (*myModel->inLayers[j])->outputs[k] = inputs[i][k + inputsTraversed]; memcpy((*myModel->inLayers[j])->outputs, &(inputs[i][inputsTraversed]), sizeof(float) * (*myModel->inLayers[j])->numNodes);
+                inputsTraversed += (*myModel->inLayers[j])->numNodes;
+            }
+
+            memcpy(myModel->targets, targets[i], sizeof(float) * (*myModel->outLayer)->numNodes);
+            
+            forward_out(myModel->outLayer);
+            sgd_backprop(myModel->outLayer, &myModel);
+            calculate_and_apply_grads(myModel->outLayer, myModel->learning_rate);
+
+            trainingLoss += loss_function(myModel);
+            zero_everything(myModel->outLayer);
+        }
+
+        trainingLoss /= trainSamples;
+        printf("Average training loss for epoch %d: %f\n", e, trainingLoss);
+        
+        for(int i = trainSamples; i < numSamples; i++)
         {
             inputsTraversed = 0;
             for(int j = 0; j < myModel->numInLayers; j++)
@@ -28,16 +58,13 @@ void train_model_sgd(model* myModel, int epochs, int numSamples, float** inputs,
             memcpy(myModel->targets, targets[i], sizeof(float) * (*myModel->outLayer)->numNodes);
             
             forward_out(myModel->outLayer);
-            sgd_backprop(myModel->outLayer, &myModel);
-            calculate_and_apply_grads(myModel->outLayer, myModel->learning_rate);
 
-            for(int j = 0; j < (*myModel->outLayer)->numNodes; j++) averageLoss += ((myModel->targets[j], (*myModel->outLayer)->outputs[j])) / (*myModel->outLayer)->numNodes;
-            
+            validationLoss += loss_function(myModel);
             zero_everything(myModel->outLayer);
         }
 
-        averageLoss /= numSamples;
-        printf("Average training loss for epoch %d: %f\n", e, averageLoss);      
+        validationLoss /= valSamples;
+        printf("Average validation loss for epoch %d: %f\n", e, validationLoss);
     }
 }
 
@@ -113,7 +140,7 @@ error1:
     return -1;
 }
 
-void mini_batch_train_sgd(model* myModel, int epochs, int numSamples, int batchSize, float** inputs, float**targets) //Automatically normalizes the batch into a single sample
+void mini_batch_train_sgd(model* myModel, int epochs, int numSamples, int batchSize, float** inputs, float**targets, _Bool normBatch) //Automatically normalizes the batch into a single sample
 {
     int inputsTraversed = 0;
     int numFullBatches = 0;
@@ -127,7 +154,6 @@ void mini_batch_train_sgd(model* myModel, int epochs, int numSamples, int batchS
         averageLoss = 0.0;
         for(int i = 0; i < numFullBatches; i++)
         {
-            zero_everything(myModel->outLayer);
 
             inputsTraversed = 0;
             for(int j = 0; j < myModel->numInLayers; j++)
@@ -149,12 +175,13 @@ void mini_batch_train_sgd(model* myModel, int epochs, int numSamples, int batchS
             sgd_backprop(myModel->outLayer, &myModel);
             calculate_and_apply_grads(myModel->outLayer, myModel->learning_rate);
 
-            for(int j = 0; j < (*myModel->outLayer)->numNodes; j++) averageLoss += (loss_derivative(myModel->targets[j], (*myModel->outLayer)->outputs[j], myModel->loss_fn)) / (*myModel->outLayer)->numNodes;         
+            averageLoss += loss_function(myModel);
+            zero_everything(myModel->outLayer);
         }
 
-        zero_everything(myModel->outLayer);
         averageLoss /= (numFullBatches + (numLeftOver / batchSize));
         printf("Average training loss for epoch %d: %f\n", e, averageLoss);  
+
     }
 }
 

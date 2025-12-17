@@ -2,7 +2,6 @@
 #define NN_MODEL_OPS
 
 #include <stdio.h>
-#include "model.h"
 #include "nn_math.h"
 
 int assign_layer_ids(layer** myLayer, int currID)
@@ -200,7 +199,7 @@ void sgd_backprop(layer** myLayer, model** myModel)
     (*myLayer)->switchVar = '2';
     
     // backErrorsForOutputLayer = lossDerivative · activationFunctionDerivative(preActivations) - for output layer
-    if((*myLayer)->numNextLayers == 0) for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->backErrors[i] = -1 * loss_derivative((*myModel)->targets[i], (*myLayer)->outputs[i], (*myModel)->loss_fn) * activation_derivative((*myLayer)->preActivations[i], (*myLayer)->activationFunction);
+    if((*myLayer)->numNextLayers == 0) for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->backErrors[i] = -1 * loss_derivative((*myModel)->targets[i], (*myLayer)->outputs[i], (*myModel)) * activation_derivative((*myLayer)->preActivations[i], (*myLayer)->activationFunction);
     
     // backErrorsForPreviousLayers += (thisLayersBackErrors)(thisLayersWeightMatrixWithRespectToCurrentPreviousLayer) · activationFunctionDerivative(previousLayers)
     int prevsTraversed = 0;

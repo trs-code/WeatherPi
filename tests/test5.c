@@ -13,7 +13,6 @@ int main()
 
     printf("Model creation successful\n\n");
 
-    float values[] = {0.05, 0.10, 0.15};
     memcpy((*myModel->inLayers[0])->outputs, (float[]){0.05, 0.10, 0.15}, 3*sizeof(float));
     memcpy(myModel->targets, (float[]){0.905405}, sizeof(float));
 
@@ -30,5 +29,10 @@ int main()
 
 
 error1:
+    if(layerArray != NULL)
+    {
+        free(layerArray);
+        layerArray = NULL;
+    }
     exit(EXIT_FAILURE);
 }
