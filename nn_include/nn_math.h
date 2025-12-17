@@ -292,37 +292,29 @@ float huber_loss_derivative(float target, float yHat, float n)
 float binary_cross_entropy_loss(model* myModel)
 {
     float sum = 0;
-    float sigYHat = 0.0;
-    for(int i = 0; i < (*myModel->outLayer)->numNodes; i++)
-    {
-        sigYHat = sigmoid((*myModel->outLayer)->outputs[i]);
-        sum += ((myModel->targets[i]) * log(sigYHat)) + ((1-(myModel->targets[i])) * log((1 - sigYHat)));
-    }
+    
+    for(int i = 0; i < (*myModel->outLayer)->numNodes; i++) sum -= ((myModel->targets[i]) * log((*myModel->outLayer)->outputs[i])) + ((1-(myModel->targets[i])) * log((1 - (*myModel->outLayer)->outputs[i])));
+    
     return (sum / (*myModel->outLayer)->numNodes);
 }
 
 float binary_cross_entropy_loss_derivative(float target, float yHat, float n)
 {
-    float sigYHat = sigmoid(yHat);
-    return (sigYHat - target) / n;
+    return (yHat - target);
 }
 
 float fast_binary_cross_entropy_loss(model* myModel)
 {
     float sum = 0;
-    float sigYHat = 0.0;
-    for(int i = 0; i < (*myModel->outLayer)->numNodes; i++)
-    {
-        sigYHat = fast_sigmoid((*myModel->outLayer)->outputs[i]);
-        sum += ((myModel->targets[i]) * fast_ln(sigYHat)) + ((1-(myModel->targets[i])) * fast_ln((1 - sigYHat)));
-    }
-    return (sum / (*myModel->outLayer)->numNodes);
+    
+    for(int i = 0; i < (*myModel->outLayer)->numNodes; i++) sum -= ((myModel->targets[i]) * fast_ln((*myModel->outLayer)->outputs[i])) + ((1-(myModel->targets[i])) * fast_ln((1 - (*myModel->outLayer)->outputs[i])));
+    
+    return ( sum / (*myModel->outLayer)->numNodes);
 }
 
-float fast_binary_cross_entropy_loss_derivative(float target, float yHat, float n)
+float fast_binary_cross_entropy_loss_derivative(float target, float yHat)
 {
-    float sigYHat = fast_sigmoid(yHat);
-    return (sigYHat - target) / n;
+    return (yHat - target);
 }
 
 
@@ -364,7 +356,7 @@ float loss_derivative(float target, float yHat, model* myModel)
         case 'n':
             return binary_cross_entropy_loss_derivative(target, yHat, numNodes);
         case 'r':
-            return fast_binary_cross_entropy_loss_derivative(target, yHat, numNodes);
+            return fast_binary_cross_entropy_loss_derivative(target, yHat);
         default:
             return 1;
     }
