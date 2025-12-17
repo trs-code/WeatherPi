@@ -19,19 +19,19 @@ int main()
     layer* inLayer2 = make_input_layer(3);
     if(inLayer0 == NULL) goto error3;
 
-    layer* denseLayer0 = make_dense_layer((layer**[]){&inLayer0}, 3, 1, 1, 'l');
+    layer* denseLayer0 = make_dense_layer((layer**[]){&inLayer0}, 3, 1, 1, 'h');
     if(denseLayer0 == NULL) goto error4;
 
-    layer* denseLayer1 = make_dense_layer((layer**[]){&inLayer1}, 3, 1, 1, 'l');
+    layer* denseLayer1 = make_dense_layer((layer**[]){&inLayer1}, 3, 1, 1, 'h');
     if(denseLayer1 == NULL) goto error5;
 
-    layer* denseLayer2 = make_dense_layer((layer**[]){&inLayer2}, 3, 1, 1, 'l');
+    layer* denseLayer2 = make_dense_layer((layer**[]){&inLayer2}, 3, 1, 1, 'h');
     if(denseLayer2 == NULL) goto error6;
 
-    layer* denseLayer3 = make_dense_layer((layer**[]){&denseLayer0, &denseLayer1, &denseLayer2}, 9, 3, 1, 'l');
+    layer* denseLayer3 = make_dense_layer((layer**[]){&denseLayer0, &denseLayer1, &denseLayer2}, 9, 3, 1, 'h');
     if(denseLayer3 == NULL) goto error7;
 
-    layer* denseLayer4 = make_dense_layer((layer**[]){&denseLayer3}, 3, 1, 1, 'l');
+    layer* denseLayer4 = make_dense_layer((layer**[]){&denseLayer3}, 3, 1, 1, 'h');
     if(denseLayer4 == NULL) goto error8;
 
     layer* outLayer = make_output_layer((layer**[]){&denseLayer4}, 1, 1, 'g');
@@ -42,7 +42,7 @@ int main()
 
     if(read_csv(filename, numSamples, numIns, numOuts, &inArrays, &outArrays) != 0) goto error11;
 
-    train_model_sgd(wethrModel, 100, numSamples, inArrays, outArrays, 0.8);
+    train_model_sgd(wethrModel, 500, numSamples, inArrays, outArrays, 0.8);
 
     save_model(&wethrModel, "weathrModel.cml");
     hakai_matrix(&inArrays, numSamples);

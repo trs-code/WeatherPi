@@ -29,7 +29,7 @@ void train_model_sgd(model* myModel, int epochs, int numSamples, float** inputs,
             inputsTraversed = 0;
             for(int j = 0; j < myModel->numInLayers; j++)
             {
-                for(int k = 0; k < (*myModel->inLayers[j])->numNodes; k++) (*myModel->inLayers[j])->outputs[k] = inputs[i][k + inputsTraversed]; memcpy((*myModel->inLayers[j])->outputs, &(inputs[i][inputsTraversed]), sizeof(float) * (*myModel->inLayers[j])->numNodes);
+                memcpy((*myModel->inLayers[j])->outputs, &(inputs[i][inputsTraversed]), sizeof(float) * (*myModel->inLayers[j])->numNodes);
                 inputsTraversed += (*myModel->inLayers[j])->numNodes;
             }
 
@@ -42,9 +42,6 @@ void train_model_sgd(model* myModel, int epochs, int numSamples, float** inputs,
             trainingLoss += loss_function(myModel);
             zero_everything(myModel->outLayer);
         }
-
-        trainingLoss /= trainSamples;
-        printf("Average training loss for epoch %d: %f\n", e, trainingLoss);
         
         for(int i = trainSamples; i < numSamples; i++)
         {
@@ -64,7 +61,8 @@ void train_model_sgd(model* myModel, int epochs, int numSamples, float** inputs,
         }
 
         validationLoss /= valSamples;
-        printf("Average validation loss for epoch %d: %f\n", e, validationLoss);
+        trainingLoss /= trainSamples;
+        printf("Epoch %d - Training Loss: %f, Validation Loss: %f\n", e, trainingLoss, validationLoss);
     }
 }
 

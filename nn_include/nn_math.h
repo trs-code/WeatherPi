@@ -298,7 +298,7 @@ float binary_cross_entropy_loss(model* myModel)
         sigYHat = sigmoid((*myModel->outLayer)->outputs[i]);
         sum += ((myModel->targets[i]) * log(sigYHat)) + ((1-(myModel->targets[i])) * log((1 - sigYHat)));
     }
-    return (-1 * sum / (*myModel->outLayer)->numNodes);
+    return (sum / (*myModel->outLayer)->numNodes);
 }
 
 float binary_cross_entropy_loss_derivative(float target, float yHat, float n)
@@ -316,7 +316,7 @@ float fast_binary_cross_entropy_loss(model* myModel)
         sigYHat = fast_sigmoid((*myModel->outLayer)->outputs[i]);
         sum += ((myModel->targets[i]) * fast_ln(sigYHat)) + ((1-(myModel->targets[i])) * fast_ln((1 - sigYHat)));
     }
-    return (-1 * sum / (*myModel->outLayer)->numNodes);
+    return (sum / (*myModel->outLayer)->numNodes);
 }
 
 float fast_binary_cross_entropy_loss_derivative(float target, float yHat, float n)
