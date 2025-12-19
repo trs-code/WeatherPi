@@ -23,6 +23,7 @@ typedef struct layer layer;
 struct layer
 {
     layer*** prevLayers; // Very necessary to operate model - array of pointers to layer allocation pointers
+    //layer** prevLayer[20];
     float **weights; // n nodes * p previous nodes - weight matrix
     float *biases; // n biases - 1 for each node
     float *backErrors; // Only necessary for backpropagation, not necessary for an inference model - n values
@@ -31,8 +32,8 @@ struct layer
     int numPrevNodes; // Helps set up the model and also operate it
     int numNodes; // Helps set up the model and also operate it
     int numPrevLayers; // Very necessary for all roads spring forth from rome approach - helps operate the model
-    int numNextLayers; // Only needed for backpropagation - not needed for an inference model
-    int layerID; // A unique number from [0, (# of layers in the Model) - 1] - maybe made redundant through switchVar?  
+    int layerID; // A unique number from [0, (# of layers in the Model) - 1] - maybe made redundant through switchVar?
+    char layerType;
     char activationFunction;
     char switchVar;
 };

@@ -4,23 +4,25 @@
 #include <stdio.h>
 #include "nn_math.h"
 
+// Assign layer IDs in a topological order to be able to reconstruct the network graph
 int assign_layer_ids(layer** myLayer, int currID)
 {
-    //Post order traversal so the layers can be readily identified before any of their dependencies
+    // Post order traversal so the layers can be readily identified before any of their dependencies
     int myID = currID;
     if((*myLayer)->layerID != -1) return currID;
 
     for (int i = 0; i < (*myLayer)->numPrevLayers; i++)
     {
+        if((*myLayer)->prevLayers[i] == myLayer) continue;
         myID = assign_layer_ids((*myLayer)->prevLayers[i], myID);
     }
 
     (*myLayer)->layerID = myID;
-    return myID + 1;
-    
+    return myID + 1;    
 }
 
-model* construct_model(layer*** inLayers, layer** outLayer, int numLayers, int numInLayers, float learning_rate, char loss_fn)
+// Provides an interface for the user to interact with the model without getting bogged down by little details
+model* construct_model( layer*** inLayers, layer** outLayer, int numLayers, int numInLayers, float learning_rate, char loss_fn)
 {
     model *myModel = (model*)malloc(sizeof(model));
     if(myModel == NULL) return NULL;
@@ -57,8 +59,6 @@ error1:
 // Destroy an individual layer after operations are concluded but a model hasn't been built yet
 void hakai_layer_mfree(layer** myLayer)
 {    
-    //layer *myLayer = *thisLayer;
-
     free((*myLayer)->outputs);
     (*myLayer)->outputs = NULL;
 
@@ -76,13 +76,14 @@ void hakai_layer_mfree(layer** myLayer)
         free((*myLayer)->biases);
         (*myLayer)->biases = NULL;
 
-        hakai_matrix(&((*myLayer)->weights), (*myLayer)->numNodes);
+        hakai_matrix(&(*myLayer)->weights, (*myLayer)->numNodes);
     }
 
     free(*myLayer);
     *myLayer = NULL;    
 }
 
+// Destroy a model object independently from any layers(IMPORTANT TO DESTROY LAYERS MANUALLY IF USED)
 void hakai_model_mfree(model** myModel)
 {
     free((*myModel)->targets);
@@ -92,7 +93,7 @@ void hakai_model_mfree(model** myModel)
     *myModel= NULL;
 }
 
-// Destroy an individual layer after operations are concluded
+// Destroy an individual layer in the process of clearing the model
 void hakai_layer(layer** myLayer)
 {
     if(*myLayer == NULL) return;
@@ -102,7 +103,7 @@ void hakai_layer(layer** myLayer)
 
     if((*myLayer)->activationFunction != 'i')
     {
-        hakai_matrix(&((*myLayer)->weights), (*myLayer)->numNodes);
+        hakai_matrix(&(*myLayer)->weights, (*myLayer)->numNodes);
 
         free((*myLayer)->backErrors);
         (*myLayer)->backErrors = NULL;
@@ -112,13 +113,11 @@ void hakai_layer(layer** myLayer)
 
         free((*myLayer)->biases);
         (*myLayer)->biases = NULL;
-
     }
     
     free(*myLayer);
     *myLayer = NULL;
 }
-
 
 // Enter this function with the outArray of the model and let it do its thing
 // One big advantage of the linked list tree structure is being able to exploit the convergence of the model on the output layer
@@ -128,7 +127,11 @@ void clear_model(layer*** layerArr, int layerNums)
 
     for(int i = 0; i < layerNums; i++)
     {
-        if(*(layerArr[i]) == NULL) continue;
+        if(*layerArr[i] == NULL) continue;
+        
+        // Check for cases of RNNs where a layer can have itself as a prevLayer but we want to call it at least once
+        if((*layerArr[i])->switchVar == '4') break; 
+        (*layerArr[i])->switchVar = '4';
                 
         clear_model((*layerArr[i])->prevLayers, (*layerArr[i])->numPrevLayers);
         hakai_layer(layerArr[i]);
@@ -140,7 +143,7 @@ void clear_model(layer*** layerArr, int layerNums)
     layerArr = NULL;
 }
 
-
+// Actual user called function to destroy the entire model which sets up an outArray to keep consistency with the clear model logic, followed by model cleanup
 void hakai_model(model** myModel)
 {
     layer ***outArr = (layer***)malloc(sizeof(layer**));
@@ -160,14 +163,14 @@ void hakai_model(model** myModel)
     *myModel= NULL;
 }
 
-//  Gets an output from the target layer
+//  Gets an output from the target layer, is essentially also a inference function
 void forward_out(layer** myLayer)
 {
     if((*myLayer)->switchVar == '1') return;
 
     (*myLayer)->switchVar = '1';
 
-    if((*myLayer)->activationFunction != 'i')
+    if((*myLayer)->layerType != 'i')
     {
         int numPrevsTraversed = 0;
         
@@ -199,13 +202,13 @@ void sgd_backprop(layer** myLayer, model** myModel)
     (*myLayer)->switchVar = '2';
     
     // backErrorsForOutputLayer = lossDerivative · activationFunctionDerivative(preActivations) - for output layer
-    if((*myLayer)->numNextLayers == 0) for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->backErrors[i] = -1 * loss_derivative((*myModel)->targets[i], (*myLayer)->outputs[i], (*myModel)) * activation_derivative((*myLayer)->preActivations[i], (*myLayer)->activationFunction);
+    if((*myLayer)->layerType == 'o') for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->backErrors[i] = -1 * loss_derivative((*myModel)->targets[i], (*myLayer)->outputs[i], (*myModel)) * activation_derivative((*myLayer)->preActivations[i], (*myLayer)->activationFunction);
     
     // backErrorsForPreviousLayers += (thisLayersBackErrors)(thisLayersWeightMatrixWithRespectToCurrentPreviousLayer) · activationFunctionDerivative(previousLayers)
     int prevsTraversed = 0;
     for(int i = 0; i < (*myLayer)->numPrevLayers; i++)
     {
-        if((*(*myLayer)->prevLayers[i])->activationFunction == 'i') continue;
+        if((*(*myLayer)->prevLayers[i])->layerType == 'i') continue;
         for(int j = 0; j < (*(*myLayer)->prevLayers[i])->numNodes; j++) for(int k = 0; k < (*myLayer)->numNodes; k++) (*(*myLayer)->prevLayers[i])->backErrors[j] += (*myLayer)->backErrors[k] * (*myLayer)->weights[k][prevsTraversed + j] * activation_derivative((*(*myLayer)->prevLayers[i])->preActivations[j], (*myLayer)->activationFunction);
         prevsTraversed += (*(*myLayer)->prevLayers[i])->numNodes;
     }
@@ -213,6 +216,7 @@ void sgd_backprop(layer** myLayer, model** myModel)
     for(int i = 0; i < (*myLayer)->numPrevLayers; i++) if((*(*myLayer)->prevLayers[i])->numPrevLayers != 0) sgd_backprop((*myLayer)->prevLayers[i], myModel);
     // calculate backErrors for previous layers' previous layers according to already established layers' backErrors - All roads spring forth from Rome
 }
+
 
 // Another all roads spring forth from Rome approach - go to the convergence point of the model and use it as the root of the undirected, cyclic graph that is this model
 void calculate_and_apply_grads(layer** myLayer, float learningRate)
@@ -262,8 +266,8 @@ void zero_everything(layer** myLayer)
 void traverse_model_fill_layer_list(layer** myLayer, layer*** layerList)
 {
     if(layerList[(*myLayer)->layerID] != NULL) return;
+    layerList[(*myLayer)->layerID] = myLayer; // Can traverse this in whatever order as long as its a full traversal, base case will take care of recurrent layers
     for(int i = 0; i < (*myLayer)->numPrevLayers; i++) traverse_model_fill_layer_list((*myLayer)->prevLayers[i], layerList); // if input layer then the for loop won't even initiate
-    layerList[(*myLayer)->layerID] = myLayer;
 }
 
 void int2bin(int x, int numBits, char* bitBuff)
@@ -277,7 +281,7 @@ void int2bin(int x, int numBits, char* bitBuff)
     }
 }
 
-int save_model(model** saveModel, const char* modelFileName)
+int save_model(model** saveModel,  char* modelFileName)
 {
     layer*** layerList = (layer ***)calloc((*saveModel)->numLayers, sizeof(layer**));
     if(layerList == NULL) goto error1;
@@ -333,7 +337,7 @@ int save_model(model** saveModel, const char* modelFileName)
     for(int i = 0; i < (*saveModel)->numLayers; i++)
     {
         lineLength = 29;
-        if((*layerList[i])->numPrevLayers != 0)
+        if((*layerList[i])->layerType != 'i')
         {
             lineLength += 16 * (*layerList[i])->numPrevLayers;
             lineLength += 16 * ((*layerList[i])->numNodes * ((*layerList[i])->numPrevNodes + 1));
@@ -344,15 +348,7 @@ int save_model(model** saveModel, const char* modelFileName)
         line = (char *)calloc(lineLength, sizeof(char));
         if(line == NULL) goto error3;
 
-        if((*layerList[i])->numNextLayers == 0) 
-        {
-            line[0] = '2'; // Only reason for separate else if and else branches is differentiating the outlayer with hidden layers
-        }
-        else
-        {
-            line[0] = '1';
-        }
-
+        line[0] = (*layerList[i])->layerType;
         offset += 1;
 
         int2bin((*layerList[i])->layerID, 11, bitBuff);
@@ -363,10 +359,8 @@ int save_model(model** saveModel, const char* modelFileName)
         for(int j = 0; j < 16; j++) line[offset+ j] = bitBuff[j];
         offset += 16;
 
-        if((*layerList[i])->numPrevLayers == 0)
+        if((*layerList[i])->layerType == 'i')
         {
-            line[0] = '0';
-
             line[offset] = '\0';
             
             int2bin(lineLength, 24, bitBuff);
@@ -382,15 +376,12 @@ int save_model(model** saveModel, const char* modelFileName)
             continue;
         }
 
-        int2bin((*layerList[i])->numNextLayers, 16, bitBuff);
-        for(int j = 0; j < 16; j++) line[offset + j] = bitBuff[j];
-        offset += 16;
-
         int2bin((*layerList[i])->numPrevNodes, 32, bitBuff);
         for(int j = 0; j < 32; j++) line[offset + j] = bitBuff[j];
         offset += 32;
         
-        int2bin((*layerList[i])->numPrevLayers, 16, bitBuff);
+        if((*layerList[i])->layerType != 'r') int2bin((*layerList[i])->numPrevLayers, 16, bitBuff);
+        else int2bin((*layerList[i])->numPrevLayers - 1, 16, bitBuff);
         for(int j = 0; j < 16; j++) line[offset + j] = bitBuff[j];
         offset += 16;
         
@@ -399,6 +390,7 @@ int save_model(model** saveModel, const char* modelFileName)
 
         for(int j = 0; j < (*layerList[i])->numPrevLayers; j++)
         {
+            //if((*layerList[i])->layerID == (*(*layerList[i])->prevLayers[j])->layerID) continue;
             int2bin((*(*layerList[i])->prevLayers[j])->layerID, 16, bitBuff);
             for(int k = 0; k < 16; k++) line[offset + k] = bitBuff[k];
             offset += 16;
@@ -487,7 +479,6 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
     int offset = 0;
     int numLayers = 0;
     int numInLayers = 0;
-    int numNextLayers = 0;
     int numPrevLayers = 0;
     int numPrevNodes = 0;
     int layerID = 0;
@@ -513,7 +504,7 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
     int *inLayerIDs = (int *)calloc(numInLayers, sizeof(int));
     if(inLayerIDs == NULL) goto error3;
 
-    for(int i = 0; i < numInLayers; i++)
+    for(int i = 0; i < numInLayers; i++) 
     {
         inLayerIDs[i] = bin2int(&line[offset], 16);
         offset += 16;
@@ -549,12 +540,15 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
         learningRate = 1.0f;
 
         layerType = line[0];
+        offset += 1;
 
-        layerID = bin2int(&line[1], 11);
+        layerID = bin2int(&line[offset], 11);
+        offset += 11;
         
-        numNodes = bin2int(&line[12], 16);
+        numNodes = bin2int(&line[offset], 16);
+        offset += 16;
 
-        if(layerType == '0')
+        if(layerType == 'i')
         {
             (*modelLayers)[layerID] = make_input_layer(numNodes);
             
@@ -564,14 +558,14 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
             continue;
         }
 
-        numNextLayers = bin2int(&line[28], 16);
+        numPrevNodes = bin2int(&line[offset], 32);
+        offset += 32;
 
-        numPrevNodes = bin2int(&line[44], 32);
+        numPrevLayers = bin2int(&line[offset], 16);
+        offset += 16;
 
-        numPrevLayers = bin2int(&line[76], 16);
-
-        activationFunction = line[92];
-        offset = 93;
+        activationFunction = line[offset];
+        offset += 1;
 
         layerArr = (layer***)malloc(numPrevLayers * sizeof(layer**));
         if(layerArr == NULL) goto error6;
@@ -582,9 +576,13 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
             offset += 16;
         }
 
-        if(layerType == '1')
+        if(layerType == 'h')
         {
-            (*modelLayers)[layerID] = make_dense_layer(layerArr, numNodes, numPrevLayers, numNextLayers, activationFunction);
+            (*modelLayers)[layerID] = make_hidden_layer(layerArr, numNodes, numPrevLayers, activationFunction);
+        }
+        else if(layerType == 'r')
+        {
+            (*modelLayers)[layerID] = make_referential_layer(layerArr, numNodes, numPrevLayers, activationFunction, &(*modelLayers)[layerID]);
         }
         else
         {
@@ -621,7 +619,7 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
     fclose(modFile);
     modFile = NULL;
 
-    layerArr = (layer***)calloc(numInLayers, sizeof(layer*));
+    layerArr = (layer***)malloc(numInLayers * sizeof(layer*));
 
     for(int i = 0; i < numInLayers; i++) layerArr[i] = &(*(modelLayers)[inLayerIDs[i]]);
 
@@ -652,6 +650,65 @@ error1:
     return NULL;
 }
 
+void hakai_context_window(layer*** windowLayers, int windowSize)
+{
+    for(int i = 0; i < windowSize; i++)
+    {
+        if((*windowLayers)[2 * i] != NULL)
+        {
+            hakai_layer_mfree(&(*windowLayers)[2 * i]);
+        }
+        if((*windowLayers)[(2 * i) + 1] != NULL)
+        {
+            hakai_layer_mfree(&(*windowLayers)[(2 * i) + 1]);
+        }
+    }
 
+    free((*windowLayers));
+    *windowLayers = NULL;
+}
+
+void extend_context(layer** myLayer, int windowSize, layer*** windowLayers) // Extend context windows 
+{
+    if((*myLayer)->layerType != 'h' || (*(*myLayer)->prevLayers[0])->layerType != 'i' || windowSize < 1) return;
+    *windowLayers = (layer**)calloc(2 * windowSize, sizeof(layer*));
+    if(*windowLayers == NULL) return;
+
+    int hiddenNodes = (*myLayer)->numNodes;
+    int inNodes = (*(*myLayer)->prevLayers[0])->numNodes;
+    char hiddenActivationFunction = (*myLayer)->activationFunction;
+
+    (*windowLayers)[0] = make_input_layer(inNodes);
+    if((*windowLayers)[0] == NULL) goto error1;
+    (*windowLayers)[1] = make_hidden_layer((layer**[]){&(*windowLayers)[0], myLayer}, hiddenNodes, 2, hiddenActivationFunction);
+    if((*windowLayers)[1] == NULL) goto error1;
+
+
+    for(int i = 1; i < windowSize; i++)
+    {
+        (*windowLayers)[2 * i] = make_input_layer(inNodes);
+        if((*windowLayers)[(2 * i)] == NULL) goto error1;
+        (*windowLayers)[(2 * i) + 1] = make_hidden_layer((layer**[]){&(*windowLayers)[2 * i], &(*windowLayers)[(2 * i) - 1]}, hiddenNodes, 2, hiddenActivationFunction);
+        if((*windowLayers)[(2 * i) + 1] == NULL) goto error1;
+    }
+
+    return;
+
+error1:
+    hakai_context_window(windowLayers, windowSize);
+}
+
+void load_context_window(layer* inLayer, layer** windowLayers, float* inputs, int windowSize)
+{
+    if(windowSize < 1) return;
+    int numInputs = inLayer->numNodes;
+
+    for(int i = windowSize - 1; i > 0; i--)
+    {
+        memcpy(windowLayers[2 * i]->outputs, windowLayers[(2 * i) - 2], sizeof(float) * numInputs);
+    }
+    memcpy(windowLayers[0]->outputs, inLayer->outputs, numInputs * sizeof(float));
+    memcpy(inLayer->outputs, inputs, numInputs * sizeof(float));
+}
 
 #endif

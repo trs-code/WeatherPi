@@ -19,16 +19,16 @@ int main()
     layer* inLayer2 = make_input_layer(3);
     if(inLayer0 == NULL) goto error3;
 
-    layer* denseLayer0 = make_dense_layer((layer**[]){&inLayer0}, 3, 1, 1, 'h');
+    layer* denseLayer0 = make_hidden_layer((layer**[]){&inLayer0}, 3, 1, 'h');
     if(denseLayer0 == NULL) goto error4;
 
-    layer* denseLayer1 = make_dense_layer((layer**[]){&inLayer1}, 3, 1, 1, 'h');
+    layer* denseLayer1 = make_hidden_layer((layer**[]){&inLayer1}, 3, 1, 'h');
     if(denseLayer1 == NULL) goto error5;
 
-    layer* denseLayer2 = make_dense_layer((layer**[]){&inLayer2}, 3, 1, 1, 'h');
+    layer* denseLayer2 = make_hidden_layer((layer**[]){&inLayer2}, 3, 1, 'h');
     if(denseLayer2 == NULL) goto error6;
 
-    layer* denseLayer3 = make_dense_layer((layer**[]){&denseLayer0, &denseLayer1, &denseLayer2}, 9, 3, 1, 'h');
+    layer* denseLayer3 = make_hidden_layer((layer**[]){&denseLayer0, &denseLayer1, &denseLayer2}, 9, 3, 'h');
     if(denseLayer3 == NULL) goto error7;
 
     //layer* denseLayer4 = make_dense_layer((layer**[]){&denseLayer3}, 3, 1, 1, 'h');
