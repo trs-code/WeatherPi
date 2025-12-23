@@ -766,10 +766,14 @@ void sgd_backprop_through_time(layer** myLayer, model** myModel, int timeStep)
         prevsTraversed += (*(*myLayer)->prevLayers[i])->numNodes;
     }
 
+<<<<<<< HEAD
     for(int i = 0; i < (*myLayer)->numPrevLayers; i++)
     {
         if((*(*myLayer)->prevLayers[i])->numPrevLayers != 0) sgd_backprop_through_time((*myLayer)->prevLayers[i], myModel, timeStep);
     }
+=======
+    for(int i = 0; i < (*myLayer)->numPrevLayers; i++) if((*(*myLayer)->prevLayers[i])->numPrevLayers != 0) sgd_backprop((*myLayer)->prevLayers[i], myModel);
+>>>>>>> e65b06d935a056a580ffaf094189bdc3b67327cd
     // calculate backErrors for previous layers' previous layers according to already established layers' backErrors - All roads spring forth from Rome
 }
 
