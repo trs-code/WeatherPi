@@ -130,6 +130,22 @@ float fast_ln(float x) // Courtesy of LingDong Huang(gist.github.com/LingDong-)
     return -1.49278+(2.11263+(-0.729104+0.10969*x)*x)*x+0.6931471806*t;
 }
 
+float fastExp(float num) // Taken from Johan Rade (github.com/jrade/)
+{
+    float a = (1 << 23) / 0.69314718f;
+    float b = (1 << 23) * (127 - 0.043677448f);
+    float x = a * num + b;
+
+    float c = (1 << 23);
+    float d = (1 << 23) * 255;
+    if (x < c || x > d)
+        x = (x < c) ? 0.0f : d;
+
+    __uint32_t n = (__uint32_t)(x);
+    memcpy(&x, &n, 4);
+    return x;
+}
+
 
 // Activation functions and their derivatives 
 static inline float relu(float x)
@@ -188,10 +204,55 @@ float fast_sigmoid_derivative(float x) {
     return yHat * (1.0 - yHat);
 }
 
-float activation_function(float x, char activationFunction)
+float softmax(float x, layer* myLayer)
+{
+    float sum = 0.0;
+    float thisVal = 0.0;
+    float maxVal = findMax(myLayer->outputs, myLayer->numNodes);
+
+    thisVal = exp(x - maxVal);
+    for(int i = 0; i < myLayer->numNodes; i++)
+    {
+        sum += exp(myLayer->outputs[i] - maxVal);
+    }
+
+    return thisVal / sum;
+}
+
+float softmax_derivative(float x, layer* myLayer, int currNode)
+{
+    return myLayer->outputs[currNode] - x;
+}
+
+float fast_softmax(float x, layer* myLayer)
+{
+    float sum = 0.0;
+    float thisVal = 0.0;
+    float maxVal = findMax(myLayer->outputs, myLayer->numNodes);
+
+    thisVal = fastExp(x - maxVal);
+    for(int i = 0; i < myLayer->numNodes; i++)
+    {
+        sum += fastExp(myLayer->outputs[i] - maxVal);
+    }
+
+    return thisVal / sum;
+}
+
+float fast_softmax_derivative(float x, layer* myLayer, int currNode)
+{
+    return myLayer->outputs[currNode] - x;
+}
+
+
+float activation_function(float x, char activationFunction, layer* outLayer, int currNode)
 {
     switch(activationFunction)
     {
+        case 'l':
+            return x;
+        case 'i':
+            return x;
         case 'u':
             return leaky_relu(x);
         case 'r':
@@ -204,19 +265,23 @@ float activation_function(float x, char activationFunction)
             return sigmoid(x);
         case 'g':
             return fast_sigmoid(x);
-        case 'l':
-            return x;
-        case 'i':
-            return x;
+        case 'x':
+            return softmax(x, outLayer);  
+        case 'f':
+            return fast_softmax(x, outLayer);
         default:
-            return 1;
+            return 0.0;
     }
 }
 
-float activation_derivative(float x, char activationFunction)
+float activation_derivative(float x, char activationFunction, layer* myLayer, int currNode)
 {
     switch(activationFunction)
     {
+        case 'l':
+            return 1;
+        case 'i':
+            return 1;
         case 'u':
             return leaky_relu_derivative(x);
         case 'r':
@@ -229,15 +294,14 @@ float activation_derivative(float x, char activationFunction)
             return sigmoid_derivative(x);
         case 'g':
             return fast_sigmoid_derivative(x);
-        case 'l': // Don't use unless you know what you're doing - Gradients WILL Explode and lead to NaN overflow values
-            return 1;
-        case 'i':
-            return 1;
+        case 'x':
+            return softmax_derivative(x, myLayer, currNode);
+        case 'f':
+
         default:
-            return 1;
+            return 0.0;
     }
 }
-
 
 //Loss functions and their derivatives
 float mse_loss(model* myModel)
@@ -299,32 +363,60 @@ float huber_loss_derivative(float target, float yHat, int n)
 
 float binary_cross_entropy_loss(model* myModel)
 {
+    if((*myModel->outLayer)->numNodes > 1) exit(EXIT_FAILURE);
     float sum = 0;
     
-    for(int i = 0; i < (*myModel->outLayer)->numNodes; i++) sum -= ((myModel->targets[i]) * log((*myModel->outLayer)->outputs[i])) + ((1-(myModel->targets[i])) * log((1 - (*myModel->outLayer)->outputs[i])));
+    sum -= ((myModel->targets[0]) * log((*myModel->outLayer)->outputs[0])) + ((1-(myModel->targets[0])) * log((1 - (*myModel->outLayer)->outputs[0])));
     
     return (sum / (*myModel->outLayer)->numNodes);
 }
 
-float binary_cross_entropy_loss_derivative(float target, float yHat, int n)
+float binary_cross_entropy_loss_derivative(float target, float yHat)
 {
-    return (yHat - target)/(float)n;
+    return (yHat - target);
 }
 
 float fast_binary_cross_entropy_loss(model* myModel)
 {
+    if((*myModel->outLayer)->numNodes > 1) exit(EXIT_FAILURE);
     float sum = 0;
     
-    for(int i = 0; i < (*myModel->outLayer)->numNodes; i++) sum -= ((myModel->targets[i]) * fast_ln((*myModel->outLayer)->outputs[i])) + ((1-(myModel->targets[i])) * fast_ln((1 - (*myModel->outLayer)->outputs[i])));
+    sum -= ((myModel->targets[0]) * fast_ln((*myModel->outLayer)->outputs[0])) + ((1-(myModel->targets[0])) * fast_ln((1 - (*myModel->outLayer)->outputs[0])));
     
     return ( sum / (*myModel->outLayer)->numNodes);
 }
 
-float fast_binary_cross_entropy_loss_derivative(float target, float yHat, int n)
+float fast_binary_cross_entropy_loss_derivative(float target, float yHat)
+{
+    return (yHat - target);
+}
+
+float categorical_cross_entropy_loss(model* myModel)
+{
+    float sum = 0;
+    
+    for(int i = 0; i < (*myModel->outLayer)->numNodes; i++) sum -= ((*myModel->outLayer)->outputs[i] * log(myModel->targets[i]));
+    
+    return (sum / (*myModel->outLayer)->numNodes);
+}
+
+float categorical_cross_entropy_loss_derivative(float target, float yHat, int n)
+{
+    return (yHat - target)/(float)n;
+}
+
+float fast_categorical_cross_entropy_loss(model* myModel)
+{
+    float sum = 0;
+    
+    for(int i = 0; i < (*myModel->outLayer)->numNodes; i++) sum -= ((*myModel->outLayer)->outputs[i] * fast_ln(myModel->targets[i]));
+    return (sum / (*myModel->outLayer)->numNodes);
+}
+
+float fast_categorical_cross_entropy_loss_derivative(float target, float yHat, int n)
 {
     return (yHat - target) / (float)n;
 }
-
 
 float loss_function(model* myModel)
 {
@@ -342,6 +434,10 @@ float loss_function(model* myModel)
             return binary_cross_entropy_loss(myModel);
         case 'r':
             return fast_binary_cross_entropy_loss(myModel);
+        case 'c':
+            return categorical_cross_entropy_loss(myModel);
+        case 'x':
+            return fast_categorical_cross_entropy_loss(myModel);
         default:
             return 1;
     }
@@ -362,9 +458,13 @@ float loss_derivative(float target, float yHat, model* myModel)
         case 'h':
             return huber_loss_derivative(target, yHat, numNodes);
         case 'n':
-            return binary_cross_entropy_loss_derivative(target, yHat, numNodes);
+            return binary_cross_entropy_loss_derivative(target, yHat);
         case 'r':
-            return fast_binary_cross_entropy_loss_derivative(target, yHat, numNodes);
+            return fast_binary_cross_entropy_loss_derivative(target, yHat);
+        case 'c':
+            return categorical_cross_entropy_loss_derivative(target, yHat, numNodes);
+        case 'x':
+            return fast_categorical_cross_entropy_loss_derivative(target, yHat, numNodes);
         default:
             return 1;
     }

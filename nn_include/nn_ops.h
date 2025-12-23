@@ -2,6 +2,7 @@
 #define NN_OPS
 #include <immintrin.h>
 #include "model_ops.h"
+#include <linux/time.h>
 
 // IMPORTANT
 // Engineer data according to dimensions of input layers so first n inputs correspond to n nodes of first input layer
@@ -15,10 +16,13 @@ void train_model_sgd(model* myModel, int epochs, int numSamples, float** inputs,
     float validationAcc = 0.0;
     int trainSamples = (int)(valSplit * numSamples);
     int valSamples = numSamples - trainSamples;
+    struct timespec start, end;
+    double timeElapsed;
 
     
     for(int e = 1; e < (epochs + 1); e++)
     {
+        clock_gettime(CLOCK_MONOTONIC, &start);
         trainingLoss = 0.0;
         validationAcc = 0.0;
 
@@ -60,9 +64,14 @@ void train_model_sgd(model* myModel, int epochs, int numSamples, float** inputs,
             zero_everything(myModel->outLayer);
         }
 
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        
+        timeElapsed = (end.tv_nsec - start.tv_nsec) / 1000000.0;
+        timeElapsed =  (timeElapsed >= 0) ? timeElapsed : 1000.0 + timeElapsed;
+
         validationAcc = (validationAcc / valSamples);
         trainingLoss /= trainSamples;
-        printf("Epoch %d - Training Loss: %f, Validation Loss: %f\n", e, trainingLoss, validationAcc);
+        printf("Epoch %d - Training Loss: %f, Validation Loss: %f - %.1lfms\n", e, trainingLoss, validationAcc, timeElapsed);
     }
 }
 
@@ -73,10 +82,13 @@ void train_context_model_sgd(model* myModel, layer** windowLayers, int epochs, i
     float validationAcc = 0.0;
     int trainSamples = (int)(valSplit * numSamples);
     int valSamples = numSamples - trainSamples;
+    struct timespec start, end;
+    double timeElapsed;
 
     
     for(int e = 1; e < (epochs + 1); e++)
     {
+        clock_gettime(CLOCK_MONOTONIC, &start);
         trainingLoss = 0.0;
         validationAcc = 0.0;
 
@@ -116,13 +128,18 @@ void train_context_model_sgd(model* myModel, layer** windowLayers, int epochs, i
             
             forward_out(myModel->outLayer);
 
-            validationAcc += accuracy(myModel);
+            validationAcc += loss_function(myModel);
             zero_everything(myModel->outLayer);
         }
 
-        validationAcc = 100 - (validationAcc / valSamples);
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        
+        timeElapsed = (end.tv_nsec - start.tv_nsec) / 1000000.0;
+        timeElapsed =  (timeElapsed >= 0) ? timeElapsed : 1000.0 + timeElapsed;
+
+        validationAcc = (validationAcc / valSamples);
         trainingLoss /= trainSamples;
-        printf("Epoch %d - Training Loss: %f, Validation Accuracy: %.2f%%\n", e, trainingLoss, validationAcc);
+        printf("Epoch %d - Training Loss: %f, Validation Loss: %f - %.1lfms\n", e, trainingLoss, validationAcc, timeElapsed);
     }
 }
 

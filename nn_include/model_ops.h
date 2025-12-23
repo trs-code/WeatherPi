@@ -187,7 +187,7 @@ void forward_out(layer** myLayer)
             numPrevsTraversed = 0;
         }
         
-        for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->outputs[i] = activation_function((*myLayer)->preActivations[i], (*myLayer)->activationFunction);
+        for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->outputs[i] = activation_function((*myLayer)->preActivations[i], (*myLayer)->activationFunction, *myLayer, i);
     }
 }
 
@@ -202,14 +202,14 @@ void sgd_backprop(layer** myLayer, model** myModel)
     (*myLayer)->switchVar = '2';
     
     // backErrorsForOutputLayer = lossDerivative · activationFunctionDerivative(preActivations) - for output layer
-    if((*myLayer)->layerType == 'o') for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->backErrors[i] = -1 * loss_derivative((*myModel)->targets[i], (*myLayer)->outputs[i], (*myModel)) * activation_derivative((*myLayer)->preActivations[i], (*myLayer)->activationFunction);
+    if((*myLayer)->layerType == 'o') for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->backErrors[i] = -1 * loss_derivative((*myModel)->targets[i], (*myLayer)->outputs[i], (*myModel)) * activation_derivative((*myLayer)->preActivations[i], (*myLayer)->activationFunction, *myLayer, i);
     
     // backErrorsForPreviousLayers += (thisLayersBackErrors)(thisLayersWeightMatrixWithRespectToCurrentPreviousLayer) · activationFunctionDerivative(previousLayers)
     int prevsTraversed = 0;
     for(int i = 0; i < (*myLayer)->numPrevLayers; i++)
     {
         if((*(*myLayer)->prevLayers[i])->layerType == 'i') continue;
-        for(int j = 0; j < (*(*myLayer)->prevLayers[i])->numNodes; j++) for(int k = 0; k < (*myLayer)->numNodes; k++) (*(*myLayer)->prevLayers[i])->backErrors[j] += (*myLayer)->backErrors[k] * (*myLayer)->weights[k][prevsTraversed + j] * activation_derivative((*(*myLayer)->prevLayers[i])->preActivations[j], (*myLayer)->activationFunction);
+        for(int j = 0; j < (*(*myLayer)->prevLayers[i])->numNodes; j++) for(int k = 0; k < (*myLayer)->numNodes; k++) (*(*myLayer)->prevLayers[i])->backErrors[j] += (*myLayer)->backErrors[k] * (*myLayer)->weights[k][prevsTraversed + j] * activation_derivative((*(*myLayer)->prevLayers[i])->preActivations[j], (*myLayer)->activationFunction, *myLayer, i);
         prevsTraversed += (*(*myLayer)->prevLayers[i])->numNodes;
     }
 
@@ -755,25 +755,22 @@ void sgd_backprop_through_time(layer** myLayer, model** myModel, int timeStep)
     (*myLayer)->switchVar = '2';
     
     // backErrorsForOutputLayer = lossDerivative · activationFunctionDerivative(preActivations) - for output layer
-    if((*myLayer)->layerType == 'o') for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->backErrors[i] = -1 * loss_derivative((*myModel)->targets[i], (*myLayer)->outputs[i], (*myModel)) * activation_derivative((*myLayer)->preActivations[i], (*myLayer)->activationFunction);
+    if((*myLayer)->layerType == 'o') for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->backErrors[i] = -1 * loss_derivative((*myModel)->targets[i], (*myLayer)->outputs[i], (*myModel)) * activation_derivative((*myLayer)->preActivations[i], (*myLayer)->activationFunction, *myLayer, i);
     
     // backErrorsForPreviousLayers += (thisLayersBackErrors)(thisLayersWeightMatrixWithRespectToCurrentPreviousLayer) · activationFunctionDerivative(previousLayers)
     int prevsTraversed = 0;
     for(int i = 0; i < (*myLayer)->numPrevLayers; i++)
     {
         if((*(*myLayer)->prevLayers[i])->layerType == 'i') continue;
-        for(int j = 0; j < (*(*myLayer)->prevLayers[i])->numNodes; j++) for(int k = 0; k < (*myLayer)->numNodes; k++) (*(*myLayer)->prevLayers[i])->backErrors[j] += (*myLayer)->backErrors[k] * (*myLayer)->weights[k][prevsTraversed + j] * activation_derivative((*(*myLayer)->prevLayers[i])->preActivations[j], (*myLayer)->activationFunction);
+        for(int j = 0; j < (*(*myLayer)->prevLayers[i])->numNodes; j++) for(int k = 0; k < (*myLayer)->numNodes; k++) (*(*myLayer)->prevLayers[i])->backErrors[j] += (*myLayer)->backErrors[k] * (*myLayer)->weights[k][prevsTraversed + j] * activation_derivative((*(*myLayer)->prevLayers[i])->preActivations[j], (*myLayer)->activationFunction, *myLayer, i);
         prevsTraversed += (*(*myLayer)->prevLayers[i])->numNodes;
     }
 
-<<<<<<< HEAD
     for(int i = 0; i < (*myLayer)->numPrevLayers; i++)
     {
         if((*(*myLayer)->prevLayers[i])->numPrevLayers != 0) sgd_backprop_through_time((*myLayer)->prevLayers[i], myModel, timeStep);
     }
-=======
     for(int i = 0; i < (*myLayer)->numPrevLayers; i++) if((*(*myLayer)->prevLayers[i])->numPrevLayers != 0) sgd_backprop((*myLayer)->prevLayers[i], myModel);
->>>>>>> e65b06d935a056a580ffaf094189bdc3b67327cd
     // calculate backErrors for previous layers' previous layers according to already established layers' backErrors - All roads spring forth from Rome
 }
 
