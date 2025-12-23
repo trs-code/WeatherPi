@@ -3,8 +3,6 @@
 #include <immintrin.h>
 #include "model_ops.h"
 
-
-
 // IMPORTANT
 // Engineer data according to dimensions of input layers so first n inputs correspond to n nodes of first input layer
 // Next m inputs correspond to m nodes of second input layer
@@ -14,7 +12,7 @@ void train_model_sgd(model* myModel, int epochs, int numSamples, float** inputs,
 {
     int inputsTraversed = 0;
     float trainingLoss = 0.0;
-    float validationLoss = 0.0;
+    float validationAcc = 0.0;
     int trainSamples = (int)(valSplit * numSamples);
     int valSamples = numSamples - trainSamples;
 
@@ -22,7 +20,9 @@ void train_model_sgd(model* myModel, int epochs, int numSamples, float** inputs,
     for(int e = 1; e < (epochs + 1); e++)
     {
         trainingLoss = 0.0;
-        validationLoss = 0.0;
+        validationAcc = 0.0;
+
+        shuffle(&inputs, &targets, numSamples);
         
         for(int i = 0; i < trainSamples; i++)
         {
@@ -56,15 +56,76 @@ void train_model_sgd(model* myModel, int epochs, int numSamples, float** inputs,
             
             forward_out(myModel->outLayer);
 
-            validationLoss += loss_function(myModel);
+            validationAcc += loss_function(myModel);
             zero_everything(myModel->outLayer);
         }
 
-        validationLoss /= valSamples;
+        validationAcc = (validationAcc / valSamples);
         trainingLoss /= trainSamples;
-        printf("Epoch %d - Training Loss: %f, Validation Loss: %f\n", e, trainingLoss, validationLoss);
+        printf("Epoch %d - Training Loss: %f, Validation Loss: %f\n", e, trainingLoss, validationAcc);
     }
 }
+
+void train_context_model_sgd(model* myModel, layer** windowLayers, int epochs, int numSamples, float** inputs, float **targets, float valSplit, int windowSize)
+{
+    int inputsTraversed = 0;
+    float trainingLoss = 0.0;
+    float validationAcc = 0.0;
+    int trainSamples = (int)(valSplit * numSamples);
+    int valSamples = numSamples - trainSamples;
+
+    
+    for(int e = 1; e < (epochs + 1); e++)
+    {
+        trainingLoss = 0.0;
+        validationAcc = 0.0;
+
+        // shuffle(inputs, targets, numSamples); - need this to be time series data so no shuffling
+        
+        for(int i = 0; i < trainSamples; i++)
+        {
+            inputsTraversed = 0;
+            for(int j = 0; j < myModel->numInLayers; j++)
+            {
+                load_context_window(windowLayers, inputs[i], windowSize);
+                memcpy((*myModel->inLayers[j])->outputs, &(inputs[i][inputsTraversed]), sizeof(float) * (*myModel->inLayers[j])->numNodes);
+                inputsTraversed += (*myModel->inLayers[j])->numNodes;
+            }
+
+            memcpy(myModel->targets, targets[i], sizeof(float) * (*myModel->outLayer)->numNodes);
+            
+            forward_out(myModel->outLayer);
+            sgd_backprop(myModel->outLayer, &myModel);
+            calculate_and_apply_grads(myModel->outLayer, myModel->learning_rate);
+
+            trainingLoss += loss_function(myModel);
+            zero_everything(myModel->outLayer);
+        }
+        
+        for(int i = trainSamples; i < numSamples; i++)
+        {
+            inputsTraversed = 0;
+            for(int j = 0; j < myModel->numInLayers; j++)
+            {
+                load_context_window(windowLayers, inputs[i], windowSize);
+                memcpy((*myModel->inLayers[j])->outputs, &(inputs[i][inputsTraversed]), sizeof(float) * (*myModel->inLayers[j])->numNodes);
+                inputsTraversed += (*myModel->inLayers[j])->numNodes;
+            }
+
+            memcpy(myModel->targets, targets[i], sizeof(float) * (*myModel->outLayer)->numNodes);
+            
+            forward_out(myModel->outLayer);
+
+            validationAcc += accuracy(myModel);
+            zero_everything(myModel->outLayer);
+        }
+
+        validationAcc = 100 - (validationAcc / valSamples);
+        trainingLoss /= trainSamples;
+        printf("Epoch %d - Training Loss: %f, Validation Accuracy: %.2f%%\n", e, trainingLoss, validationAcc);
+    }
+}
+
 
 
 int read_csv(const char* fileName, int numSamples, int numInputs, int numOutputs, float*** inArrs, float*** outArrs)
