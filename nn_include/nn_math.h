@@ -65,6 +65,14 @@ void add_array(float* dest, float* arr1, float* arr2, __ssize_t size)
     }
 }
 
+void subtract_array(float* dest, float* arr1, float* arr2, __ssize_t size)
+{
+    for(int i = 0; i < size; i++)
+    {
+        dest[i] = arr1[i] - arr2[i];
+    }
+}
+
 void dot_product(float* dest, float* arr1, float* arr2, __ssize_t size)
 {
     for(int i = 0; i < size; i++)
@@ -239,7 +247,7 @@ float mse_loss(model* myModel)
     return (sum / (*myModel->outLayer)->numNodes);
 }
 
-float mse_loss_derivative(float target, float yHat, float n)
+float mse_loss_derivative(float target, float yHat, int n)
 {
     return -2 * (yHat - target) / n;
 }
@@ -251,7 +259,7 @@ float mae_loss(model* myModel)
     return (sum / (*myModel->outLayer)->numNodes);
 }
 
-float mae_loss_derivative(float target, float yHat, float n)
+float mae_loss_derivative(float target, float yHat, int n)
 {
     return sign(yHat - target) / n;
 }
@@ -263,9 +271,9 @@ float mbe_loss(model* myModel)
     return (sum / (*myModel->outLayer)->numNodes);
 }
 
-float mbe_loss_derivative(float n)
+float mbe_loss_derivative(int n)
 {
-    return 1 / n;
+    return 1 / (float)n;
 }
 
 float huber_loss(model* myModel)
@@ -282,11 +290,11 @@ float huber_loss(model* myModel)
     return (sum / (*myModel->outLayer)->numNodes);
 }
 
-float huber_loss_derivative(float target, float yHat, float n)
+float huber_loss_derivative(float target, float yHat, int n)
 {
     float error = yHat - target;
     if(abs(error) > 0.01) return 0.01 * sign(error);
-    else return error;
+    else return error / (float)n;
 }
 
 float binary_cross_entropy_loss(model* myModel)
@@ -298,9 +306,9 @@ float binary_cross_entropy_loss(model* myModel)
     return (sum / (*myModel->outLayer)->numNodes);
 }
 
-float binary_cross_entropy_loss_derivative(float target, float yHat, float n)
+float binary_cross_entropy_loss_derivative(float target, float yHat, int n)
 {
-    return (yHat - target);
+    return (yHat - target)/(float)n;
 }
 
 float fast_binary_cross_entropy_loss(model* myModel)
@@ -312,9 +320,9 @@ float fast_binary_cross_entropy_loss(model* myModel)
     return ( sum / (*myModel->outLayer)->numNodes);
 }
 
-float fast_binary_cross_entropy_loss_derivative(float target, float yHat)
+float fast_binary_cross_entropy_loss_derivative(float target, float yHat, int n)
 {
-    return (yHat - target);
+    return (yHat - target) / (float)n;
 }
 
 
@@ -356,9 +364,50 @@ float loss_derivative(float target, float yHat, model* myModel)
         case 'n':
             return binary_cross_entropy_loss_derivative(target, yHat, numNodes);
         case 'r':
-            return fast_binary_cross_entropy_loss_derivative(target, yHat);
+            return fast_binary_cross_entropy_loss_derivative(target, yHat, numNodes);
         default:
             return 1;
+    }
+}
+
+// float accuracy(model* myModel)
+// {
+//     float sum = 0;
+//     for(int i = 0; i < (*myModel->outLayer)->numNodes; i++) sum += ((*myModel->outLayer)->outputs[i] - (myModel->targets[i])) / (myModel->targets[i]);
+//     return absolute(sum / (*myModel->outLayer)->numNodes);
+// }
+
+float accuracy(model* myModel)
+{
+    float sum = 0.0f;
+    int n = (*myModel->outLayer)->numNodes;
+
+    for (int i = 0; i < n; i++)
+    {
+        float pred   = (*myModel->outLayer)->outputs[i];
+        float target = myModel->targets[i];
+
+        // target guaranteed != 0
+        sum += absolute(pred - target) / absolute(target);
+    }
+
+    return 1.0f - (sum / n);
+}
+
+void shuffle(float*** arr1, float*** arr2, int n) 
+{
+    float* temp;
+    for (int i = n - 1; i > 0; i--) 
+    {        
+        int j = rand() % (i + 1);
+        
+        temp = (*arr1)[i];
+        (*arr1)[i] = (*arr1)[j];
+        (*arr1)[j] = temp;
+
+        temp = (*arr2)[i];
+        (*arr2)[i] = (*arr2)[j];
+        (*arr2)[j] = temp;
     }
 }
 

@@ -31,18 +31,18 @@ int main()
     layer* denseLayer3 = make_hidden_layer((layer**[]){&denseLayer0, &denseLayer1, &denseLayer2}, 9, 3, 'h');
     if(denseLayer3 == NULL) goto error7;
 
-    //layer* denseLayer4 = make_dense_layer((layer**[]){&denseLayer3}, 3, 1, 1, 'h');
-    //if(denseLayer4 == NULL) goto error8;
+    layer* denseLayer4 = make_hidden_layer((layer**[]){&denseLayer3}, 3, 1, 'h');
+    if(denseLayer4 == NULL) goto error8;
 
-    layer* outLayer = make_output_layer((layer**[]){&denseLayer3}, 1, 1, 'g');
+    layer* outLayer = make_output_layer((layer**[]){&denseLayer4}, 1, 1, 'l');
     if(denseLayer2 == NULL) goto error9;
 
-    model *wethrModel = construct_model((layer**[]){&inLayer0, &inLayer1, &inLayer2}, &outLayer, 8, 3, 0.001f, 'q');
+    model *wethrModel = construct_model((layer**[]){&inLayer0, &inLayer1, &inLayer2}, &outLayer, 9, 3, 0.001f, 'q');
     if(wethrModel == NULL) goto error10;
 
     if(read_csv(filename, numSamples, numIns, numOuts, &inArrays, &outArrays) != 0) goto error11;
 
-    train_model_sgd(wethrModel, 500, numSamples, inArrays, outArrays, 0.8);
+    train_model_sgd(wethrModel, 10, numSamples, inArrays, outArrays, 0.8);
 
     save_model(&wethrModel, "weathrModel.cml");
     hakai_matrix(&inArrays, numSamples);
@@ -58,7 +58,7 @@ error11:
 error10:
     hakai_layer_mfree(&outLayer);
 error9:
-    //hakai_layer_mfree(&denseLayer4);
+    hakai_layer_mfree(&denseLayer4);
 error8:
     hakai_layer_mfree(&denseLayer3);
 error7:

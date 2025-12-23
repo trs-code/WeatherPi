@@ -202,79 +202,79 @@ error1:
 layer* make_referential_layer(layer*** prev, int numNodes, int numPrevLayers, char activation_function, layer** thisLayer)
 {
     // Allocate space for the layer
-    layer *recurrentLayer = (layer *)malloc(sizeof(layer));
-    if(recurrentLayer == NULL) return NULL;
+    layer *referentialLayer = (layer *)malloc(sizeof(layer));
+    if(referentialLayer == NULL) return NULL;
 
     // Set number of previous layers that feed into this layer and number of next layers that this layer feeds into
     // These make it easier to implement models with more complex structures than traditional NNs which would set these at 1
     // Also helps with backward passes
-    recurrentLayer->numPrevLayers = numPrevLayers + 1;
-    recurrentLayer->numPrevNodes = 0;
+    referentialLayer->numPrevLayers = numPrevLayers + 1;
+    referentialLayer->numPrevNodes = 0;
 
     // Allocate space for the previous layers using provided parameter - DESIGN YOUR MODEL BEFORE IMPLEMENTING CAREFULLY
-    recurrentLayer->prevLayers = (layer ***)malloc(sizeof(layer**) * (numPrevLayers + 1));
-    if(recurrentLayer->prevLayers == NULL) goto error1;
+    referentialLayer->prevLayers = (layer ***)malloc(sizeof(layer**) * (numPrevLayers + 1));
+    if(referentialLayer->prevLayers == NULL) goto error1;
 
     // Set the previous layers as the previous layers
-    for(int i = 0; i < numPrevLayers; i++) recurrentLayer->prevLayers[i] = prev[i];
+    for(int i = 0; i < numPrevLayers; i++) referentialLayer->prevLayers[i] = prev[i];
 
-    recurrentLayer->prevLayers[numPrevLayers] = thisLayer;
+    referentialLayer->prevLayers[numPrevLayers] = thisLayer;
 
     // Make this layer a next layer for all previous layers
-    for(int i = 0; i < numPrevLayers; i++) recurrentLayer->numPrevNodes += (*recurrentLayer->prevLayers[i])->numNodes;
+    for(int i = 0; i < numPrevLayers; i++) referentialLayer->numPrevNodes += (*referentialLayer->prevLayers[i])->numNodes;
 
-    recurrentLayer->numPrevNodes += numNodes;
+    referentialLayer->numPrevNodes += numNodes;
 
-    recurrentLayer->weights = (float **)malloc(numNodes * sizeof(float*));
-    if(recurrentLayer->weights == NULL) goto error2;
+    referentialLayer->weights = (float **)malloc(numNodes * sizeof(float*));
+    if(referentialLayer->weights == NULL) goto error2;
 
-    recurrentLayer->biases = (float *)malloc(numNodes * sizeof(float)); // Bias for each neuron
-    if(recurrentLayer->biases == NULL) goto error3;
+    referentialLayer->biases = (float *)malloc(numNodes * sizeof(float)); // Bias for each neuron
+    if(referentialLayer->biases == NULL) goto error3;
 
     for(int i = 0; i < numNodes; i++)
     {
-        recurrentLayer->weights[i] = (float *)malloc(sizeof(float) * (recurrentLayer->numPrevNodes)); // Each column is a connection to each neuron in the previous layer pus a bias
-        if(recurrentLayer->weights[i] == NULL) goto error4;
+        referentialLayer->weights[i] = (float *)malloc(sizeof(float) * (referentialLayer->numPrevNodes)); // Each column is a connection to each neuron in the previous layer pus a bias
+        if(referentialLayer->weights[i] == NULL) goto error4;
         
-        for(int j = 0; j < recurrentLayer->numPrevNodes; j++) recurrentLayer->weights[i][j] = ((rand() % 100000) + 50000)/100000; 
-        recurrentLayer->biases[i] = ((rand() % 100000) + 50000)/100000; // Initialize biases
+        for(int j = 0; j < referentialLayer->numPrevNodes; j++) referentialLayer->weights[i][j] = ((rand() % 100000) + 50000)/100000; 
+        referentialLayer->biases[i] = ((rand() % 100000) + 50000)/100000; // Initialize biases
     }
     
-    recurrentLayer->backErrors = (float *)calloc((numNodes), sizeof(float));
-    if(recurrentLayer->backErrors == NULL) goto error4;
+    referentialLayer->backErrors = (float *)calloc((numNodes), sizeof(float));
+    if(referentialLayer->backErrors == NULL) goto error4;
 
-    recurrentLayer->outputs = (float *)calloc(numNodes, sizeof(float));
-    if(recurrentLayer->outputs == NULL) goto error5;
+    referentialLayer->outputs = (float *)calloc(numNodes, sizeof(float));
+    if(referentialLayer->outputs == NULL) goto error5;
     
-    recurrentLayer->preActivations = (float *)calloc(numNodes, sizeof(float));
-    if(recurrentLayer->preActivations == NULL) goto error6;
+    referentialLayer->preActivations = (float *)calloc(numNodes, sizeof(float));
+    if(referentialLayer->preActivations == NULL) goto error6;
     
-    recurrentLayer->numNodes = numNodes;
-    recurrentLayer->activationFunction = activation_function;
-    recurrentLayer->layerID = -1;
-    recurrentLayer->switchVar = '0';
-    recurrentLayer->layerType = 'r';
+    referentialLayer->numNodes = numNodes;
+    referentialLayer->activationFunction = activation_function;
+    referentialLayer->layerID = -1;
+    referentialLayer->switchVar = '0';
+    referentialLayer->layerType = 'r'; 
 
-    return recurrentLayer;
+    return referentialLayer;
 
 
 error6:
-    free(recurrentLayer->outputs);
-    recurrentLayer->outputs = NULL;
+    free(referentialLayer->outputs);
+    referentialLayer->outputs = NULL;
 error5:
-    free(recurrentLayer->backErrors);
-    recurrentLayer->backErrors = NULL;
+    free(referentialLayer->backErrors);
+    referentialLayer->backErrors = NULL;
 error4:
-    hakai_matrix(&(recurrentLayer->weights), numNodes);
+    hakai_matrix(&(referentialLayer->weights), numNodes);
 error3:
-    free(recurrentLayer->biases);
-    recurrentLayer->biases = NULL;
+    free(referentialLayer->biases);
+    referentialLayer->biases = NULL;
 error2:
-    free(recurrentLayer->prevLayers);
-    recurrentLayer->prevLayers = NULL;
+    free(referentialLayer->prevLayers);
+    referentialLayer->prevLayers = NULL;
 error1:
-    free(recurrentLayer);
-    recurrentLayer = NULL;
+    free(referentialLayer);
+    referentialLayer = NULL;
 
     return NULL;
 }

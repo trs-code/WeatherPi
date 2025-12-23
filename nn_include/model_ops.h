@@ -16,7 +16,7 @@ int assign_layer_ids(layer** myLayer, int currID)
         if((*myLayer)->prevLayers[i] == myLayer) continue;
         myID = assign_layer_ids((*myLayer)->prevLayers[i], myID);
     }
-
+    
     (*myLayer)->layerID = myID;
     return myID + 1;    
 }
@@ -266,7 +266,7 @@ void zero_everything(layer** myLayer)
 void traverse_model_fill_layer_list(layer** myLayer, layer*** layerList)
 {
     if(layerList[(*myLayer)->layerID] != NULL) return;
-    layerList[(*myLayer)->layerID] = myLayer; // Can traverse this in whatever order as long as its a full traversal, base case will take care of recurrent layers
+    layerList[(*myLayer)->layerID] = myLayer;
     for(int i = 0; i < (*myLayer)->numPrevLayers; i++) traverse_model_fill_layer_list((*myLayer)->prevLayers[i], layerList); // if input layer then the for loop won't even initiate
 }
 
@@ -652,7 +652,7 @@ error1:
 
 void hakai_context_window(layer*** windowLayers, int windowSize)
 {
-    for(int i = 0; i < windowSize; i++)
+    for(int i = 1; i < windowSize + 1; i++)
     {
         if((*windowLayers)[2 * i] != NULL)
         {
@@ -671,44 +671,106 @@ void hakai_context_window(layer*** windowLayers, int windowSize)
 void extend_context(layer** myLayer, int windowSize, layer*** windowLayers) // Extend context windows 
 {
     if((*myLayer)->layerType != 'h' || (*(*myLayer)->prevLayers[0])->layerType != 'i' || windowSize < 1) return;
-    *windowLayers = (layer**)calloc(2 * windowSize, sizeof(layer*));
+    *windowLayers = (layer**)calloc(2 * (windowSize + 1), sizeof(layer**));
     if(*windowLayers == NULL) return;
 
     int hiddenNodes = (*myLayer)->numNodes;
     int inNodes = (*(*myLayer)->prevLayers[0])->numNodes;
     char hiddenActivationFunction = (*myLayer)->activationFunction;
 
-    (*windowLayers)[0] = make_input_layer(inNodes);
-    if((*windowLayers)[0] == NULL) goto error1;
-    (*windowLayers)[1] = make_hidden_layer((layer**[]){&(*windowLayers)[0], myLayer}, hiddenNodes, 2, hiddenActivationFunction);
-    if((*windowLayers)[1] == NULL) goto error1;
+    (*windowLayers)[0] = *(*myLayer)->prevLayers[0];
+    (*windowLayers)[1] = *(myLayer);
 
+    (*windowLayers)[2 * windowSize] = make_input_layer(inNodes);
+    if((*windowLayers)[2 * windowSize] == NULL) goto error1;
+    (*windowLayers)[(2 * windowSize) + 1] = make_hidden_layer((layer**[]){&(*windowLayers)[2 * windowSize]}, hiddenNodes, 1, hiddenActivationFunction);
+    if((*windowLayers)[(2 * windowSize) + 1] == NULL) goto error1;
+    (*windowLayers)[(2 * windowSize) + 1]->activationFunction = 'r';
 
-    for(int i = 1; i < windowSize; i++)
+    for(int i = 0; i < hiddenNodes; i++) memcpy((*windowLayers)[(2 * windowSize) + 1]->weights[i], (*myLayer)->weights[i], sizeof(float) * (*myLayer)->numPrevNodes);
+    memcpy((*windowLayers)[(2 * windowSize) + 1]->biases, (*myLayer)->biases, sizeof(float) * hiddenNodes);
+
+    (*myLayer)->numPrevLayers += 1;
+    (*myLayer)->numPrevNodes += hiddenNodes;
+    layer*** tmp0 = (layer ***)realloc((*myLayer)->prevLayers, sizeof(layer**) * (*myLayer)->numPrevLayers);
+    if(tmp0 == NULL) goto error1;
+    (*myLayer)->prevLayers = tmp0;
+    tmp0 = NULL;
+
+    (*myLayer)->prevLayers[(*myLayer)->numPrevLayers - 1] = &(*windowLayers)[3];
+
+    for(int i = 0; i < hiddenNodes; i++)
+    {
+        float* tmp1 = (float*)realloc((*myLayer)->weights[i], sizeof(float*) * (*myLayer)->numPrevNodes);
+        if(tmp1 == NULL) goto error1;
+        (*myLayer)->weights[i] = tmp1;
+        tmp1 = NULL;
+
+        for(int j = (*myLayer)->numPrevNodes - hiddenNodes; j < (*myLayer)->numPrevNodes; j++) (*myLayer)->weights[i][j] = ((rand() % 100000) + 50000)/100000;
+    }
+
+    for(int i = windowSize - 1; i > 0; i--)
     {
         (*windowLayers)[2 * i] = make_input_layer(inNodes);
         if((*windowLayers)[(2 * i)] == NULL) goto error1;
-        (*windowLayers)[(2 * i) + 1] = make_hidden_layer((layer**[]){&(*windowLayers)[2 * i], &(*windowLayers)[(2 * i) - 1]}, hiddenNodes, 2, hiddenActivationFunction);
+        (*windowLayers)[(2 * i) + 1] = make_hidden_layer((layer**[]){&(*windowLayers)[2 * i], &(*windowLayers)[(2 * i) + 3]}, hiddenNodes, 2, hiddenActivationFunction);
         if((*windowLayers)[(2 * i) + 1] == NULL) goto error1;
+        
+        for(int j = 0; j < hiddenNodes; j++) if(i < windowSize - 1) memcpy((*windowLayers)[2 * i + 1]->weights[j], (*myLayer)->weights[j], sizeof(float) * (*myLayer)->numPrevNodes);
+        memcpy((*windowLayers)[2 * i + 1]->biases, (*myLayer)->biases, sizeof(float) * hiddenNodes);
+        (*windowLayers)[(2 * i) + 1]->activationFunction = 'r';
     }
-
+    
     return;
 
 error1:
     hakai_context_window(windowLayers, windowSize);
 }
 
-void load_context_window(layer* inLayer, layer** windowLayers, float* inputs, int windowSize)
+void load_context_window(layer** windowLayers, float* inputs, int windowSize)
 {
     if(windowSize < 1) return;
-    int numInputs = inLayer->numNodes;
 
-    for(int i = windowSize - 1; i > 0; i--)
+    int numInputs = windowLayers[0]->numNodes;
+    int numHiddenNodes = windowLayers[1]->numNodes;
+
+    for(int i = 0; i < numHiddenNodes; i++) memcpy(windowLayers[(2 * windowSize) + 1]->weights[i], windowLayers[1]->weights[i], sizeof(float) * (windowLayers[1]->numPrevNodes - numHiddenNodes));
+    memcpy(windowLayers[(2 * windowSize) + 1]->biases, windowLayers[1]->biases, sizeof(float) * numHiddenNodes);
+
+    for(int i = windowSize - 1; i > 1; i--)
     {
-        memcpy(windowLayers[2 * i]->outputs, windowLayers[(2 * i) - 2], sizeof(float) * numInputs);
+        memcpy(windowLayers[(2 * i)]->outputs, windowLayers[(2 * i) - 2]->outputs, sizeof(float) * numInputs);
+        
+        for(int j = 0; j < numHiddenNodes; j++) if(i < windowSize) memcpy(windowLayers[2 * i + 1]->weights[j], windowLayers[1]->weights[j], sizeof(float) * windowLayers[0]->numPrevNodes);
+        memcpy(windowLayers[2 * i + 1]->biases, windowLayers[1]->biases, sizeof(float) * numHiddenNodes);
     }
-    memcpy(windowLayers[0]->outputs, inLayer->outputs, numInputs * sizeof(float));
-    memcpy(inLayer->outputs, inputs, numInputs * sizeof(float));
+    memcpy(windowLayers[2]->outputs, windowLayers[0]->outputs, sizeof(float) * numInputs);
+    memcpy(windowLayers[0]->outputs, inputs, numInputs * sizeof(float));
+}
+
+void sgd_backprop_through_time(layer** myLayer, model** myModel, int timeStep)
+{ // start at output layer and calculate backerrors for each previous layer
+    if((*myLayer)->switchVar == '2') return;
+
+    (*myLayer)->switchVar = '2';
+    
+    // backErrorsForOutputLayer = lossDerivative · activationFunctionDerivative(preActivations) - for output layer
+    if((*myLayer)->layerType == 'o') for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->backErrors[i] = -1 * loss_derivative((*myModel)->targets[i], (*myLayer)->outputs[i], (*myModel)) * activation_derivative((*myLayer)->preActivations[i], (*myLayer)->activationFunction);
+    
+    // backErrorsForPreviousLayers += (thisLayersBackErrors)(thisLayersWeightMatrixWithRespectToCurrentPreviousLayer) · activationFunctionDerivative(previousLayers)
+    int prevsTraversed = 0;
+    for(int i = 0; i < (*myLayer)->numPrevLayers; i++)
+    {
+        if((*(*myLayer)->prevLayers[i])->layerType == 'i') continue;
+        for(int j = 0; j < (*(*myLayer)->prevLayers[i])->numNodes; j++) for(int k = 0; k < (*myLayer)->numNodes; k++) (*(*myLayer)->prevLayers[i])->backErrors[j] += (*myLayer)->backErrors[k] * (*myLayer)->weights[k][prevsTraversed + j] * activation_derivative((*(*myLayer)->prevLayers[i])->preActivations[j], (*myLayer)->activationFunction);
+        prevsTraversed += (*(*myLayer)->prevLayers[i])->numNodes;
+    }
+
+    for(int i = 0; i < (*myLayer)->numPrevLayers; i++)
+    {
+        if((*(*myLayer)->prevLayers[i])->numPrevLayers != 0) sgd_backprop_through_time((*myLayer)->prevLayers[i], myModel, timeStep);
+    }
+    // calculate backErrors for previous layers' previous layers according to already established layers' backErrors - All roads spring forth from Rome
 }
 
 #endif
