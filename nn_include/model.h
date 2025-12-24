@@ -1,5 +1,4 @@
-#ifndef NN_MODEL
-#define NN_MODEL
+#pragma once
 
 #include "layer_ops.h"
 
@@ -15,4 +14,3 @@ typedef struct
     char loss_fn;
 } model;
 
-#endif

@@ -1,5 +1,5 @@
-#ifndef NN_OPS
-#define NN_OPS
+#pragma once
+
 #include <immintrin.h>
 #include "model_ops.h"
 #include <linux/time.h>
@@ -278,6 +278,3 @@ float* model_inference(model* myModel, float* inputs)
 
     return (*myModel->outLayer)->outputs;
 }
-
-
-#endif

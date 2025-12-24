@@ -1,5 +1,4 @@
-#ifndef NN_LAYER
-#define NN_LAYER
+#pragma once
 
 #include <stdlib.h>
 #include <string.h>
@@ -36,5 +35,3 @@ struct layer
     char activationFunction;
     char switchVar;
 };
-
-#endif

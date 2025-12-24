@@ -1,5 +1,5 @@
-#ifndef NN_MATH
-#define NN_MATH
+#pragma once
+
 #include <math.h>
 #include "model.h"
 
@@ -510,5 +510,3 @@ void shuffle(float*** arr1, float*** arr2, int n)
         (*arr2)[j] = temp;
     }
 }
-
-#endif

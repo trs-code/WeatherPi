@@ -1,5 +1,4 @@
-#ifndef NN_LAYER_OPS
-#define NN_LAYER_OPS
+#pragma once
 
 #include <time.h>
 #include "layer.h"
@@ -281,5 +280,3 @@ error1:
 
 // layer* make_normalization_layer();
 // layer* make_convolutional_layer();
-
-#endif

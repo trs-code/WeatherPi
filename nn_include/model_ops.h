@@ -1,5 +1,4 @@
-#ifndef NN_MODEL_OPS
-#define NN_MODEL_OPS
+#pragma once
 
 #include <stdio.h>
 #include "nn_math.h"
@@ -170,7 +169,7 @@ void forward_out(layer** myLayer)
 
     (*myLayer)->switchVar = '1';
 
-    if((*myLayer)->layerType != 'i')
+    if((*myLayer)->numPrevLayers != 0)
     {
         int numPrevsTraversed = 0;
         
@@ -208,7 +207,7 @@ void sgd_backprop(layer** myLayer, model** myModel)
     int prevsTraversed = 0;
     for(int i = 0; i < (*myLayer)->numPrevLayers; i++)
     {
-        if((*(*myLayer)->prevLayers[i])->layerType == 'i') continue;
+        if((*(*myLayer)->prevLayers[i])->layerType == 'i' || (*(*myLayer)->prevLayers[i])->layerType == 't' ) continue;
         for(int j = 0; j < (*(*myLayer)->prevLayers[i])->numNodes; j++) for(int k = 0; k < (*myLayer)->numNodes; k++) (*(*myLayer)->prevLayers[i])->backErrors[j] += (*myLayer)->backErrors[k] * (*myLayer)->weights[k][prevsTraversed + j] * activation_derivative((*(*myLayer)->prevLayers[i])->preActivations[j], (*myLayer)->activationFunction, *myLayer, i);
         prevsTraversed += (*(*myLayer)->prevLayers[i])->numNodes;
     }
@@ -252,11 +251,9 @@ void zero_everything(layer** myLayer)
 
     (*myLayer)->switchVar = '0';
 
-    if((*myLayer)->numPrevLayers != 0)
-    {
-        for(int i = 0; i < (*myLayer)->numPrevLayers; i++) zero_everything((*myLayer)->prevLayers[i]);
-    }
-    else return;
+    if((*myLayer)->layerType == 'i' || (*myLayer)->layerType == 't') return;
+
+    for(int i = 0; i < (*myLayer)->numPrevLayers; i++) zero_everything((*myLayer)->prevLayers[i]);
 
     memset((*myLayer)->backErrors, 0.0f, (*myLayer)->numNodes * sizeof(float));
     memset((*myLayer)->preActivations, 0.0f, (*myLayer)->numNodes * sizeof(float));
@@ -359,7 +356,7 @@ int save_model(model** saveModel,  char* modelFileName)
         for(int j = 0; j < 16; j++) line[offset+ j] = bitBuff[j];
         offset += 16;
 
-        if((*layerList[i])->layerType == 'i')
+        if((*layerList[i])->layerType == 'i' || (*layerList[i])->layerType == 't')
         {
             line[offset] = '\0';
             
@@ -685,7 +682,8 @@ void extend_context(layer** myLayer, int windowSize, layer*** windowLayers) // E
     if((*windowLayers)[2 * windowSize] == NULL) goto error1;
     (*windowLayers)[(2 * windowSize) + 1] = make_hidden_layer((layer**[]){&(*windowLayers)[2 * windowSize]}, hiddenNodes, 1, hiddenActivationFunction);
     if((*windowLayers)[(2 * windowSize) + 1] == NULL) goto error1;
-    (*windowLayers)[(2 * windowSize) + 1]->activationFunction = 'r';
+    (*windowLayers)[2 * windowSize]->layerType = 't';
+    (*windowLayers)[(2 * windowSize) + 1]->layerType = 'r';
 
     for(int i = 0; i < hiddenNodes; i++) memcpy((*windowLayers)[(2 * windowSize) + 1]->weights[i], (*myLayer)->weights[i], sizeof(float) * (*myLayer)->numPrevNodes);
     memcpy((*windowLayers)[(2 * windowSize) + 1]->biases, (*myLayer)->biases, sizeof(float) * hiddenNodes);
@@ -718,7 +716,8 @@ void extend_context(layer** myLayer, int windowSize, layer*** windowLayers) // E
         
         for(int j = 0; j < hiddenNodes; j++) if(i < windowSize - 1) memcpy((*windowLayers)[2 * i + 1]->weights[j], (*myLayer)->weights[j], sizeof(float) * (*myLayer)->numPrevNodes);
         memcpy((*windowLayers)[2 * i + 1]->biases, (*myLayer)->biases, sizeof(float) * hiddenNodes);
-        (*windowLayers)[(2 * i) + 1]->activationFunction = 'r';
+        (*windowLayers)[(2 * i)]->layerType = 't';
+        (*windowLayers)[(2 * i) + 1]->layerType = 'r';
     }
     
     return;
@@ -773,5 +772,3 @@ void sgd_backprop_through_time(layer** myLayer, model** myModel, int timeStep)
     for(int i = 0; i < (*myLayer)->numPrevLayers; i++) if((*(*myLayer)->prevLayers[i])->numPrevLayers != 0) sgd_backprop((*myLayer)->prevLayers[i], myModel);
     // calculate backErrors for previous layers' previous layers according to already established layers' backErrors - All roads spring forth from Rome
 }
-
-#endif
