@@ -1,166 +1,10 @@
 #pragma once
 
+#include "model_construct.h"
+#include "activation.h"
+#include "loss.h"
+#include "helper_funcs.h"
 #include <stdio.h>
-#include "nn_math.h"
-
-// Assign layer IDs in a topological order to be able to reconstruct the network graph
-int assign_layer_ids(layer** myLayer, int currID)
-{
-    // Post order traversal so the layers can be readily identified before any of their dependencies
-    int myID = currID;
-    if((*myLayer)->layerID != -1) return currID;
-
-    for (int i = 0; i < (*myLayer)->numPrevLayers; i++)
-    {
-        if((*myLayer)->prevLayers[i] == myLayer) continue;
-        myID = assign_layer_ids((*myLayer)->prevLayers[i], myID);
-    }
-    
-    (*myLayer)->layerID = myID;
-    return myID + 1;    
-}
-
-// Provides an interface for the user to interact with the model without getting bogged down by little details
-model* construct_model( layer*** inLayers, layer** outLayer, int numLayers, int numInLayers, float learning_rate, char loss_fn)
-{
-    model *myModel = (model*)malloc(sizeof(model));
-    if(myModel == NULL) return NULL;
-
-    myModel->inLayers = (layer ***)malloc(numInLayers * sizeof(layer**));
-    if(myModel->inLayers == NULL) goto error1;
-    
-    memcpy(myModel->inLayers, inLayers, sizeof(layer**) * numInLayers);
-    
-    myModel->outLayer = outLayer;
-    myModel->numLayers = numLayers;
-    myModel->learning_rate = learning_rate;
-    myModel->numInLayers = numInLayers;
-    myModel->loss_fn = loss_fn;
-
-    myModel->targets = (float *)calloc((*myModel->outLayer)->numNodes, sizeof(float));
-    if(myModel->targets == NULL) goto error2;
-
-    assign_layer_ids(outLayer, 0);
-
-    return myModel;
-
-
-error2:
-    free(myModel->inLayers);
-    myModel->inLayers = NULL;
-error1:
-    free(myModel);
-    myModel = NULL;
-
-    return NULL;
-}
-
-// Destroy an individual layer after operations are concluded but a model hasn't been built yet
-void hakai_layer_mfree(layer** myLayer)
-{    
-    free((*myLayer)->outputs);
-    (*myLayer)->outputs = NULL;
-
-    if((*myLayer)->activationFunction != 'i')
-    {
-        free((*myLayer)->backErrors);
-        (*myLayer)->backErrors = NULL;
-
-        free((*myLayer)->prevLayers);
-        (*myLayer)->prevLayers = NULL;
-
-        free((*myLayer)->preActivations);
-        (*myLayer)->preActivations = NULL;
-
-        free((*myLayer)->biases);
-        (*myLayer)->biases = NULL;
-
-        hakai_matrix(&(*myLayer)->weights, (*myLayer)->numNodes);
-    }
-
-    free(*myLayer);
-    *myLayer = NULL;    
-}
-
-// Destroy a model object independently from any layers(IMPORTANT TO DESTROY LAYERS MANUALLY IF USED)
-void hakai_model_mfree(model** myModel)
-{
-    free((*myModel)->targets);
-    (*myModel)->targets = NULL;
-
-    free(*myModel);
-    *myModel= NULL;
-}
-
-// Destroy an individual layer in the process of clearing the model
-void hakai_layer(layer** myLayer)
-{
-    if(*myLayer == NULL) return;
-
-    free((*myLayer)->outputs);
-    (*myLayer)->outputs = NULL;
-
-    if((*myLayer)->activationFunction != 'i')
-    {
-        hakai_matrix(&(*myLayer)->weights, (*myLayer)->numNodes);
-
-        free((*myLayer)->backErrors);
-        (*myLayer)->backErrors = NULL;
-
-        free((*myLayer)->preActivations);
-        (*myLayer)->preActivations = NULL;
-
-        free((*myLayer)->biases);
-        (*myLayer)->biases = NULL;
-    }
-    
-    free(*myLayer);
-    *myLayer = NULL;
-}
-
-// Enter this function with the outArray of the model and let it do its thing
-// One big advantage of the linked list tree structure is being able to exploit the convergence of the model on the output layer
-void clear_model(layer*** layerArr, int layerNums)
-{
-    if(layerArr == NULL) return;
-
-    for(int i = 0; i < layerNums; i++)
-    {
-        if(*layerArr[i] == NULL) continue;
-        
-        // Check for cases of RNNs where a layer can have itself as a prevLayer but we want to call it at least once
-        if((*layerArr[i])->switchVar == '4') break; 
-        (*layerArr[i])->switchVar = '4';
-                
-        clear_model((*layerArr[i])->prevLayers, (*layerArr[i])->numPrevLayers);
-        hakai_layer(layerArr[i]);
-        
-        *layerArr[i] = NULL;
-    }
-    
-    free(layerArr);
-    layerArr = NULL;
-}
-
-// Actual user called function to destroy the entire model which sets up an outArray to keep consistency with the clear model logic, followed by model cleanup
-void hakai_model(model** myModel)
-{
-    layer ***outArr = (layer***)malloc(sizeof(layer**));
-    if(outArr == NULL) return;
-
-    outArr[0] = (*myModel)->outLayer;
-    
-    clear_model(outArr, 1);
-
-    free((*myModel)->inLayers);
-    (*myModel)->inLayers = NULL;
-
-    free((*myModel)->targets);
-    (*myModel)->targets = NULL;
-
-    free(*myModel);
-    *myModel= NULL;
-}
 
 //  Gets an output from the target layer, is essentially also a inference function
 void forward_out(layer** myLayer)
@@ -260,42 +104,26 @@ void zero_everything(layer** myLayer)
     memset((*myLayer)->outputs, 0.0f, (*myLayer)->numNodes * sizeof(float));
 }
 
-void traverse_model_fill_layer_list(layer** myLayer, layer*** layerList)
+int save_model(model** saveModel, char* modelFileName)
 {
-    if(layerList[(*myLayer)->layerID] != NULL) return;
-    layerList[(*myLayer)->layerID] = myLayer;
-    for(int i = 0; i < (*myLayer)->numPrevLayers; i++) traverse_model_fill_layer_list((*myLayer)->prevLayers[i], layerList); // if input layer then the for loop won't even initiate
-}
-
-void int2bin(int x, int numBits, char* bitBuff)
-{
-    int myX = x;
-
-    for(int i = 0; i < numBits; i++)
-    {
-        bitBuff[i] = (myX & 1) ? '1' : '0';
-        myX >>= 1; 
-    }
-}
-
-int save_model(model** saveModel,  char* modelFileName)
-{
+    FILE *modFile = NULL;
+    char *line = NULL;
+    int offset = 0;
+    int lineLength = 42;
+    char bitBuff[33] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+    char fltBuff[20] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+    
     layer*** layerList = (layer ***)calloc((*saveModel)->numLayers, sizeof(layer**));
     if(layerList == NULL) goto error1;
 
     traverse_model_fill_layer_list((*saveModel)->outLayer, layerList);
 
-    FILE *modFile = fopen(modelFileName, "w");
+    modFile = fopen(modelFileName, "w");
     if(modFile == NULL) goto error2;
-
-    int offset = 0;
-    int lineLength = 42;
-    char bitBuff[33] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
-    char fltBuff[20] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
 
     lineLength += 16 * (*saveModel)->numInLayers;
 
-    char *line = (char *)calloc(lineLength, sizeof(char));
+    line = (char *)calloc(lineLength, sizeof(char));
     if(line == NULL) goto error3;
     
     int2bin((*saveModel)->numLayers, 16, bitBuff);
@@ -443,34 +271,12 @@ error1:
     return -1;
 }
 
-int bin2int(const char* bin, int size)
-{
-    int retVal = 0;
-    int currCount = 1;
-
-    for(int i = 0; i < size; i++)
-    {
-        if(bin[i] == '1')
-        {
-            retVal += currCount;
-        }
-        currCount <<= 1;
-    }
-
-    return retVal;
-}
-
-void flush_buffer(char* buffer, int size)
-{
-    for(int i = 0; i < size; i++) buffer[i] = '\0';
-}
-
 model* load_model(const char* modelFileName, layer*** modelLayers)
 {
-    FILE *modFile = fopen(modelFileName, "r");
-    if(modFile == NULL) goto error1;
-
     layer*** layerArr = (layer***)NULL;
+    model* myModel = NULL;
+    int *inLayerIDs = NULL;
+    char* line = NULL;
     int outLayerID = 0;
     int lineLength = 0;
     int offset = 0;
@@ -484,13 +290,17 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
     char activationFunction = '\0';
     char loss_fn = '\0';
     char layerType = '\0';
-    char lineLengthBuff[26] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"; // Line length of next line string will always be 24 characters
-    char fltBuff[17] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+    char lineLengthBuff[26] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"; // Line length of next line string will always be 24 characters
+    char fltBuff[17] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+
+    FILE *modFile = fopen(modelFileName, "r");
+    if(modFile == NULL) goto error1;
+
     fgets(lineLengthBuff, 26, modFile);
 
     lineLength = bin2int(lineLengthBuff, 24) + 2;
 
-    char *line = (char *)calloc(lineLength, sizeof(char));
+    line = (char *)calloc(lineLength, sizeof(char));
     if(line == NULL) goto error2;
 
     fgets(line, lineLength, modFile);
@@ -498,7 +308,7 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
     numInLayers = bin2int(&line[16], 16);
     offset += 32;
 
-    int *inLayerIDs = (int *)calloc(numInLayers, sizeof(int));
+    inLayerIDs = (int *)calloc(numInLayers, sizeof(int));
     if(inLayerIDs == NULL) goto error3;
 
     for(int i = 0; i < numInLayers; i++) 
@@ -620,7 +430,7 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
 
     for(int i = 0; i < numInLayers; i++) layerArr[i] = &(*(modelLayers)[inLayerIDs[i]]);
 
-    model* myModel = construct_model(layerArr, &(*modelLayers)[outLayerID], numLayers, numInLayers, learningRate, loss_fn);
+    myModel = construct_model(layerArr, &(*modelLayers)[outLayerID], numLayers, numInLayers, learningRate, loss_fn);
 
     free(inLayerIDs);
     inLayerIDs = NULL;
@@ -647,27 +457,13 @@ error1:
     return NULL;
 }
 
-void hakai_context_window(layer*** windowLayers, int windowSize)
-{
-    for(int i = 1; i < windowSize + 1; i++)
-    {
-        if((*windowLayers)[2 * i] != NULL)
-        {
-            hakai_layer_mfree(&(*windowLayers)[2 * i]);
-        }
-        if((*windowLayers)[(2 * i) + 1] != NULL)
-        {
-            hakai_layer_mfree(&(*windowLayers)[(2 * i) + 1]);
-        }
-    }
-
-    free((*windowLayers));
-    *windowLayers = NULL;
-}
-
 void extend_context(layer** myLayer, int windowSize, layer*** windowLayers) // Extend context windows 
 {
     if((*myLayer)->layerType != 'h' || (*(*myLayer)->prevLayers[0])->layerType != 'i' || windowSize < 1) return;
+    
+    layer*** tmp0 = NULL;
+    float* tmp1 = NULL;
+
     *windowLayers = (layer**)calloc(2 * (windowSize + 1), sizeof(layer**));
     if(*windowLayers == NULL) return;
 
@@ -690,7 +486,7 @@ void extend_context(layer** myLayer, int windowSize, layer*** windowLayers) // E
 
     (*myLayer)->numPrevLayers += 1;
     (*myLayer)->numPrevNodes += hiddenNodes;
-    layer*** tmp0 = (layer ***)realloc((*myLayer)->prevLayers, sizeof(layer**) * (*myLayer)->numPrevLayers);
+    tmp0 = (layer ***)realloc((*myLayer)->prevLayers, sizeof(layer**) * (*myLayer)->numPrevLayers);
     if(tmp0 == NULL) goto error1;
     (*myLayer)->prevLayers = tmp0;
     tmp0 = NULL;
@@ -699,7 +495,7 @@ void extend_context(layer** myLayer, int windowSize, layer*** windowLayers) // E
 
     for(int i = 0; i < hiddenNodes; i++)
     {
-        float* tmp1 = (float*)realloc((*myLayer)->weights[i], sizeof(float*) * (*myLayer)->numPrevNodes);
+        tmp1 = (float*)realloc((*myLayer)->weights[i], sizeof(float*) * (*myLayer)->numPrevNodes);
         if(tmp1 == NULL) goto error1;
         (*myLayer)->weights[i] = tmp1;
         tmp1 = NULL;

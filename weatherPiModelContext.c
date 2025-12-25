@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "nn_include/nn.h"
+#include "../include/cml.h"
 
 int main()
 {
@@ -19,7 +19,7 @@ int main()
         goto error1;
     }
     
-    layer* hiddenLayer0 = make_hidden_layer((layer**[]){&inLayer0}, 1, 1, 'h');
+    layer* hiddenLayer0 = make_hidden_layer((layer**[]){&inLayer0}, 1, 1, 'l');
     if(hiddenLayer0 == NULL)
     {
         printf("Memory allocation failed at hiddenLayer0\n");

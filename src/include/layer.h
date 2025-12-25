@@ -1,8 +1,5 @@
 #pragma once
 
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
 
 //                                         VERY IMPORTANT
 //                           MAKE SURE AN EXIT PROCESS FREES THE MEMORY FOR

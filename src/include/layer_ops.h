@@ -1,19 +1,8 @@
 #pragma once
 
+#include "layer_destruct.h"
+#include <string.h>
 #include <time.h>
-#include "layer.h"
-
-void hakai_matrix(float*** mat, int rows)
-{
-    for(int i = 0; i < rows; i++)
-    {
-        free((*mat)[i]);
-        (*mat)[i] = NULL;
-    }
-
-    free(*mat);
-    *mat = NULL;
-}
 
 // Solely to load input values into the model in a form where layer operations can be generalized into
 layer* make_input_layer(int numNodes)
