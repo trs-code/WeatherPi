@@ -1,8 +1,7 @@
 #pragma once
 
-#include <immintrin.h>
+//#include <immintrin.h>
 #include "model_ops.h"
-#include <linux/time.h>
 
 // IMPORTANT
 // Engineer data according to dimensions of input layers so first n inputs correspond to n nodes of first input layer

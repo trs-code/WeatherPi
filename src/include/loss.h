@@ -67,7 +67,7 @@ float binary_cross_entropy_loss(model* myModel)
     
     sum -= ((myModel->targets[0]) * log((*myModel->outLayer)->outputs[0])) + ((1-(myModel->targets[0])) * log((1 - (*myModel->outLayer)->outputs[0])));
     
-    return (sum / (*myModel->outLayer)->numNodes);
+    return (sum);
 }
 
 float binary_cross_entropy_loss_derivative(float target, float yHat)
@@ -82,7 +82,7 @@ float fast_binary_cross_entropy_loss(model* myModel)
     
     sum -= ((myModel->targets[0]) * fast_ln((*myModel->outLayer)->outputs[0])) + ((1-(myModel->targets[0])) * fast_ln((1 - (*myModel->outLayer)->outputs[0])));
     
-    return ( sum / (*myModel->outLayer)->numNodes);
+    return (sum);
 }
 
 float fast_binary_cross_entropy_loss_derivative(float target, float yHat)
@@ -94,27 +94,27 @@ float categorical_cross_entropy_loss(model* myModel)
 {
     float sum = 0;
     
-    for(int i = 0; i < (*myModel->outLayer)->numNodes; i++) sum -= ((*myModel->outLayer)->outputs[i] * log(myModel->targets[i]));
+    for(int i = 0; i < (*myModel->outLayer)->numNodes; i++) sum -= (myModel->targets[i]) * log((*myModel->outLayer)->outputs[i]);
     
-    return (sum / (*myModel->outLayer)->numNodes);
+    return (sum);
 }
 
 float categorical_cross_entropy_loss_derivative(float target, float yHat, int n)
 {
-    return (yHat - target)/(float)n;
+    return (yHat - target);
 }
 
 float fast_categorical_cross_entropy_loss(model* myModel)
 {
     float sum = 0;
     
-    for(int i = 0; i < (*myModel->outLayer)->numNodes; i++) sum -= ((*myModel->outLayer)->outputs[i] * fast_ln(myModel->targets[i]));
-    return (sum / (*myModel->outLayer)->numNodes);
+    for(int i = 0; i < (*myModel->outLayer)->numNodes; i++) sum -= (myModel->targets[i]) * fast_ln((*myModel->outLayer)->outputs[i]);
+    return (sum);
 }
 
 float fast_categorical_cross_entropy_loss_derivative(float target, float yHat, int n)
 {
-    return (yHat - target) / (float)n;
+    return (yHat - target);
 }
 
 float loss_function(model* myModel)

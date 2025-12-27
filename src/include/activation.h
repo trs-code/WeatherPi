@@ -101,7 +101,7 @@ float fast_softmax_derivative(float x, layer* myLayer, int currNode)
 }
 
 
-float activation_function(float x, char activationFunction, layer* outLayer, int currNode)
+float activation_function(float x, char activationFunction, layer* myLayer, int currNode)
 {
     switch(activationFunction)
     {
@@ -122,9 +122,9 @@ float activation_function(float x, char activationFunction, layer* outLayer, int
         case 'g':
             return fast_sigmoid(x);
         case 'x':
-            return softmax(x, outLayer);  
+            return softmax(x, myLayer);  
         case 'f':
-            return fast_softmax(x, outLayer);
+            return fast_softmax(x, myLayer);
         default:
             return 0.0;
     }
@@ -153,7 +153,7 @@ float activation_derivative(float x, char activationFunction, layer* myLayer, in
         case 'x':
             return softmax_derivative(x, myLayer, currNode);
         case 'f':
-
+            return fast_softmax_derivative(x, myLayer, currNode);
         default:
             return 0.0;
     }
