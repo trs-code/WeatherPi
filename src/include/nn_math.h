@@ -131,7 +131,7 @@ float fast_ln(float x) // Courtesy of LingDong Huang(gist.github.com/LingDong-)
     return -1.49278+(2.11263+(-0.729104+0.10969*x)*x)*x+0.6931471806*t;
 }
 
-float fastExp(float num) // Taken from Johan Rade (github.com/jrade/)
+float fast_exp(float num) // Taken from Johan Rade (github.com/jrade/)
 {
     float a = (1 << 23) / 0.69314718f;
     float b = (1 << 23) * (127 - 0.043677448f);

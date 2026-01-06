@@ -12,9 +12,9 @@ void train_model_sgd(model* myModel, int epochs, int numSamples, float** inputs,
 {
     int inputsTraversed = 0;
     float trainingLoss = 0.0;
-    float validationAcc = 0.0;
+    float testingLoss = 0.0;
     int trainSamples = (int)(valSplit * numSamples);
-    int valSamples = numSamples - trainSamples;
+    int testSamples = numSamples - trainSamples;
     struct timespec start, end;
     double timeElapsed;
 
@@ -23,7 +23,7 @@ void train_model_sgd(model* myModel, int epochs, int numSamples, float** inputs,
     {
         clock_gettime(CLOCK_MONOTONIC, &start);
         trainingLoss = 0.0;
-        validationAcc = 0.0;
+        testingLoss = 0.0;
 
         shuffle(&inputs, &targets, numSamples);
         
@@ -59,7 +59,7 @@ void train_model_sgd(model* myModel, int epochs, int numSamples, float** inputs,
             
             forward_out(myModel->outLayer);
 
-            validationAcc += loss_function(myModel);
+            testingLoss += loss_function(myModel);
             zero_everything(myModel->outLayer);
         }
 
@@ -68,19 +68,19 @@ void train_model_sgd(model* myModel, int epochs, int numSamples, float** inputs,
         timeElapsed = (end.tv_nsec - start.tv_nsec) / 1000000.0;
         timeElapsed =  (timeElapsed >= 0) ? timeElapsed : 1000.0 + timeElapsed;
 
-        validationAcc = (validationAcc / valSamples);
+        testingLoss /=  testSamples;
         trainingLoss /= trainSamples;
-        printf("Epoch %d - Training Loss: %f, Validation Loss: %f - %.1lfms\n", e, trainingLoss, validationAcc, timeElapsed);
+        printf("Epoch %d - Training Loss: %f, Testing Loss: %f - %.1lfms\n", e, trainingLoss, testingLoss, timeElapsed);
     }
 }
 
-void train_context_model_sgd(model* myModel, layer** windowLayers, int epochs, int numSamples, float** inputs, float **targets, float valSplit, int windowSize)
+void train_model_sgd_fast(model* myModel, int epochs, int numSamples, float** inputs, float **targets, float valSplit)
 {
     int inputsTraversed = 0;
     float trainingLoss = 0.0;
-    float validationAcc = 0.0;
+    float testingLoss = 0.0;
     int trainSamples = (int)(valSplit * numSamples);
-    int valSamples = numSamples - trainSamples;
+    int testSamples = numSamples - trainSamples;
     struct timespec start, end;
     double timeElapsed;
 
@@ -89,7 +89,73 @@ void train_context_model_sgd(model* myModel, layer** windowLayers, int epochs, i
     {
         clock_gettime(CLOCK_MONOTONIC, &start);
         trainingLoss = 0.0;
-        validationAcc = 0.0;
+        testingLoss = 0.0;
+
+        shuffle(&inputs, &targets, numSamples);
+        
+        for(int i = 0; i < trainSamples; i++)
+        {
+            inputsTraversed = 0;
+            for(int j = 0; j < myModel->numInLayers; j++)
+            {
+                memcpy((*myModel->inLayers[j])->outputs, &(inputs[i][inputsTraversed]), sizeof(float) * (*myModel->inLayers[j])->numNodes);
+                inputsTraversed += (*myModel->inLayers[j])->numNodes;
+            }
+
+            memcpy(myModel->targets, targets[i], sizeof(float) * (*myModel->outLayer)->numNodes);
+            
+            _mm256_forward_out(myModel->outLayer);
+            sgd_backprop(myModel->outLayer, &myModel);
+            _mm256_calculate_and_apply_grads(myModel->outLayer, myModel->learning_rate);
+
+            trainingLoss += loss_function(myModel);
+            zero_everything(myModel->outLayer);
+        }
+        
+        for(int i = trainSamples; i < numSamples; i++)
+        {
+            inputsTraversed = 0;
+            for(int j = 0; j < myModel->numInLayers; j++)
+            {
+                for(int k = 0; k < (*myModel->inLayers[j])->numNodes; k++) (*myModel->inLayers[j])->outputs[k] = inputs[i][k + inputsTraversed];
+                inputsTraversed += (*myModel->inLayers[j])->numNodes;
+            }
+
+            memcpy(myModel->targets, targets[i], sizeof(float) * (*myModel->outLayer)->numNodes);
+            
+            _mm256_forward_out(myModel->outLayer);
+
+            testingLoss += loss_function(myModel);
+            zero_everything(myModel->outLayer);
+        }
+
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        
+        timeElapsed = (end.tv_nsec - start.tv_nsec) / 1000000.0;
+        timeElapsed =  (timeElapsed >= 0) ? timeElapsed : 1000.0 + timeElapsed;
+
+        testingLoss /=  testSamples;
+        trainingLoss /= trainSamples;
+        printf("Epoch %d - Training Loss: %f, Testing Loss: %f - %.1lfms\n", e, trainingLoss, testingLoss, timeElapsed);
+    }
+}
+
+void train_context_model_sgd(model* myModel, layer** windowLayers, int epochs, int numSamples, float** inputs, float **targets, float valSplit, int windowSize)
+{
+    int inputsTraversed = 0;
+    float trainingLoss = 0.0;
+    float testingLoss = 0.0;
+    int trainSamples = (int)(valSplit * numSamples);
+    int testSamples = numSamples - trainSamples;
+    struct timespec start, end;
+    double timeElapsed;
+
+    
+    for(int e = 1; e < (epochs + 1); e++)
+    {
+        clock_gettime(CLOCK_MONOTONIC, &start);
+        trainingLoss = 0.0;
+        testingLoss = 0.0;
 
         // shuffle(inputs, targets, numSamples); - need this to be time series data so no shuffling
         
@@ -127,7 +193,7 @@ void train_context_model_sgd(model* myModel, layer** windowLayers, int epochs, i
             
             forward_out(myModel->outLayer);
 
-            validationAcc += loss_function(myModel);
+            testingLoss += loss_function(myModel);
             zero_everything(myModel->outLayer);
         }
 
@@ -136,12 +202,13 @@ void train_context_model_sgd(model* myModel, layer** windowLayers, int epochs, i
         timeElapsed = (end.tv_nsec - start.tv_nsec) / 1000000.0;
         timeElapsed =  (timeElapsed >= 0) ? timeElapsed : 1000.0 + timeElapsed;
 
-        validationAcc = (validationAcc / valSamples);
+        testingLoss /= testingLoss;
         trainingLoss /= trainSamples;
-        printf("Epoch %d - Training Loss: %f, Validation Loss: %f - %.1lfms\n", e, trainingLoss, validationAcc, timeElapsed);
+        printf("Epoch %d - Training Loss: %f, Testing Loss: %f - %.1lfms\n", e, trainingLoss, testingLoss, timeElapsed);
     }
 }
 
+// Not fully implemented
 void mini_batch_train_sgd(model* myModel, int epochs, int numSamples, int batchSize, float** inputs, float**targets, _Bool normBatch) //Automatically normalizes the batch into a single sample
 {
     int inputsTraversed = 0;
@@ -191,7 +258,7 @@ void train_model_adam(model* myModel, int epochs, int numSamples, float** inputs
 
 void batch_train_adam(model* myModel, int epochs, int numSamples, int batchSize, float** inputs, float *targets, float initialFirstMomentum, float initialSecondMomentum);
 
-float* model_inference(model* myModel, float* inputs)
+float* model_inference(model* myModel, float* inputs, float** outputs) //(model*, float*, &float*)
 {
     int inputsTraversed = 0;
     for(int i = 0; i < myModel->numInLayers; i++)
@@ -202,5 +269,6 @@ float* model_inference(model* myModel, float* inputs)
 
     forward_out(myModel->outLayer);
 
-    return (*myModel->outLayer)->outputs;
+    memcpy(*outputs, (*myModel->outLayer)->outputs, sizeof(float) * (*myModel->outLayer)->numNodes);
+    zero_everything(myModel->outLayer);
 }

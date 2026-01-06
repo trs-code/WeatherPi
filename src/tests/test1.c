@@ -43,7 +43,7 @@ int main()
     memcpy((*myModel->inLayers[0])->outputs, (float[]){0.05, 0.10, 0.15}, 3*sizeof(float));
     memcpy(myModel->targets, (float[]){0.905405}, sizeof(float));
 
-    forward_out(myModel->outLayer);
+    _mm256_forward_out(myModel->outLayer);
     sgd_backprop(myModel->outLayer, &myModel);
     for(int i = 0; i < 3; i++) printf("Layer 1 Activation[%d] is: %f\n", i, layer0->outputs[i]);
     printf("\nLayer 2 Activation is: %f\n", outLayer->outputs[0]);
@@ -54,12 +54,12 @@ int main()
     
     calculate_and_apply_grads(myModel->outLayer, myModel->learning_rate);
     
-    for(int i = 0; i < 300; i++)
+    for(int i = 0; i < 1000; i++)
     {
         zero_everything(myModel->outLayer);
-        forward_out(myModel->outLayer);
+        _mm256_forward_out(myModel->outLayer);
         sgd_backprop(myModel->outLayer, &myModel);
-        calculate_and_apply_grads(myModel->outLayer, myModel->learning_rate);
+        _mm256_calculate_and_apply_grads(myModel->outLayer, myModel->learning_rate);
     }
 
     printf("\nModel output is: %f\nTarget is : %f", (*myModel->outLayer)->outputs[0], myModel->targets[0]);

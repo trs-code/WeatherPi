@@ -34,7 +34,7 @@ int main()
     layer* denseLayer4 = make_hidden_layer((layer**[]){&denseLayer3}, 3, 1, 'h');
     if(denseLayer4 == NULL) goto error8;
 
-    layer* outLayer = make_output_layer((layer**[]){&denseLayer4}, 1, 1, 'd');
+    layer* outLayer = make_output_layer((layer**[]){&denseLayer4}, 1, 1, 'g');
     if(denseLayer2 == NULL) goto error9;
 
     model *wethrModel = construct_model((layer**[]){&inLayer0, &inLayer1, &inLayer2}, &outLayer, 9, 3, 0.0000001f, 'n');

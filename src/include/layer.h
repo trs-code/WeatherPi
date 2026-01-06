@@ -18,7 +18,7 @@
 typedef struct layer layer;
 struct layer
 {
-    layer*** prevLayers; // Very necessary to operate model - array of pointers to layer allocation pointers
+    layer*** prevLayers; // Very necessary to operate model - array of pointers(memory addresses) to layer allocation pointers
     float **weights; // n nodes * p previous nodes - weight matrix
     float *biases; // n biases - 1 for each node
     float *backErrors; // Only necessary for backpropagation, not necessary for an inference model - n values

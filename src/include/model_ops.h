@@ -29,8 +29,22 @@ void forward_out(layer** myLayer)
             (*myLayer)->preActivations[i] += (*myLayer)->biases[i];
             numPrevsTraversed = 0;
         }
+
+        // In case of softmax activation, we do a function on the layer instead of point-wise on the outputs
+        if((*myLayer)->activationFunction == 'x')
+        {
+            memcpy((*myLayer)->outputs, (*myLayer)->preActivations, sizeof(float) * (*myLayer)->numNodes);
+            softmax(myLayer);
+            return;
+        }
+        else if((*myLayer)->activationFunction == 'f')
+        {
+            memcpy((*myLayer)->outputs, (*myLayer)->preActivations, sizeof(float) * (*myLayer)->numNodes);
+            fast_softmax(myLayer);
+            return;
+        }
         
-        for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->outputs[i] = activation_function((*myLayer)->preActivations[i], (*myLayer)->activationFunction, *myLayer, i);
+        for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->outputs[i] = activation_function((*myLayer)->preActivations[i], (*myLayer)->activationFunction);
     }
 }
 
@@ -61,7 +75,7 @@ void sgd_backprop(layer** myLayer, model** myModel)
 }
 
 
-// Another all roads spring forth from Rome approach - go to the convergence point of the model and use it as the root of the undirected, cyclic graph that is this model
+// Another all roads spring forth from Rome approach - go to the convergence point of the model(output layer) and use it as the root this model graph
 void calculate_and_apply_grads(layer** myLayer, float learningRate)
 {
     if((*myLayer)->switchVar == '3') return;
@@ -104,6 +118,7 @@ void zero_everything(layer** myLayer)
     memset((*myLayer)->outputs, 0.0f, (*myLayer)->numNodes * sizeof(float));
 }
 
+// Encode and save a model to file
 int save_model(model** saveModel, char* modelFileName)
 {
     FILE *modFile = NULL;
@@ -141,7 +156,7 @@ int save_model(model** saveModel, char* modelFileName)
         offset += 16;
     }
 
-    snprintf(fltBuff, 10UL, "%.8f", (*saveModel)->learning_rate);
+    snprintf(fltBuff, 11UL, "%.8f", (*saveModel)->learning_rate);
     for(int l = 0; l < 8; l++) line[offset + l] = fltBuff[l];
     offset += 8;
 
@@ -225,8 +240,8 @@ int save_model(model** saveModel, char* modelFileName)
         {
             for(int k = 0; k < (*layerList[i])->numPrevNodes; k++)
             {
-                if((*layerList[i])->weights[j][k] < 0) snprintf(fltBuff, 17UL, "%.15f", (*layerList[i])->weights[j][k]);
-                else snprintf(fltBuff, 17UL, "%.16f", (*layerList[i])->weights[j][k]);
+                if((*layerList[i])->weights[j][k] < 0) snprintf(fltBuff, 18UL, "%.15f", (*layerList[i])->weights[j][k]);
+                else snprintf(fltBuff, 19UL, "%.16f", (*layerList[i])->weights[j][k]);
                 
                 for(int l = 0; l < 16; l++) line[offset + l] = fltBuff[l];
                 offset += 16;
@@ -235,8 +250,8 @@ int save_model(model** saveModel, char* modelFileName)
 
         for(int j = 0; j < (*layerList[i])->numNodes; j++)
         {
-            if((*layerList[i])->biases[j] < 0) snprintf(fltBuff, 17UL, "%.15f", (*layerList[i])->biases[j]);
-            else snprintf(fltBuff, 17UL, "%.16f", (*layerList[i])->biases[j]);
+            if((*layerList[i])->biases[j] < 0) snprintf(fltBuff, 18UL, "%.15f", (*layerList[i])->biases[j]);
+            else snprintf(fltBuff, 19UL, "%.16f", (*layerList[i])->biases[j]);
             
             for(int l = 0; l < 16; l++) line[offset + l] = fltBuff[l];
             offset += 16;
@@ -296,14 +311,14 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
     FILE *modFile = fopen(modelFileName, "r");
     if(modFile == NULL) goto error1;
 
-    fgets(lineLengthBuff, 26, modFile);
+    if(fgets(lineLengthBuff, 26, modFile) == NULL) goto error5;
 
     lineLength = bin2int(lineLengthBuff, 24) + 2;
 
     line = (char *)calloc(lineLength, sizeof(char));
     if(line == NULL) goto error2;
 
-    fgets(line, lineLength, modFile);
+    if(fgets(line, lineLength, modFile) == NULL) goto error6;
     numLayers = bin2int(line, 16);
     numInLayers = bin2int(&line[16], 16);
     offset += 32;
@@ -332,14 +347,14 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
 
     for(int i = 0; i < numLayers; i++)
     {
-        fgets(lineLengthBuff, 26, modFile);
+        if(fgets(lineLengthBuff, 26, modFile) == NULL) goto error5;
 
         lineLength = bin2int(lineLengthBuff, 24) + 2;
 
         line = (char *)calloc(lineLength, sizeof(char));
         if(line == NULL) goto error5;
 
-        fgets(line, lineLength, modFile);
+        if(fgets(line, lineLength, modFile) == NULL) goto error6;
 
         offset = 0;
         numNodes = 0;
@@ -543,28 +558,277 @@ void load_context_window(layer** windowLayers, float* inputs, int windowSize)
     memcpy(windowLayers[0]->outputs, inputs, numInputs * sizeof(float));
 }
 
-void sgd_backprop_through_time(layer** myLayer, model** myModel, int timeStep)
-{ // start at output layer and calculate backerrors for each previous layer
-    if((*myLayer)->switchVar == '2') return;
+model* load_context_model(const char* modelFileName, layer*** modelLayers, layer*** windowLayers)
+{
+    layer*** layerArr = (layer***)NULL;
+    model* myModel = NULL;
+    int *inLayerIDs = NULL;
+    char* line = NULL;
+    int outLayerID = 0;
+    int lineLength = 0;
+    int offset = 0;
+    int numLayers = 0;
+    int numInLayers = 0;
+    int numPrevLayers = 0;
+    int numPrevNodes = 0;
+    int layerID = 0;
+    int numNodes = 0;
+    float learningRate = 1.0f;
+    char activationFunction = '\0';
+    char loss_fn = '\0';
+    char layerType = '\0';
+    char lineLengthBuff[26] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"; // Line length of next line string will always be 24 characters
+    char fltBuff[17] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
 
-    (*myLayer)->switchVar = '2';
-    
-    // backErrorsForOutputLayer = lossDerivative · activationFunctionDerivative(preActivations) - for output layer
-    if((*myLayer)->layerType == 'o') for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->backErrors[i] = -1 * loss_derivative((*myModel)->targets[i], (*myLayer)->outputs[i], (*myModel)) * activation_derivative((*myLayer)->preActivations[i], (*myLayer)->activationFunction, *myLayer, i);
-    
-    // backErrorsForPreviousLayers += (thisLayersBackErrors)(thisLayersWeightMatrixWithRespectToCurrentPreviousLayer) · activationFunctionDerivative(previousLayers)
-    int prevsTraversed = 0;
-    for(int i = 0; i < (*myLayer)->numPrevLayers; i++)
+    FILE *modFile = fopen(modelFileName, "r");
+    if(modFile == NULL) goto error1;
+
+    if(fgets(lineLengthBuff, 26, modFile) == NULL) goto error5;
+
+    lineLength = bin2int(lineLengthBuff, 24) + 2;
+
+    line = (char *)calloc(lineLength, sizeof(char));
+    if(line == NULL) goto error2;
+
+    if(fgets(line, lineLength, modFile) == NULL) goto error6;
+    numLayers = bin2int(line, 16);
+    numInLayers = bin2int(&line[16], 16);
+    offset += 32;
+
+    inLayerIDs = (int *)calloc(numInLayers, sizeof(int));
+    if(inLayerIDs == NULL) goto error3;
+
+    for(int i = 0; i < numInLayers; i++) 
     {
-        if((*(*myLayer)->prevLayers[i])->layerType == 'i') continue;
-        for(int j = 0; j < (*(*myLayer)->prevLayers[i])->numNodes; j++) for(int k = 0; k < (*myLayer)->numNodes; k++) (*(*myLayer)->prevLayers[i])->backErrors[j] += (*myLayer)->backErrors[k] * (*myLayer)->weights[k][prevsTraversed + j] * activation_derivative((*(*myLayer)->prevLayers[i])->preActivations[j], (*myLayer)->activationFunction, *myLayer, i);
+        inLayerIDs[i] = bin2int(&line[offset], 16);
+        offset += 16;
+    }
+
+    for(int i = 0; i < 8; i++) fltBuff[i] = line[offset + i];
+    offset += 8;
+
+    learningRate = atof(fltBuff);
+
+    loss_fn = line[offset];
+
+    free(line);
+    line = NULL;
+
+    *modelLayers = (layer**)malloc(numLayers * sizeof(layer**));
+    if(*modelLayers == NULL) goto error4;
+
+    for(int i = 0; i < numLayers; i++)
+    {
+        if(fgets(lineLengthBuff, 26, modFile) == NULL) goto error5;
+
+        lineLength = bin2int(lineLengthBuff, 24) + 2;
+
+        line = (char *)calloc(lineLength, sizeof(char));
+        if(line == NULL) goto error5;
+
+        if(fgets(line, lineLength, modFile) == NULL) goto error6;
+
+        offset = 0;
+        numNodes = 0;
+        numPrevNodes = 0;
+        learningRate = 1.0f;
+
+        layerType = line[0];
+        offset += 1;
+
+        layerID = bin2int(&line[offset], 11);
+        offset += 11;
+        
+        numNodes = bin2int(&line[offset], 16);
+        offset += 16;
+
+        if(layerType == 'i')
+        {
+            (*modelLayers)[layerID] = make_input_layer(numNodes);
+            
+            free(line);
+            line = NULL;
+            
+            continue;
+        }
+
+        numPrevNodes = bin2int(&line[offset], 32);
+        offset += 32;
+
+        numPrevLayers = bin2int(&line[offset], 16);
+        offset += 16;
+
+        activationFunction = line[offset];
+        offset += 1;
+
+        layerArr = (layer***)malloc(numPrevLayers * sizeof(layer**));
+        if(layerArr == NULL) goto error6;
+
+        for(int j = 0; j < numPrevLayers; j++)
+        {
+            layerArr[j] = &((*modelLayers)[bin2int(&line[offset], 16)]);
+            offset += 16;
+        }
+
+        if(layerType == 'h')
+        {
+            (*modelLayers)[layerID] = make_hidden_layer(layerArr, numNodes, numPrevLayers, activationFunction);
+        }
+        else if(layerType == 'r')
+        {
+            (*modelLayers)[layerID] = make_referential_layer(layerArr, numNodes, numPrevLayers, activationFunction, &(*modelLayers)[layerID]);
+        }
+        else
+        {
+            (*modelLayers)[layerID] = make_output_layer(layerArr, numNodes, numPrevLayers, activationFunction);
+            outLayerID = layerID;
+        }
+
+        for(int j = 0; j < numNodes; j++)
+        {
+            for(int k = 0; k < numPrevNodes; k++)
+            {
+                for(int l = 0; l < 16; l++) fltBuff[l] = line[offset+l];
+                offset += 16;
+                (*modelLayers)[layerID]->weights[j][k] = atof(fltBuff);
+                flush_buffer(fltBuff, 16);
+            }
+        }
+
+        for(int j = 0; j < numNodes; j++)
+        {
+            for(int k = 0; k < 16; k++) fltBuff[k] = line[offset+k];
+            offset += 16;
+            (*modelLayers)[layerID]->biases[j] = atof(fltBuff);
+            flush_buffer(fltBuff, 16);
+        }
+
+        flush_buffer(lineLengthBuff, 26);
+        free(line);
+        line = (char *)NULL;
+        free(layerArr);
+        layerArr = (layer***)NULL;
+    }
+
+    fclose(modFile);
+    modFile = NULL;
+
+    layerArr = (layer***)malloc(numInLayers * sizeof(layer*));
+
+    for(int i = 0; i < numInLayers; i++) layerArr[i] = &(*(modelLayers)[inLayerIDs[i]]);
+
+    myModel = construct_model(layerArr, &(*modelLayers)[outLayerID], numLayers, numInLayers, learningRate, loss_fn);
+
+    free(inLayerIDs);
+    inLayerIDs = NULL;
+    free(layerArr);
+    layerArr = NULL;
+
+    return myModel;
+
+error6:
+    free(line);
+    line = NULL;
+error5:
+    free(modelLayers);
+    modelLayers = NULL;
+error4:
+    free(inLayerIDs);
+    inLayerIDs = NULL;
+error3:
+    free(line);
+    line = NULL;
+error2:
+    fclose(modFile);
+error1:
+    return NULL;
+}
+
+
+
+// Still needs to be implemented
+// void sgd_backprop_through_time(layer** myLayer, model** myModel, int timeStep)
+// { // start at output layer and calculate backerrors for each previous layer
+//     if((*myLayer)->switchVar == '2') return;
+// 
+//     (*myLayer)->switchVar = '2';
+//    
+//     // backErrorsForOutputLayer = lossDerivative · activationFunctionDerivative(preActivations) - for output layer
+//     if((*myLayer)->layerType == 'o') for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->backErrors[i] = -1 * loss_derivative((*myModel)->targets[i], (*myLayer)->outputs[i], (*myModel)) * activation_derivative((*myLayer)->preActivations[i], (*myLayer)->activationFunction, *myLayer, i);
+//   
+//     // backErrorsForPreviousLayers += (thisLayersBackErrors)(thisLayersWeightMatrixWithRespectToCurrentPreviousLayer) · activationFunctionDerivative(previousLayers)
+//     int prevsTraversed = 0;
+//     for(int i = 0; i < (*myLayer)->numPrevLayers; i++)
+//     {
+//         if((*(*myLayer)->prevLayers[i])->layerType == 'i') continue;
+//         for(int j = 0; j < (*(*myLayer)->prevLayers[i])->numNodes; j++) for(int k = 0; k < (*myLayer)->numNodes; k++) (*(*myLayer)->prevLayers[i])->backErrors[j] += (*myLayer)->backErrors[k] * (*myLayer)->weights[k][prevsTraversed + j] * activation_derivative((*(*myLayer)->prevLayers[i])->preActivations[j], (*myLayer)->activationFunction, *myLayer, i);
+//         prevsTraversed += (*(*myLayer)->prevLayers[i])->numNodes;
+//     }
+//
+//     for(int i = 0; i < (*myLayer)->numPrevLayers; i++)
+//     {
+//         if((*(*myLayer)->prevLayers[i])->numPrevLayers != 0) sgd_backprop_through_time((*myLayer)->prevLayers[i], myModel, timeStep);
+//     }
+//     for(int i = 0; i < (*myLayer)->numPrevLayers; i++) if((*(*myLayer)->prevLayers[i])->numPrevLayers != 0) sgd_backprop((*myLayer)->prevLayers[i], myModel);
+//     // calculate backErrors for previous layers' previous layers according to already established layers' backErrors - All roads spring forth from Rome
+// }
+
+
+//  Gets an output from the target layer, is essentially also a inference function
+// Vectorized version of forward out, only really makes a difference on industrial grade models so it will be shelved for now
+void _mm256_forward_out(layer** myLayer)
+{
+    if((*myLayer)->switchVar == '1') return;
+
+    (*myLayer)->switchVar = '1';
+
+    if((*myLayer)->numPrevLayers != 0)
+    {
+        int numPrevsTraversed = 0;
+        
+        for(int i = 0; i < (*myLayer)->numPrevLayers; i++) _mm256_forward_out((*myLayer)->prevLayers[i]);
+
+        vectorized_forward_out_calc(myLayer);
+
+        // In case of softmax activation, we do a function on the layer instead of point-wise on the outputs
+        if((*myLayer)->activationFunction == 'x')
+        {
+            memcpy((*myLayer)->outputs, (*myLayer)->preActivations, sizeof(float) * (*myLayer)->numNodes);
+            softmax(myLayer);
+            return;
+        }
+        else if((*myLayer)->activationFunction == 'f')
+        {
+            memcpy((*myLayer)->outputs, (*myLayer)->preActivations, sizeof(float) * (*myLayer)->numNodes);
+            fast_softmax(myLayer);
+            return;
+        }
+        
+        for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->outputs[i] = activation_function((*myLayer)->preActivations[i], (*myLayer)->activationFunction);
+    }
+}
+
+void _mm256_calculate_and_apply_grads(layer** myLayer, float learningRate)
+{
+    if((*myLayer)->switchVar == '3') return;
+
+    (*myLayer)->switchVar = '3';
+
+    if((*myLayer)->numPrevLayers == 0) return;
+
+    for(int i = 0; i < (*myLayer)->numPrevLayers; i++) _mm256_calculate_and_apply_grads(((*myLayer)->prevLayers[i]), learningRate);
+
+    for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->biases[i] -= learningRate * (*myLayer)->backErrors[i];
+
+    int prevsTraversed = 0;
+
+    // calculate gradients from backerrors and activations for each layer and apply them to the weights_mm256_mul_ps(vector_a, scalar_vector);
+    for(int i = 0; i < (*myLayer)->numPrevLayers; i ++)
+    {
+        for(int j = 0; j < (*(*myLayer)->prevLayers[i])->numNodes; j++)
+        {
+            for(int k = 0; k < (*myLayer)->numNodes; k++) (*myLayer)->weights[k][j + prevsTraversed] -= learningRate * (*(*myLayer)->prevLayers[i])->outputs[j] * (*myLayer)->backErrors[k];
+        }
         prevsTraversed += (*(*myLayer)->prevLayers[i])->numNodes;
     }
-
-    for(int i = 0; i < (*myLayer)->numPrevLayers; i++)
-    {
-        if((*(*myLayer)->prevLayers[i])->numPrevLayers != 0) sgd_backprop_through_time((*myLayer)->prevLayers[i], myModel, timeStep);
-    }
-    for(int i = 0; i < (*myLayer)->numPrevLayers; i++) if((*(*myLayer)->prevLayers[i])->numPrevLayers != 0) sgd_backprop((*myLayer)->prevLayers[i], myModel);
-    // calculate backErrors for previous layers' previous layers according to already established layers' backErrors - All roads spring forth from Rome
 }
