@@ -215,7 +215,7 @@ int vectorized_forward_out_calc(layer** myLayer)
             preActs = _mm256_fmadd_ps(prevOuts, mulWeights, preActs);
         }
         
-        (*myLayer)->preActivations[i] = _mm256_sum_manual(preActs);
+        (*myLayer)->preActivations[i] = _mm256_sum_manual(preActs) + (*myLayer)->biases[i];
         preActs = _mm256_setzero_ps();
     }
 
@@ -248,31 +248,27 @@ int vectorized_calculate_and_apply_grads(layer** myLayer, float learningRate)
 
     __m256i _load_mask = _mm256_loadu_si256((const __m256i*)maskHelp);
 
-
-    for(int i = 0; i < (*myLayer)->numNodes; i++)
+    for(int j = 0; j < batchesOfEight; j++)
     {
-        for(int j = 0; j < batchesOfEight; j++)
-        {
-            biases = _mm256_loadu_ps(&(*myLayer)->biases[8 * j]);
-            backErrors = _mm256_loadu_ps(&(*myLayer)->backErrors[8 * j]);
+        biases = _mm256_loadu_ps(&(*myLayer)->biases[8 * j]);
+        backErrors = _mm256_loadu_ps(&(*myLayer)->backErrors[8 * j]);
 
-            biases = _mm256_fmsub_ps(backErrors, learningRates, biases);
-            _mm256_storeu_ps(f, biases);
+        biases = _mm256_fnmadd_ps(backErrors, learningRates, biases);
+        _mm256_storeu_ps(f, biases);
 
-            memcpy(&(*myLayer)->biases[8 * j], f, sizeof(float) * 8);
-        }
-
-        if(leftoverBatch > 0)
-        {
-            biases = _mm256_maskload_ps(&(*myLayer)->biases[8 * batchesOfEight], _load_mask);
-            backErrors = _mm256_maskload_ps(&(*myLayer)->backErrors[8 * batchesOfEight], _load_mask);
-
-            biases = _mm256_fmsub_ps(backErrors, learningRates, biases);
-            _mm256_storeu_ps(f, biases);
-
-            memcpy(&(*myLayer)->biases[8 * batchesOfEight], f, sizeof(float) * leftoverBatch);
-        }        
+        memcpy(&(*myLayer)->biases[8 * j], f, sizeof(float) * 8);
     }
+
+    if(leftoverBatch > 0)
+    {
+        biases = _mm256_maskload_ps(&(*myLayer)->biases[8 * batchesOfEight], _load_mask);
+        backErrors = _mm256_maskload_ps(&(*myLayer)->backErrors[8 * batchesOfEight], _load_mask);
+
+        biases = _mm256_fnmadd_ps(backErrors, learningRates, biases);
+        _mm256_storeu_ps(f, biases);
+
+        memcpy(&(*myLayer)->biases[8 * batchesOfEight], f, sizeof(float) * leftoverBatch);
+    }        
 
     memset(maskHelp, 0, sizeof(maskHelp));
     for(int i = 0; i < leftoverBatchPrevs; i++)
@@ -301,7 +297,7 @@ int vectorized_calculate_and_apply_grads(layer** myLayer, float learningRate)
             prevOuts = _mm256_loadu_ps(&prevNodeOuts[8 * j]);
             weights = _mm256_loadu_ps(&(*myLayer)->weights[i][(8 * j)]);
 
-            weights = _mm256_fmsub_ps(prevOuts, backErrors, weights);
+            weights = _mm256_fnmadd_ps(prevOuts, backErrors, weights);
             _mm256_storeu_ps(f, weights);
 
             memcpy(&(*myLayer)->weights[i][8 * j], f, sizeof(float) * 8);
@@ -312,7 +308,7 @@ int vectorized_calculate_and_apply_grads(layer** myLayer, float learningRate)
             prevOuts = _mm256_maskload_ps(&prevNodeOuts[8 * batchesOfEightPrevs], _load_mask);
             weights = _mm256_maskload_ps(&(*myLayer)->weights[i][(8 * batchesOfEightPrevs)], _load_mask);
 
-            weights = _mm256_fmsub_ps(prevOuts, backErrors, weights);
+            weights = _mm256_fnmadd_ps(prevOuts, backErrors, weights);
             _mm256_storeu_ps(f, weights);
 
             memcpy(&(*myLayer)->weights[i][8 * batchesOfEightPrevs], f, sizeof(float) * leftoverBatchPrevs);

@@ -52,9 +52,9 @@ int main()
     printf("\nLayer 2 Backerror is: %f\n", outLayer->backErrors[0]);
     for(int i = 0; i < 3; i++) printf("Layer 1 Backerror[%d] is: %f\n", i, layer0->backErrors[i]);
     
-    calculate_and_apply_grads(myModel->outLayer, myModel->learning_rate);
+    _mm256_calculate_and_apply_grads(myModel->outLayer, myModel->learning_rate);
     
-    for(int i = 0; i < 1000; i++)
+    for(int i = 0; i < 300; i++)
     {
         zero_everything(myModel->outLayer);
         _mm256_forward_out(myModel->outLayer);

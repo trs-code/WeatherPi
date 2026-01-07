@@ -5,6 +5,7 @@
 #include "loss.h"
 #include "helper_funcs.h"
 #include <stdio.h>
+#include <pthread.h>
 
 //  Gets an output from the target layer, is essentially also a inference function
 void forward_out(layer** myLayer)
@@ -90,14 +91,15 @@ void calculate_and_apply_grads(layer** myLayer, float learningRate)
 
     int prevsTraversed = 0;
 
-    // calculate gradients from backerrors and activations for each layer and apply them to the weights_mm256_mul_ps(vector_a, scalar_vector);
-    for(int i = 0; i < (*myLayer)->numPrevLayers; i ++)
+    for(int i = 0; i < (*myLayer)->numNodes; i++)
     {
-        for(int j = 0; j < (*(*myLayer)->prevLayers[i])->numNodes; j++)
+        for(int j = 0; j < (*myLayer)->numPrevLayers; j++)
         {
-            for(int k = 0; k < (*myLayer)->numNodes; k++) (*myLayer)->weights[k][j + prevsTraversed] -= learningRate * (*(*myLayer)->prevLayers[i])->outputs[j] * (*myLayer)->backErrors[k];
+            for(int k = 0; k < (*(*myLayer)->prevLayers[j])->numNodes; k++) (*myLayer)->weights[i][k + prevsTraversed] -= learningRate * (*(*myLayer)->prevLayers[j])->outputs[k] * (*myLayer)->backErrors[i];
+            
+            prevsTraversed += (*(*myLayer)->prevLayers[j])->numNodes;
         }
-        prevsTraversed += (*(*myLayer)->prevLayers[i])->numNodes;
+        prevsTraversed = 0;
     }
 }
 
@@ -809,6 +811,54 @@ void _mm256_forward_out(layer** myLayer)
 }
 
 void _mm256_calculate_and_apply_grads(layer** myLayer, float learningRate)
+{
+    if((*myLayer)->switchVar == '3') return;
+
+    (*myLayer)->switchVar = '3';
+
+    if((*myLayer)->numPrevLayers == 0) return;
+
+    for(int i = 0; i < (*myLayer)->numPrevLayers; i++) _mm256_calculate_and_apply_grads(((*myLayer)->prevLayers[i]), learningRate);
+
+    vectorized_calculate_and_apply_grads(myLayer, learningRate);
+}
+
+
+//  Gets an output from the target layer, is essentially also a inference function
+// Vectorized version of forward out, only really makes a difference on industrial grade models so it will be shelved for now
+void _mm256_threaded_forward_out(layer** myLayer)
+{
+    if((*myLayer)->switchVar == '1') return;
+
+    (*myLayer)->switchVar = '1';
+
+    if((*myLayer)->numPrevLayers != 0)
+    {
+        int numPrevsTraversed = 0;
+        
+        for(int i = 0; i < (*myLayer)->numPrevLayers; i++) _mm256_forward_out((*myLayer)->prevLayers[i]);
+
+        vectorized_forward_out_calc(myLayer);
+
+        // In case of softmax activation, we do a function on the layer instead of point-wise on the outputs
+        if((*myLayer)->activationFunction == 'x')
+        {
+            memcpy((*myLayer)->outputs, (*myLayer)->preActivations, sizeof(float) * (*myLayer)->numNodes);
+            softmax(myLayer);
+            return;
+        }
+        else if((*myLayer)->activationFunction == 'f')
+        {
+            memcpy((*myLayer)->outputs, (*myLayer)->preActivations, sizeof(float) * (*myLayer)->numNodes);
+            fast_softmax(myLayer);
+            return;
+        }
+        
+        for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->outputs[i] = activation_function((*myLayer)->preActivations[i], (*myLayer)->activationFunction);
+    }
+}
+
+void _mm256_threaded_calculate_and_apply_grads(layer** myLayer, float learningRate)
 {
     if((*myLayer)->switchVar == '3') return;
 

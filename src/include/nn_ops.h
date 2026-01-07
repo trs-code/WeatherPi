@@ -2,6 +2,7 @@
 
 //#include <immintrin.h>
 #include "model_ops.h"
+#include <sys/time.h>
 
 // IMPORTANT
 // Engineer data according to dimensions of input layers so first n inputs correspond to n nodes of first input layer
@@ -17,7 +18,11 @@ void train_model_sgd(model* myModel, int epochs, int numSamples, float** inputs,
     int testSamples = numSamples - trainSamples;
     struct timespec start, end;
     double timeElapsed;
+    long tStart, tEnd;
+    struct timeval timecheck;
 
+    gettimeofday(&timecheck, NULL);
+    tStart = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
     
     for(int e = 1; e < (epochs + 1); e++)
     {
@@ -72,6 +77,11 @@ void train_model_sgd(model* myModel, int epochs, int numSamples, float** inputs,
         trainingLoss /= trainSamples;
         printf("Epoch %d - Training Loss: %f, Testing Loss: %f - %.1lfms\n", e, trainingLoss, testingLoss, timeElapsed);
     }
+
+    gettimeofday(&timecheck, NULL);
+    tEnd = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
+
+    printf("\nTotal training time: %ldms\n", (tEnd-tStart));
 }
 
 void train_model_sgd_fast(model* myModel, int epochs, int numSamples, float** inputs, float **targets, float valSplit)
@@ -83,7 +93,11 @@ void train_model_sgd_fast(model* myModel, int epochs, int numSamples, float** in
     int testSamples = numSamples - trainSamples;
     struct timespec start, end;
     double timeElapsed;
+    long tStart, tEnd;
+    struct timeval timecheck;
 
+    gettimeofday(&timecheck, NULL);
+    tStart = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
     
     for(int e = 1; e < (epochs + 1); e++)
     {
@@ -138,6 +152,12 @@ void train_model_sgd_fast(model* myModel, int epochs, int numSamples, float** in
         trainingLoss /= trainSamples;
         printf("Epoch %d - Training Loss: %f, Testing Loss: %f - %.1lfms\n", e, trainingLoss, testingLoss, timeElapsed);
     }
+    
+    gettimeofday(&timecheck, NULL);
+    tEnd = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
+
+    printf("\nTotal training time: %ldms\n", (tEnd-tStart));
+
 }
 
 void train_context_model_sgd(model* myModel, layer** windowLayers, int epochs, int numSamples, float** inputs, float **targets, float valSplit, int windowSize)
@@ -149,7 +169,11 @@ void train_context_model_sgd(model* myModel, layer** windowLayers, int epochs, i
     int testSamples = numSamples - trainSamples;
     struct timespec start, end;
     double timeElapsed;
+    long tStart, tEnd;
+    struct timeval timecheck;
 
+    gettimeofday(&timecheck, NULL);
+    tStart = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
     
     for(int e = 1; e < (epochs + 1); e++)
     {
@@ -202,10 +226,92 @@ void train_context_model_sgd(model* myModel, layer** windowLayers, int epochs, i
         timeElapsed = (end.tv_nsec - start.tv_nsec) / 1000000.0;
         timeElapsed =  (timeElapsed >= 0) ? timeElapsed : 1000.0 + timeElapsed;
 
-        testingLoss /= testingLoss;
+        testingLoss /= testSamples;
         trainingLoss /= trainSamples;
         printf("Epoch %d - Training Loss: %f, Testing Loss: %f - %.1lfms\n", e, trainingLoss, testingLoss, timeElapsed);
     }
+    
+    gettimeofday(&timecheck, NULL);
+    tEnd = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
+
+    printf("\nTotal training time: %ldms\n", (tEnd-tStart));
+}
+
+void train_context_model_sgd_fast(model* myModel, layer** windowLayers, int epochs, int numSamples, float** inputs, float **targets, float valSplit, int windowSize)
+{
+    int inputsTraversed = 0;
+    float trainingLoss = 0.0;
+    float testingLoss = 0.0;
+    int trainSamples = (int)(valSplit * numSamples);
+    int testSamples = numSamples - trainSamples;
+    struct timespec start, end;
+    double timeElapsed;
+    long tStart, tEnd;
+    struct timeval timecheck;
+
+    gettimeofday(&timecheck, NULL);
+    tStart = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
+    
+    for(int e = 1; e < (epochs + 1); e++)
+    {
+        clock_gettime(CLOCK_MONOTONIC, &start);
+        trainingLoss = 0.0;
+        testingLoss = 0.0;
+
+        // shuffle(inputs, targets, numSamples); - need this to be time series data so no shuffling
+        
+        for(int i = 0; i < trainSamples; i++)
+        {
+            inputsTraversed = 0;
+            for(int j = 0; j < myModel->numInLayers; j++)
+            {
+                load_context_window(windowLayers, inputs[i], windowSize);
+                memcpy((*myModel->inLayers[j])->outputs, &(inputs[i][inputsTraversed]), sizeof(float) * (*myModel->inLayers[j])->numNodes);
+                inputsTraversed += (*myModel->inLayers[j])->numNodes;
+            }
+
+            memcpy(myModel->targets, targets[i], sizeof(float) * (*myModel->outLayer)->numNodes);
+            
+            _mm256_forward_out(myModel->outLayer);
+            sgd_backprop(myModel->outLayer, &myModel);
+            _mm256_calculate_and_apply_grads(myModel->outLayer, myModel->learning_rate);
+
+            trainingLoss += loss_function(myModel);
+            zero_everything(myModel->outLayer);
+        }
+        
+        for(int i = trainSamples; i < numSamples; i++)
+        {
+            inputsTraversed = 0;
+            for(int j = 0; j < myModel->numInLayers; j++)
+            {
+                load_context_window(windowLayers, inputs[i], windowSize);
+                memcpy((*myModel->inLayers[j])->outputs, &(inputs[i][inputsTraversed]), sizeof(float) * (*myModel->inLayers[j])->numNodes);
+                inputsTraversed += (*myModel->inLayers[j])->numNodes;
+            }
+
+            memcpy(myModel->targets, targets[i], sizeof(float) * (*myModel->outLayer)->numNodes);
+            
+            _mm256_forward_out(myModel->outLayer);
+
+            testingLoss += loss_function(myModel);
+            zero_everything(myModel->outLayer);
+        }
+
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        
+        timeElapsed = (end.tv_nsec - start.tv_nsec) / 1000000.0;
+        timeElapsed =  (timeElapsed >= 0) ? timeElapsed : 1000.0 + timeElapsed;
+
+        testingLoss /= testSamples;
+        trainingLoss /= trainSamples;
+        printf("Epoch %d - Training Loss: %f, Testing Loss: %f - %.1lfms\n", e, trainingLoss, testingLoss, timeElapsed);
+    }
+    
+    gettimeofday(&timecheck, NULL);
+    tEnd = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
+
+    printf("\nTotal training time: %ldms\n", (tEnd-tStart));
 }
 
 // Not fully implemented

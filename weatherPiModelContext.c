@@ -45,7 +45,7 @@ int main()
 
     if(read_csv(filename, numSamples, numIns, numOuts, &inArrays, &outArrays) != 0) goto error6;
 
-    train_context_model_sgd(wethrModel, windowLayers, 100, numSamples, inArrays, outArrays, 0.8, windowSize);
+    train_context_model_sgd(wethrModel, windowLayers, 50, numSamples, inArrays, outArrays, 0.8, windowSize);
 
     //save_context_model(&wethrModel, "weathrModelContext.cml");
     hakai_matrix(&inArrays, numSamples);
