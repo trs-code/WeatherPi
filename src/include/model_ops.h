@@ -126,7 +126,7 @@ int save_model(model** saveModel, char* modelFileName)
     FILE *modFile = NULL;
     char *line = NULL;
     int offset = 0;
-    int lineLength = 42;
+    int lineLength = 50;
     char bitBuff[33] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
     char fltBuff[20] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
     
@@ -158,9 +158,9 @@ int save_model(model** saveModel, char* modelFileName)
         offset += 16;
     }
 
-    snprintf(fltBuff, 11UL, "%.8f", (*saveModel)->learning_rate);
-    for(int l = 0; l < 8; l++) line[offset + l] = fltBuff[l];
-    offset += 8;
+    snprintf(fltBuff, 19UL, "%.16f", (*saveModel)->learning_rate);
+    for(int l = 0; l < 16; l++) line[offset + l] = fltBuff[l];
+    offset += 16;
 
     line[offset] = (*saveModel)->loss_fn;
 
@@ -334,8 +334,8 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
         offset += 16;
     }
 
-    for(int i = 0; i < 8; i++) fltBuff[i] = line[offset + i];
-    offset += 8;
+    for(int i = 0; i < 16; i++) fltBuff[i] = line[offset + i];
+    offset += 16;
 
     learningRate = atof(fltBuff);
 
@@ -565,7 +565,7 @@ int save_context_model(model** saveModel, char* modelFileName, layer*** windowLa
     FILE *modFile = NULL;
     char *line = NULL;
     int offset = 0;
-    int lineLength = 42;
+    int lineLength = 50;
     char bitBuff[33] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
     char fltBuff[20] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
     
@@ -597,9 +597,9 @@ int save_context_model(model** saveModel, char* modelFileName, layer*** windowLa
         offset += 16;
     }
 
-    snprintf(fltBuff, 11UL, "%.8f", (*saveModel)->learning_rate);
-    for(int l = 0; l < 8; l++) line[offset + l] = fltBuff[l];
-    offset += 8;
+    snprintf(fltBuff, 19UL, "%.16f", (*saveModel)->learning_rate);
+    for(int l = 0; l < 16; l++) line[offset + l] = fltBuff[l];
+    offset += 16;
 
     line[offset] = (*saveModel)->loss_fn;
 
@@ -786,8 +786,8 @@ model* load_context_model(const char* modelFileName, layer*** modelLayers, layer
         offset += 16;
     }
 
-    for(int i = 0; i < 8; i++) fltBuff[i] = line[offset + i];
-    offset += 8;
+    for(int i = 0; i < 16; i++) fltBuff[i] = line[offset + i];
+    offset += 16;
 
     learningRate = atof(fltBuff);
 

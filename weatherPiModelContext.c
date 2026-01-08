@@ -36,7 +36,7 @@ int main()
         goto error4;
     }
 
-    model *wethrModel = construct_model((layer**[]){&windowLayers[(2 * windowSize) - 2]}, &outLayer, 3 + (2 * windowSize), 1, 0.00000001f, 'x');
+    model *wethrModel = construct_model((layer**[]){&inLayer0}, &outLayer, 3 + (2 * windowSize), 1, 0.00000001f, 'x');
     if(wethrModel == NULL)
     {
         printf("Memory allocation failed at model\n");
@@ -47,7 +47,7 @@ int main()
 
     train_context_model_sgd(wethrModel, windowLayers, 100, numSamples, inArrays, outArrays, 0.8, windowSize);
 
-    //save_context_model(&wethrModel, "weathrModelContext.cml", &windowLayers, windowSize);
+    save_context_model(&wethrModel, "weathrModelContext.cml", &windowLayers, windowSize);
     hakai_matrix(&inArrays, numSamples);
     hakai_matrix(&outArrays, numSamples);
     hakai_model(&wethrModel);
