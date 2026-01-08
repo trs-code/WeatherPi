@@ -560,6 +560,185 @@ void load_context_window(layer** windowLayers, float* inputs, int windowSize)
     memcpy(windowLayers[0]->outputs, inputs, numInputs * sizeof(float));
 }
 
+int save_context_model(model** saveModel, char* modelFileName, layer*** windowLayers, int windowSize)
+{
+    FILE *modFile = NULL;
+    char *line = NULL;
+    int offset = 0;
+    int lineLength = 42;
+    char bitBuff[33] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+    char fltBuff[20] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+    
+    layer*** layerList = (layer ***)calloc((*saveModel)->numLayers, sizeof(layer**));
+    if(layerList == NULL) goto error1;
+
+    traverse_model_fill_layer_list((*saveModel)->outLayer, layerList);
+
+    modFile = fopen(modelFileName, "w");
+    if(modFile == NULL) goto error2;
+
+    lineLength += 16 * (*saveModel)->numInLayers;
+
+    line = (char *)calloc(lineLength, sizeof(char));
+    if(line == NULL) goto error3;
+    
+    int2bin((*saveModel)->numLayers, 16, bitBuff);
+    for(int i = 0; i < 16; i++) line[offset + i] = bitBuff[i]; // big endian representation
+    offset += 16;
+
+    int2bin((*saveModel)->numInLayers, 16, bitBuff);
+    for(int i = 0; i < 16; i++) line[offset + i] = bitBuff[i]; // big endian representation
+    offset += 16;
+
+    for(int i = 0; i < (*saveModel)->numInLayers; i++)
+    {
+        int2bin((*(*saveModel)->inLayers[i])->layerID, 16, bitBuff);
+        for(int j = 0; j < 16; j++) line[offset + j] = bitBuff[j]; // big endian representation
+        offset += 16;
+    }
+
+    snprintf(fltBuff, 11UL, "%.8f", (*saveModel)->learning_rate);
+    for(int l = 0; l < 8; l++) line[offset + l] = fltBuff[l];
+    offset += 8;
+
+    line[offset] = (*saveModel)->loss_fn;
+
+    line[lineLength - 1] = '\0';
+
+    int2bin(lineLength, 24, bitBuff);
+        
+    for(int i = 0; i < 24; i++) fputc(bitBuff[i], modFile);
+    fputc('\n', modFile);
+    fputs(line, modFile);
+    fputs("\n", modFile);
+
+    free(line);
+    line = NULL;
+
+    for(int i = 0; i < (*saveModel)->numLayers; i++)
+    {
+        lineLength = 29;
+        if((*layerList[i])->layerType != 'i')
+        {
+            lineLength += 16 * (*layerList[i])->numPrevLayers;
+            lineLength += 16 * ((*layerList[i])->numNodes * ((*layerList[i])->numPrevNodes + 1));
+            lineLength += 65;
+        }
+        offset = 0;
+
+        line = (char *)calloc(lineLength, sizeof(char));
+        if(line == NULL) goto error3;
+
+        line[0] = (*layerList[i])->layerType;
+        offset += 1;
+
+        int2bin((*layerList[i])->layerID, 11, bitBuff);
+        for(int j = 0; j < 11; j++) line[offset + j] = bitBuff[j]; // big endian representation
+        offset += 11;
+
+        int2bin((*layerList[i])->numNodes, 16, bitBuff);
+        for(int j = 0; j < 16; j++) line[offset+ j] = bitBuff[j];
+        offset += 16;
+
+        if((*layerList[i])->layerType == 'i' || (*layerList[i])->layerType == 't')
+        {
+            line[offset] = '\0';
+            
+            int2bin(lineLength, 24, bitBuff);
+            
+            for(int j = 0; j < 24; j++) fputc(bitBuff[j], modFile);
+            fputc('\n', modFile);
+            
+            fputs(line, modFile);
+            fputs("\n", modFile);
+            
+            free(line);
+            line = NULL;
+            continue;
+        }
+
+        int2bin((*layerList[i])->numPrevNodes, 32, bitBuff);
+        for(int j = 0; j < 32; j++) line[offset + j] = bitBuff[j];
+        offset += 32;
+        
+        if((*layerList[i])->layerType != 'r') int2bin((*layerList[i])->numPrevLayers, 16, bitBuff);
+        else int2bin((*layerList[i])->numPrevLayers - 1, 16, bitBuff);
+        for(int j = 0; j < 16; j++) line[offset + j] = bitBuff[j];
+        offset += 16;
+        
+        line[offset] = (*layerList[i])->activationFunction;
+        offset += 1;
+
+        for(int j = 0; j < (*layerList[i])->numPrevLayers; j++)
+        {
+            //if((*layerList[i])->layerID == (*(*layerList[i])->prevLayers[j])->layerID) continue;
+            int2bin((*(*layerList[i])->prevLayers[j])->layerID, 16, bitBuff);
+            for(int k = 0; k < 16; k++) line[offset + k] = bitBuff[k];
+            offset += 16;
+        }
+
+        for(int j = 0; j < (*layerList[i])->numNodes; j++)
+        {
+            for(int k = 0; k < (*layerList[i])->numPrevNodes; k++)
+            {
+                if((*layerList[i])->weights[j][k] < 0) snprintf(fltBuff, 18UL, "%.15f", (*layerList[i])->weights[j][k]);
+                else snprintf(fltBuff, 19UL, "%.16f", (*layerList[i])->weights[j][k]);
+                
+                for(int l = 0; l < 16; l++) line[offset + l] = fltBuff[l];
+                offset += 16;
+            }
+        }
+
+        for(int j = 0; j < (*layerList[i])->numNodes; j++)
+        {
+            if((*layerList[i])->biases[j] < 0) snprintf(fltBuff, 18UL, "%.15f", (*layerList[i])->biases[j]);
+            else snprintf(fltBuff, 19UL, "%.16f", (*layerList[i])->biases[j]);
+            
+            for(int l = 0; l < 16; l++) line[offset + l] = fltBuff[l];
+            offset += 16;
+        }
+
+        line[offset] = '\0';
+
+        int2bin(lineLength, 24, bitBuff);
+        
+        for(int j = 0; j < 24; j++) fputc(bitBuff[j], modFile);
+        fputc('\n', modFile);
+        fputs(line, modFile);
+        fputs("\n", modFile);
+
+        free(line);
+        line = NULL;
+    }
+    
+    int2bin(windowSize, 16, bitBuff);
+    for(int i = 0; i < 16; i++) fputc(bitBuff[i], modFile);
+    fputc('\n', modFile);
+
+    for(int i = 0; i < 2 * (windowSize + 1); i++)
+    {
+        int2bin((*windowLayers)[i]->layerID, 16, bitBuff);
+        for(int i = 0; i < 16; i++) fputc(bitBuff[i], modFile);
+        fputc('\n', modFile);
+    }
+
+    fclose(modFile);
+    free(layerList);
+    layerList = NULL;
+    modFile = NULL;
+    return 0;
+
+error3:
+    fclose(modFile);
+    modFile = NULL;
+error2:
+    free(layerList);
+    layerList = NULL;
+error1:
+    return -1;
+}
+
+// Still needs to be implemented
 model* load_context_model(const char* modelFileName, layer*** modelLayers, layer*** windowLayers)
 {
     layer*** layerArr = (layer***)NULL;
@@ -575,6 +754,7 @@ model* load_context_model(const char* modelFileName, layer*** modelLayers, layer
     int numPrevNodes = 0;
     int layerID = 0;
     int numNodes = 0;
+    int windowSize = 0;
     float learningRate = 1.0f;
     char activationFunction = '\0';
     char loss_fn = '\0';
@@ -712,6 +892,30 @@ model* load_context_model(const char* modelFileName, layer*** modelLayers, layer
         layerArr = (layer***)NULL;
     }
 
+    line = (char *)calloc(16, sizeof(char));
+    if(line == NULL) goto error5;
+
+    if(fgets(line, 16, modFile) == NULL) goto error5;
+
+    windowSize = bin2int(line, 16);
+
+    free(line);
+    line = (char *)NULL;
+
+    *windowLayers = (layer**)calloc(2 * (windowSize + 1), sizeof(layer*));
+
+    for(int i = 0; i < 2 * (windowSize + 1); i++)
+    {
+        line = (char *)calloc(16, sizeof(char));
+        if(line == NULL) goto error5;
+
+        if(fgets(line, 16, modFile) == NULL) goto error5;
+        (*windowLayers)[i] = (*modelLayers)[bin2int(line, 16)];
+
+        free(line);
+        line = (char *)NULL;
+    }
+
     fclose(modFile);
     modFile = NULL;
 
@@ -746,35 +950,32 @@ error1:
     return NULL;
 }
 
-
-
 // Still needs to be implemented
-// void sgd_backprop_through_time(layer** myLayer, model** myModel, int timeStep)
-// { // start at output layer and calculate backerrors for each previous layer
-//     if((*myLayer)->switchVar == '2') return;
-// 
-//     (*myLayer)->switchVar = '2';
-//    
-//     // backErrorsForOutputLayer = lossDerivative · activationFunctionDerivative(preActivations) - for output layer
-//     if((*myLayer)->layerType == 'o') for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->backErrors[i] = -1 * loss_derivative((*myModel)->targets[i], (*myLayer)->outputs[i], (*myModel)) * activation_derivative((*myLayer)->preActivations[i], (*myLayer)->activationFunction, *myLayer, i);
-//   
-//     // backErrorsForPreviousLayers += (thisLayersBackErrors)(thisLayersWeightMatrixWithRespectToCurrentPreviousLayer) · activationFunctionDerivative(previousLayers)
-//     int prevsTraversed = 0;
-//     for(int i = 0; i < (*myLayer)->numPrevLayers; i++)
-//     {
-//         if((*(*myLayer)->prevLayers[i])->layerType == 'i') continue;
-//         for(int j = 0; j < (*(*myLayer)->prevLayers[i])->numNodes; j++) for(int k = 0; k < (*myLayer)->numNodes; k++) (*(*myLayer)->prevLayers[i])->backErrors[j] += (*myLayer)->backErrors[k] * (*myLayer)->weights[k][prevsTraversed + j] * activation_derivative((*(*myLayer)->prevLayers[i])->preActivations[j], (*myLayer)->activationFunction, *myLayer, i);
-//         prevsTraversed += (*(*myLayer)->prevLayers[i])->numNodes;
-//     }
-//
-//     for(int i = 0; i < (*myLayer)->numPrevLayers; i++)
-//     {
-//         if((*(*myLayer)->prevLayers[i])->numPrevLayers != 0) sgd_backprop_through_time((*myLayer)->prevLayers[i], myModel, timeStep);
-//     }
-//     for(int i = 0; i < (*myLayer)->numPrevLayers; i++) if((*(*myLayer)->prevLayers[i])->numPrevLayers != 0) sgd_backprop((*myLayer)->prevLayers[i], myModel);
-//     // calculate backErrors for previous layers' previous layers according to already established layers' backErrors - All roads spring forth from Rome
-// }
+void sgd_backprop_through_time(layer** myLayer, model** myModel, int timeStep)
+{ // start at output layer and calculate backerrors for each previous layer
+    if((*myLayer)->switchVar == '2') return;
 
+    (*myLayer)->switchVar = '2';
+
+    // backErrorsForOutputLayer = lossDerivative · activationFunctionDerivative(preActivations) - for output layer
+    if((*myLayer)->layerType == 'o') for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->backErrors[i] = -1 * loss_derivative((*myModel)->targets[i], (*myLayer)->outputs[i], (*myModel)) * activation_derivative((*myLayer)->preActivations[i], (*myLayer)->activationFunction, *myLayer, i);
+
+    // backErrorsForPreviousLayers += (thisLayersBackErrors)(thisLayersWeightMatrixWithRespectToCurrentPreviousLayer) · activationFunctionDerivative(previousLayers)
+    int prevsTraversed = 0;
+    for(int i = 0; i < (*myLayer)->numPrevLayers; i++)
+    {
+        if((*(*myLayer)->prevLayers[i])->layerType == 'i') continue;
+        for(int j = 0; j < (*(*myLayer)->prevLayers[i])->numNodes; j++) for(int k = 0; k < (*myLayer)->numNodes; k++) (*(*myLayer)->prevLayers[i])->backErrors[j] += (*myLayer)->backErrors[k] * (*myLayer)->weights[k][prevsTraversed + j] * activation_derivative((*(*myLayer)->prevLayers[i])->preActivations[j], (*myLayer)->activationFunction, *myLayer, i);
+        prevsTraversed += (*(*myLayer)->prevLayers[i])->numNodes;
+    }
+
+    for(int i = 0; i < (*myLayer)->numPrevLayers; i++)
+    {
+        if((*(*myLayer)->prevLayers[i])->numPrevLayers != 0) sgd_backprop_through_time((*myLayer)->prevLayers[i], myModel, timeStep);
+    }
+    for(int i = 0; i < (*myLayer)->numPrevLayers; i++) if((*(*myLayer)->prevLayers[i])->numPrevLayers != 0) sgd_backprop((*myLayer)->prevLayers[i], myModel);
+    // calculate backErrors for previous layers' previous layers according to already established layers' backErrors - All roads spring forth from Rome
+}
 
 //  Gets an output from the target layer, is essentially also a inference function
 // Vectorized version of forward out, only really makes a difference on industrial grade models so it will be shelved for now

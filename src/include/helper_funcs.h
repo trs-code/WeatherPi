@@ -4,6 +4,12 @@
 #include "model.h"
 #include <immintrin.h>
 
+
+void flush_buffer(char* buffer, int size)
+{
+    for(int i = 0; i < size; i++) buffer[i] = '\0';
+}
+
 void int2bin(int x, int numBits, char* bitBuff)
 {
     int myX = x;
@@ -72,11 +78,6 @@ float accuracy(model* myModel)
     }
 
     return 1.0f - (sum / n);
-}
-
-void flush_buffer(char* buffer, int size)
-{
-    for(int i = 0; i < size; i++) buffer[i] = '\0';
 }
 
 int read_csv(const char* fileName, int numSamples, int numInputs, int numOutputs, float*** inArrs, float*** outArrs)
