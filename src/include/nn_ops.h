@@ -1,6 +1,5 @@
 #pragma once
 
-//#include <immintrin.h>
 #include "model_ops.h"
 #include <sys/time.h>
 
@@ -364,7 +363,7 @@ void train_model_adam(model* myModel, int epochs, int numSamples, float** inputs
 
 void batch_train_adam(model* myModel, int epochs, int numSamples, int batchSize, float** inputs, float *targets, float initialFirstMomentum, float initialSecondMomentum);
 
-float* model_inference(model* myModel, float* inputs, float** outputs) //(model*, float*, &float*)
+void model_inference(model* myModel, float* inputs, float** outputs) //(model*, float*, &float[])
 {
     int inputsTraversed = 0;
     for(int i = 0; i < myModel->numInLayers; i++)

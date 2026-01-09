@@ -20,6 +20,7 @@ void forward_out(layer** myLayer)
         
         for(int i = 0; i < (*myLayer)->numPrevLayers; i++) forward_out((*myLayer)->prevLayers[i]);
 
+        // preActivation[i] = SUM_OVER_J(prevNodeOutputs[j] * weights[i][j]) 
         for(int i = 0; i < (*myLayer)->numNodes; i++) 
         {
             for(int j = 0; j < (*myLayer)->numPrevLayers; j++)
@@ -45,6 +46,7 @@ void forward_out(layer** myLayer)
             return;
         }
         
+        // outputs[i] = activation_function(preActivations[i])
         for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->outputs[i] = activation_function((*myLayer)->preActivations[i], (*myLayer)->activationFunction);
     }
 }
@@ -62,7 +64,8 @@ void sgd_backprop(layer** myLayer, model** myModel)
     // backErrorsForOutputLayer = lossDerivative · activationFunctionDerivative(preActivations) - for output layer
     if((*myLayer)->layerType == 'o') for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->backErrors[i] = -1 * loss_derivative((*myModel)->targets[i], (*myLayer)->outputs[i], (*myModel)) * activation_derivative((*myLayer)->preActivations[i], (*myLayer)->activationFunction, *myLayer, i);
     
-    // backErrorsForPreviousLayers += (thisLayersBackErrors)(thisLayersWeightMatrixWithRespectToCurrentPreviousLayer) · activationFunctionDerivative(previousLayers)
+    // backErrorsForPreviousLayers[j] = SUM_OVER_I((thisLayersBackErrors[i])(thisLayersWeightMatrix[i][j]) · activationFunctionDerivative(previousLayersPreActivation[j])) - where j is considered to be a traversal of all previous 'J' layers' 'K' values as one vector
+    // e.g. J = 3 prev layers with K = 5 nodes each are considered as one prev layer with J = 15 nodes in this formulation
     int prevsTraversed = 0;
     for(int i = 0; i < (*myLayer)->numPrevLayers; i++)
     {
@@ -87,10 +90,12 @@ void calculate_and_apply_grads(layer** myLayer, float learningRate)
 
     for(int i = 0; i < (*myLayer)->numPrevLayers; i++) calculate_and_apply_grads(((*myLayer)->prevLayers[i]), learningRate);
 
+    // newBias[i] = oldBias[i] - (learningRate * backErrors[i])
     for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->biases[i] -= learningRate * (*myLayer)->backErrors[i];
 
     int prevsTraversed = 0;
 
+    // newWeights[i][j] = oldWeights[i][j] - (learningRate * (prevNodeOuts[j] * backError[i]))
     for(int i = 0; i < (*myLayer)->numNodes; i++)
     {
         for(int j = 0; j < (*myLayer)->numPrevLayers; j++)
@@ -404,7 +409,7 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
         {
             (*modelLayers)[layerID] = make_hidden_layer(layerArr, numNodes, numPrevLayers, activationFunction);
         }
-        else if(layerType == 'r')
+        else if(layerType == 'c')
         {
             (*modelLayers)[layerID] = make_referential_layer(layerArr, numNodes, numPrevLayers, activationFunction, &(*modelLayers)[layerID]);
         }
@@ -443,11 +448,13 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
     fclose(modFile);
     modFile = NULL;
 
-    layerArr = (layer***)malloc(numInLayers * sizeof(layer*));
+    layerArr = (layer***)calloc(numInLayers, sizeof(layer**));
+    if(layerArr = NULL) goto error7;
 
     for(int i = 0; i < numInLayers; i++) layerArr[i] = &(*(modelLayers)[inLayerIDs[i]]);
 
     myModel = construct_model(layerArr, &(*modelLayers)[outLayerID], numLayers, numInLayers, learningRate, loss_fn);
+    if(myModel == NULL) goto error8;
 
     free(inLayerIDs);
     inLayerIDs = NULL;
@@ -456,6 +463,14 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
 
     return myModel;
 
+error8:
+    free(layerArr);
+    layerArr = NULL;
+error7:
+    for(int i = 0; i < numLayers; i++)
+    {
+        hakai_layer_mfree(&(*modelLayers)[i]);
+    }
 error6:
     free(line);
     line = NULL;
@@ -661,7 +676,7 @@ int save_context_model(model** saveModel, char* modelFileName, layer*** windowLa
         for(int j = 0; j < 32; j++) line[offset + j] = bitBuff[j];
         offset += 32;
         
-        if((*layerList[i])->layerType != 'r') int2bin((*layerList[i])->numPrevLayers, 16, bitBuff);
+        if((*layerList[i])->layerType != 'f') int2bin((*layerList[i])->numPrevLayers, 16, bitBuff);
         else int2bin((*layerList[i])->numPrevLayers - 1, 16, bitBuff);
         for(int j = 0; j < 16; j++) line[offset + j] = bitBuff[j];
         offset += 16;
@@ -738,8 +753,7 @@ error1:
     return -1;
 }
 
-// Still needs to be implemented
-model* load_context_model(const char* modelFileName, layer*** modelLayers, layer*** windowLayers)
+model* load_context_model(const char* modelFileName, layer*** modelLayers, layer*** windowLayers, int* winSize)
 {
     layer*** layerArr = (layer***)NULL;
     model* myModel = NULL;
@@ -796,7 +810,7 @@ model* load_context_model(const char* modelFileName, layer*** modelLayers, layer
     free(line);
     line = NULL;
 
-    *modelLayers = (layer**)malloc(numLayers * sizeof(layer**));
+    *modelLayers = (layer**)calloc(numLayers, sizeof(layer*));
     if(*modelLayers == NULL) goto error4;
 
     for(int i = 0; i < numLayers; i++)
@@ -824,9 +838,12 @@ model* load_context_model(const char* modelFileName, layer*** modelLayers, layer
         numNodes = bin2int(&line[offset], 16);
         offset += 16;
 
-        if(layerType == 'i')
+        if(layerType == 'i' || layerType == 't')
         {
             (*modelLayers)[layerID] = make_input_layer(numNodes);
+            (*modelLayers)[layerID]->layerID = layerID;
+
+            if(layerType == 't') (*modelLayers)[layerID]->layerType = 't';
             
             free(line);
             line = NULL;
@@ -852,17 +869,21 @@ model* load_context_model(const char* modelFileName, layer*** modelLayers, layer
             offset += 16;
         }
 
-        if(layerType == 'h')
+        if(layerType == 'h' || layerType == 'r')
         {
             (*modelLayers)[layerID] = make_hidden_layer(layerArr, numNodes, numPrevLayers, activationFunction);
+            (*modelLayers)[layerID]->layerID = layerID;
+            if(layerType == 'r') (*modelLayers)[layerID]->layerType = 'r';
         }
-        else if(layerType == 'r')
+        else if(layerType == 'f')
         {
             (*modelLayers)[layerID] = make_referential_layer(layerArr, numNodes, numPrevLayers, activationFunction, &(*modelLayers)[layerID]);
+            (*modelLayers)[layerID]->layerID = layerID;
         }
         else
         {
             (*modelLayers)[layerID] = make_output_layer(layerArr, numNodes, numPrevLayers, activationFunction);
+            (*modelLayers)[layerID]->layerID = layerID;
             outLayerID = layerID;
         }
 
@@ -893,23 +914,26 @@ model* load_context_model(const char* modelFileName, layer*** modelLayers, layer
     }
 
     line = (char *)calloc(16, sizeof(char));
-    if(line == NULL) goto error5;
+    if(line == NULL) goto error7;
 
-    if(fgets(line, 16, modFile) == NULL) goto error5;
+    if(fgets(line, 16, modFile) == NULL) goto error7;
 
     windowSize = bin2int(line, 16);
+    *winSize = windowSize;
 
     free(line);
     line = (char *)NULL;
 
     *windowLayers = (layer**)calloc(2 * (windowSize + 1), sizeof(layer*));
+    if(*windowLayers == NULL) goto error7;
 
     for(int i = 0; i < 2 * (windowSize + 1); i++)
     {
-        line = (char *)calloc(16, sizeof(char));
-        if(line == NULL) goto error5;
+        line = (char *)malloc(16 * sizeof(char));
+        if(line == NULL) goto error7;
 
-        if(fgets(line, 16, modFile) == NULL) goto error5;
+        if(fgets(line, 16, modFile) == NULL) goto error7;
+        if(fgets(line, 16, modFile) == NULL) goto error7;
         (*windowLayers)[i] = (*modelLayers)[bin2int(line, 16)];
 
         free(line);
@@ -919,11 +943,13 @@ model* load_context_model(const char* modelFileName, layer*** modelLayers, layer
     fclose(modFile);
     modFile = NULL;
 
-    layerArr = (layer***)malloc(numInLayers * sizeof(layer*));
+    layerArr = (layer***)calloc(numInLayers, sizeof(layer**));
+    if(layerArr == NULL) goto error7;
 
     for(int i = 0; i < numInLayers; i++) layerArr[i] = &(*(modelLayers)[inLayerIDs[i]]);
 
     myModel = construct_model(layerArr, &(*modelLayers)[outLayerID], numLayers, numInLayers, learningRate, loss_fn);
+    if(myModel == NULL) goto error8;
 
     free(inLayerIDs);
     inLayerIDs = NULL;
@@ -932,6 +958,14 @@ model* load_context_model(const char* modelFileName, layer*** modelLayers, layer
 
     return myModel;
 
+error8:
+    free(layerArr);
+    layerArr = NULL;
+error7:
+    for(int i = 0; i < numLayers; i++)
+    {
+        hakai_layer_mfree(&(*modelLayers)[i]);
+    }
 error6:
     free(line);
     line = NULL;

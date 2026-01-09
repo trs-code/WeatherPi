@@ -10,7 +10,9 @@ int main()
     int numIns = 3;
     int numOuts = 2;
     int numSamples = 67764;
-    int windowSize = 24;
+    int windowSize = 48;
+
+    layer* win[6] = {NULL, NULL, NULL, NULL, NULL, NULL};
 
     layer* inLayer0 = make_input_layer(3);
     if(inLayer0 == NULL)
@@ -43,9 +45,11 @@ int main()
         goto error5;
     }
 
+    for(int i = 0; i < 6; i++) win[i] = windowLayers[i];
+
     if(read_csv(filename, numSamples, numIns, numOuts, &inArrays, &outArrays) != 0) goto error6;
 
-    train_context_model_sgd(wethrModel, windowLayers, 100, numSamples, inArrays, outArrays, 0.8, windowSize);
+    train_context_model_sgd(wethrModel, windowLayers, 10, numSamples, inArrays, outArrays, 0.8, windowSize);
 
     save_context_model(&wethrModel, "weathrModelContext.cml", &windowLayers, windowSize);
     hakai_matrix(&inArrays, numSamples);

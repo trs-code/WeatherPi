@@ -241,7 +241,7 @@ layer* make_referential_layer(layer*** prev, int numNodes, int numPrevLayers, ch
     referentialLayer->activationFunction = activation_function;
     referentialLayer->layerID = -1;
     referentialLayer->switchVar = '0';
-    referentialLayer->layerType = 'r'; 
+    referentialLayer->layerType = 'f'; 
 
     return referentialLayer;
 
