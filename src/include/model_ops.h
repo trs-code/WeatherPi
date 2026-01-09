@@ -51,7 +51,6 @@ void forward_out(layer** myLayer)
     }
 }
 
-
 // Run on each output layer and then apply grads before clearing the layer backerrors - All roads spring forth from Rome algorithm
 // We pass the backerrors to each previous layer to calculate grads later
 // Backerrors can be accumulated from multiple successor layers to calculate grads due to matrix distributivity
@@ -77,7 +76,6 @@ void sgd_backprop(layer** myLayer, model** myModel)
     for(int i = 0; i < (*myLayer)->numPrevLayers; i++) if((*(*myLayer)->prevLayers[i])->numPrevLayers != 0) sgd_backprop((*myLayer)->prevLayers[i], myModel);
     // calculate backErrors for previous layers' previous layers according to already established layers' backErrors - All roads spring forth from Rome
 }
-
 
 // Another all roads spring forth from Rome approach - go to the convergence point of the model(output layer) and use it as the root this model graph
 void calculate_and_apply_grads(layer** myLayer, float learningRate)
@@ -1011,6 +1009,7 @@ void sgd_backprop_through_time(layer** myLayer, model** myModel, int timeStep)
     // calculate backErrors for previous layers' previous layers according to already established layers' backErrors - All roads spring forth from Rome
 }
 
+#if defined(__AVX__) || defined(__AVX2__)
 //  Gets an output from the target layer, is essentially also a inference function
 // Vectorized version of forward out, only really makes a difference on industrial grade models so it will be shelved for now
 void _mm256_forward_out(layer** myLayer)
@@ -1058,7 +1057,6 @@ void _mm256_calculate_and_apply_grads(layer** myLayer, float learningRate)
     vectorized_calculate_and_apply_grads(myLayer, learningRate);
 }
 
-
 //  Gets an output from the target layer, is essentially also a inference function
 // Vectorized version of forward out, only really makes a difference on industrial grade models so it will be shelved for now
 void _mm256_threaded_forward_out(layer** myLayer)
@@ -1094,6 +1092,7 @@ void _mm256_threaded_forward_out(layer** myLayer)
 }
 
 void _mm256_threaded_calculate_and_apply_grads(layer** myLayer, float learningRate)
+
 {
     if((*myLayer)->switchVar == '3') return;
 
@@ -1117,3 +1116,41 @@ void _mm256_threaded_calculate_and_apply_grads(layer** myLayer, float learningRa
         prevsTraversed += (*(*myLayer)->prevLayers[i])->numNodes;
     }
 }
+
+#endif
+
+#if defined(__ARM_NEON)
+
+void vforward_out(layer** myLayer)
+{
+    if((*myLayer)->switchVar == '1') return;
+
+    (*myLayer)->switchVar = '1';
+
+    if((*myLayer)->numPrevLayers != 0)
+    {
+        int numPrevsTraversed = 0;
+        
+        for(int i = 0; i < (*myLayer)->numPrevLayers; i++) _mm256_forward_out((*myLayer)->prevLayers[i]);
+
+        vectorized_forward_out_calc(myLayer);
+
+        // In case of softmax activation, we do a function on the layer instead of point-wise on the outputs
+        if((*myLayer)->activationFunction == 'x')
+        {
+            memcpy((*myLayer)->outputs, (*myLayer)->preActivations, sizeof(float) * (*myLayer)->numNodes);
+            softmax(myLayer);
+            return;
+        }
+        else if((*myLayer)->activationFunction == 'f')
+        {
+            memcpy((*myLayer)->outputs, (*myLayer)->preActivations, sizeof(float) * (*myLayer)->numNodes);
+            fast_softmax(myLayer);
+            return;
+        }
+        
+        for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->outputs[i] = activation_function((*myLayer)->preActivations[i], (*myLayer)->activationFunction);
+    }
+}
+
+#endif

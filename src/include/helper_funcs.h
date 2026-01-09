@@ -2,7 +2,14 @@
 
 #include "nn_math.h"
 #include "model.h"
+
+#if defined(__AVX__) || defined(__AVX2__)
 #include <immintrin.h>
+#endif
+
+#if defined(__ARM_NEON)
+#include <arm_neon.h>
+#endif
 
 
 void flush_buffer(char* buffer, int size)
@@ -154,6 +161,9 @@ error1:
     return -1;
 }
 
+
+#if defined(__AVX__) || defined(__AVX2__)
+
 static inline float _mm256_sum_manual(__m256 v)
 {
     float tmp[8];
@@ -161,17 +171,6 @@ static inline float _mm256_sum_manual(__m256 v)
 
     return tmp[0] + tmp[1] + tmp[2] + tmp[3] + tmp[4] + tmp[5] + tmp[6] + tmp[7];
 }
-
-// for(int i = 0; i < (*myLayer)->numNodes; i++) 
-// {
-//     for(int j = 0; j < (*myLayer)->numPrevLayers; j++)
-//     {
-//         for(int k = 0; k < (*(*myLayer)->prevLayers[j])->numNodes; k++) (*myLayer)->preActivations[i] += (*(*myLayer)->prevLayers[j])->outputs[k] * (*myLayer)->weights[i][numPrevsTraversed + k];
-//         numPrevsTraversed += (*(*myLayer)->prevLayers[j])->numNodes;
-//     }
-//     (*myLayer)->preActivations[i] += (*myLayer)->biases[i];
-//     numPrevsTraversed = 0;
-// }
 
 int vectorized_forward_out_calc(layer** myLayer)
 {
@@ -322,3 +321,49 @@ int vectorized_calculate_and_apply_grads(layer** myLayer, float learningRate)
 
     return 0;
 }
+
+#endif
+
+#if defined(__ARM_NEON)
+
+int vectorized_forward_out_calc(layer** myLayer)
+{
+    float32x4_t preActs = vdupq_n_f32(0.0f);
+    float32x4_t prevOuts = vdupq_n_f32(0.0f);
+    float32x4_t mulWeights = vdupq_n_f32(0.0f);
+    float tailSum = 0.0
+    int numPrevsTraversed = 0;
+    int leftoverBatch = (*myLayer)->numPrevNodes % 4;
+    int batchesOfFour = ((*myLayer)->numPrevNodes - leftoverBatch) / 4;
+
+    float* prevNodeOuts = (float*)calloc((*myLayer)->numPrevNodes, sizeof(float));
+    if(prevNodeOuts == NULL) return -1;
+    for(int i = 0; i < (*myLayer)->numPrevLayers; i++)
+    {
+        memcpy(&prevNodeOuts[numPrevsTraversed], (*(*myLayer)->prevLayers[i])->outputs, (*(*myLayer)->prevLayers[i])->numNodes * sizeof(float));
+        numPrevsTraversed += (*(*myLayer)->prevLayers[i])->numNodes;
+    }
+
+    for(int i = 0; i < (*myLayer)->numNodes; i++)
+    {
+        for(int j = 0; j < batchesOfFour; j++)
+        {
+            prevOuts = vld1q_f32(&prevNodeOuts[4 * j]);
+            mulWeights = vld1q_f32(&(*myLayer)->weights[i][(4 * j)]);
+
+            preActs = vfmaq_f32(preActs, prevOuts, mulWeights);
+        }
+
+        for(int i = 0; i < leftoverBatch; i++) tail_sum += prevNodeOuts[(4 * batchesOfFour) + i] * (*myLayer)->weights[i][(4 * batchesOfFour) + i];
+        
+        (*myLayer)->preActivations[i] = vaddvq_f32(preActs) + tailSum + (*myLayer)->biases[i];
+        preActs = vdupq_n_f32(0.0f);
+    }
+
+    free(prevNodeOuts);
+    prevNodeOuts = NULL;
+
+    return 0;
+}
+
+#endif

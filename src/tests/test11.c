@@ -49,7 +49,7 @@ int main()
 
     printf("Model creation successful\n\n");
 
-    train_model_sgd_fast(myModel, 500, 1, inArr, outArr, 1.0);
+    train_model_sgd_fast(myModel, 5, 1, inArr, outArr, 1.0);
 
     hakai_model(&myModel);
     free(inArr[0]);
