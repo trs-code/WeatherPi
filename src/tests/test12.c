@@ -22,7 +22,7 @@ int main()
 
     if(read_csv(filename, numSamples, numIns, numOuts, &inArrays, &outArrays) != 0) goto error2;
 
-    train_context_model_sgd(wethrModel, windowLayers, 100, numSamples, inArrays, outArrays, 0.8, windowSize);
+    train_context_model_sgd_fast(wethrModel, windowLayers, 100, numSamples, inArrays, outArrays, 0, windowSize);
 
     hakai_matrix(&inArrays, numSamples);
     hakai_matrix(&outArrays, numSamples);
@@ -34,10 +34,9 @@ int main()
     printf("\nEnd\n");
     return 0;
 
-error3:
+error2:
     hakai_matrix(&inArrays, numSamples);
     hakai_matrix(&outArrays, numSamples);
-error2:
     hakai_model(&wethrModel);
     free(modelLayers);
     modelLayers = NULL;

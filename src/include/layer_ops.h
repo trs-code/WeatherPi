@@ -31,9 +31,6 @@ layer* make_input_layer(int numNodes)
 
     return inLayer;
 
-error2:
-    free(inLayer->outputs);
-    inLayer->outputs = NULL;
 error1:
     free(inLayer);
     inLayer = NULL;

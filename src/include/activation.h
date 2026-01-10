@@ -60,7 +60,7 @@ float fast_sigmoid_derivative(float x) {
     return yHat * (1.0 - yHat);
 }
 
-float softmax(layer** myLayer)
+void softmax(layer** myLayer)
 {
     int n = (*myLayer)->numNodes;
     float maxVal = findMax((*myLayer)->outputs, n);
@@ -83,7 +83,7 @@ float softmax_derivative(float x, layer* myLayer, int currNode)
     return myLayer->outputs[currNode] - x;
 }
 
-float fast_softmax(layer** myLayer)
+void fast_softmax(layer** myLayer)
 {
     int n = (*myLayer)->numNodes;
     float maxVal = findMax((*myLayer)->outputs, n);

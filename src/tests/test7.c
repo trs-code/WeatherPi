@@ -46,7 +46,6 @@ int main()
     layer* outLayer = make_output_layer((layer**[]){&denseLayer4}, 1, 1, 'g');
     if(denseLayer2 == NULL) goto error9;
 
-    layer* inLayers[] = {inLayer0, inLayer1, inLayer2};
     model *wethrModel = construct_model((layer**[]){&inLayer0, &inLayer1, &inLayer2}, &outLayer, 9, 3, 0.1f, 'q');
     if(wethrModel == NULL) goto error10;
 

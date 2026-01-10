@@ -13,8 +13,8 @@ void train_model_sgd(model* myModel, int epochs, int numSamples, float** inputs,
     int inputsTraversed = 0;
     float trainingLoss = 0.0;
     float testingLoss = 0.0;
-    int trainSamples = (int)(valSplit * numSamples);
-    int testSamples = numSamples - trainSamples;
+    int trainSamples = max((int)(valSplit * numSamples), -1); // Negative 1 so the training loss doesn't do divide by zero in case of zero value and also no training occurs
+    int testSamples = max(numSamples - trainSamples, -1);
     struct timespec start, end;
     double timeElapsed;
     long tStart, tEnd;
@@ -83,14 +83,13 @@ void train_model_sgd(model* myModel, int epochs, int numSamples, float** inputs,
     printf("\nTotal training time: %ldms\n", (tEnd-tStart));
 }
 
-
 void train_context_model_sgd(model* myModel, layer** windowLayers, int epochs, int numSamples, float** inputs, float **targets, float valSplit, int windowSize)
 {
     int inputsTraversed = 0;
     float trainingLoss = 0.0;
     float testingLoss = 0.0;
-    int trainSamples = (int)(valSplit * numSamples);
-    int testSamples = numSamples - trainSamples;
+    int trainSamples = max((int)(valSplit * numSamples), -1);
+    int testSamples = max(numSamples - trainSamples, -1);
     struct timespec start, end;
     double timeElapsed;
     long tStart, tEnd;
@@ -160,7 +159,6 @@ void train_context_model_sgd(model* myModel, layer** windowLayers, int epochs, i
 
     printf("\nTotal training time: %ldms\n", (tEnd-tStart));
 }
-
 
 // Not fully implemented
 void mini_batch_train_sgd(model* myModel, int epochs, int numSamples, int batchSize, float** inputs, float**targets, _Bool normBatch) //Automatically normalizes the batch into a single sample
@@ -233,8 +231,8 @@ void train_model_sgd_fast(model* myModel, int epochs, int numSamples, float** in
     int inputsTraversed = 0;
     float trainingLoss = 0.0;
     float testingLoss = 0.0;
-    int trainSamples = (int)(valSplit * numSamples);
-    int testSamples = numSamples - trainSamples;
+    int trainSamples = max((int)(valSplit * numSamples), -1);
+    int testSamples = max(numSamples - trainSamples, -1);
     struct timespec start, end;
     double timeElapsed;
     long tStart, tEnd;
@@ -309,8 +307,8 @@ void train_context_model_sgd_fast(model* myModel, layer** windowLayers, int epoc
     int inputsTraversed = 0;
     float trainingLoss = 0.0;
     float testingLoss = 0.0;
-    int trainSamples = (int)(valSplit * numSamples);
-    int testSamples = numSamples - trainSamples;
+    int trainSamples = max((int)(valSplit * numSamples), -1);
+    int testSamples = max(numSamples - trainSamples, -1);
     struct timespec start, end;
     double timeElapsed;
     long tStart, tEnd;

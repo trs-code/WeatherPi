@@ -20,7 +20,6 @@ int main()
 {
     layer** windowLayers = NULL;
     int windowSize = 24;
-    layer* layers[2 * (windowSize + 1)];
 
     layer* inLayer0 = make_input_layer(3);
     if(inLayer0 == NULL)
@@ -38,9 +37,6 @@ int main()
 
     extend_context(&hiddenLayer0, windowSize, (&windowLayers));
     if(windowLayers == NULL) goto error3;
-
-    //layers[0] = hiddenLayer0;
-    for(int i = 0; i < (2 * (windowSize + 1)); i++) layers[i] = windowLayers[i];//*layers[i - 1]->prevLayers[1];
 
     layer* outLayer = make_output_layer((layer**[]){&hiddenLayer0}, 1, 1, 'g');
     if(outLayer == NULL)

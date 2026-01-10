@@ -447,7 +447,7 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
     modFile = NULL;
 
     layerArr = (layer***)calloc(numInLayers, sizeof(layer**));
-    if(layerArr = NULL) goto error7;
+    if(layerArr == NULL) goto error7;
 
     for(int i = 0; i < numInLayers; i++) layerArr[i] = &(*(modelLayers)[inLayerIDs[i]]);
 
@@ -1019,9 +1019,7 @@ void _mm256_forward_out(layer** myLayer)
     (*myLayer)->switchVar = '1';
 
     if((*myLayer)->numPrevLayers != 0)
-    {
-        int numPrevsTraversed = 0;
-        
+    {        
         for(int i = 0; i < (*myLayer)->numPrevLayers; i++) _mm256_forward_out((*myLayer)->prevLayers[i]);
 
         vectorized_forward_out_calc(myLayer);
@@ -1066,9 +1064,7 @@ void _mm256_threaded_forward_out(layer** myLayer)
     (*myLayer)->switchVar = '1';
 
     if((*myLayer)->numPrevLayers != 0)
-    {
-        int numPrevsTraversed = 0;
-        
+    {        
         for(int i = 0; i < (*myLayer)->numPrevLayers; i++) _mm256_forward_out((*myLayer)->prevLayers[i]);
 
         vectorized_forward_out_calc(myLayer);
