@@ -60,17 +60,7 @@ void hakai_model(model** myModel)
 
 void hakai_context_window(layer*** windowLayers, int windowSize)
 {
-    for(int i = 1; i < windowSize + 1; i++)
-    {
-        if((*windowLayers)[2 * i] != NULL)
-        {
-            hakai_layer_mfree(&(*windowLayers)[2 * i]);
-        }
-        if((*windowLayers)[(2 * i) + 1] != NULL)
-        {
-            hakai_layer_mfree(&(*windowLayers)[(2 * i) + 1]);
-        }
-    }
+    for(int i = 0; i < 2 * windowSize; i++) if((*windowLayers)[i] != NULL) hakai_layer_mfree(&(*windowLayers)[i]);
 
     free((*windowLayers));
     *windowLayers = NULL;

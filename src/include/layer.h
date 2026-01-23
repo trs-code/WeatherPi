@@ -32,3 +32,4 @@ struct layer
     char activationFunction;
     char switchVar;
 };
+

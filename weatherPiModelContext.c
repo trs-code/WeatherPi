@@ -10,44 +10,37 @@ int main()
     int numIns = 3;
     int numOuts = 2;
     int numSamples = 67764;
-    int windowSize = 48;
+    int windowSize = 6;
+
+    layer* window[2 * windowSize];
 
     layer* inLayer0 = make_input_layer(3);
     if(inLayer0 == NULL)
     {
-        printf("Memory allocation failed at inLayer\n");
         goto error1;
     }
     
     layer* hiddenLayer0 = make_hidden_layer((layer**[]){&inLayer0}, 1, 1, 't');
     if(hiddenLayer0 == NULL)
     {
-        printf("Memory allocation failed at hiddenLayer0\n");
         goto error2;
     }
 
     extend_context(&hiddenLayer0, windowSize, &windowLayers);
     if(windowLayers == NULL) goto error3;
+    for(int i = 0; i < 2 * windowSize; i++) window[i] = windowLayers[i];
 
-    layer* outLayer = make_output_layer((layer**[]){&hiddenLayer0}, 2, 1, 'f');
-    if(outLayer == NULL)
-    {
-        printf("Memory allocation failed at outLayer\n");
-        goto error4;
-    }
+    layer* outLayer = make_output_layer((layer**[]){&hiddenLayer0}, 2, 1, 'x');
+    if(outLayer == NULL) goto error4;
 
-    model *wethrModel = construct_model((layer**[]){&inLayer0}, &outLayer, 3 + (2 * windowSize), 1, 0.0000001f, 'x');
-    if(wethrModel == NULL)
-    {
-        printf("Memory allocation failed at model\n");
-        goto error5;
-    }
+    model *wethrModel = construct_model((layer**[]){&inLayer0}, &outLayer, 3 + (2 * windowSize), 1, 0.00000001f, 'c');
+    if(wethrModel == NULL) goto error5;
 
     if(read_csv(filename, numSamples, numIns, numOuts, &inArrays, &outArrays) != 0) goto error6;
 
-    train_context_model_sgd(wethrModel, windowLayers, 50, numSamples, inArrays, outArrays, 0.8, windowSize);
+    train_rnn_sgd(wethrModel, 10, numSamples, inArrays, outArrays, 0.8);
 
-    save_context_model(&wethrModel, "weathrModelContext.cml", &windowLayers, windowSize);
+    save_model(&wethrModel, "weathrModelContext.cml");
     hakai_matrix(&inArrays, numSamples);
     hakai_matrix(&outArrays, numSamples);
     hakai_model(&wethrModel);

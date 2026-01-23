@@ -1,17 +1,19 @@
 #include <stdio.h>
 #include "../include/cml.h"
 
+// Just testing loading functionality of test1 Model
+
 int main()
 {
-    char filename[] = "THPOneHotFull.csv";
+    char filename[] = "THPDiffsFull.csv";
     layer** modelLayers = NULL;
     float** inArrays = (float**)NULL;
     float** outArrays = (float**)NULL; 
-    int numIns = 3;
-    int numOuts = 2;
-    int numSamples = 67764;
+    int numIns = 9;
+    int numOuts = 1;
+    int numSamples = 67758;
 
-    model *wethrModel = load_model("weathrModelContextBest.cml", &modelLayers);
+    model *wethrModel = load_model("weathrPiModelBest.cml", &modelLayers);
     if(wethrModel == NULL)
     {
         printf("Failed to load model\n");
@@ -20,13 +22,14 @@ int main()
 
     if(read_csv(filename, numSamples, numIns, numOuts, &inArrays, &outArrays) != 0) goto error2;
 
-    train_rnn_sgd(wethrModel, 500, numSamples, inArrays, outArrays, 0);
+    train_model_sgd(wethrModel, 1, numSamples, inArrays, outArrays, 1.0);
 
     hakai_matrix(&inArrays, numSamples);
     hakai_matrix(&outArrays, numSamples);
-    hakai_model(&wethrModel);
+    hakai_model(&wethrModel);  
     free(modelLayers);
     modelLayers = NULL;
+    
     printf("\nEnd\n");
     return 0;
 
@@ -34,8 +37,11 @@ error2:
     hakai_matrix(&inArrays, numSamples);
     hakai_matrix(&outArrays, numSamples);
     hakai_model(&wethrModel);
-    free(modelLayers);
-    modelLayers = NULL;
 error1:
+    if(modelLayers != NULL)
+    {
+        free(modelLayers);
+        modelLayers = NULL;
+    }
     exit(EXIT_FAILURE);
 }

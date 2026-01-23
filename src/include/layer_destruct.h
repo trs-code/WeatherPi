@@ -5,6 +5,8 @@
 
 void hakai_matrix(float*** mat, int rows)
 {
+    if(!(*mat)) return;
+    
     for(int i = 0; i < rows; i++)
     {
         free((*mat)[i]);
@@ -18,6 +20,8 @@ void hakai_matrix(float*** mat, int rows)
 // Destroy an individual layer after operations are concluded but a model hasn't been built yet
 void hakai_layer_mfree(layer** myLayer)
 {    
+    if(*myLayer == NULL) return;
+    
     free((*myLayer)->outputs);
     (*myLayer)->outputs = NULL;
 

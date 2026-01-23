@@ -184,7 +184,8 @@ error1:
     return NULL;
 }
 
-layer* make_referential_layer(layer*** prev, int numNodes, int numPrevLayers, char activation_function, layer** thisLayer)
+// Currently not in use, can be a space saving way to do RNN inference
+layer* make_referential_layer(layer*** prev, int numNodes, int numPrevLayers, char activation_function, layer** thisLayerAddress)
 {
     // Allocate space for the layer
     layer *referentialLayer = (layer *)malloc(sizeof(layer));
@@ -203,7 +204,7 @@ layer* make_referential_layer(layer*** prev, int numNodes, int numPrevLayers, ch
     // Set the previous layers as the previous layers
     for(int i = 0; i < numPrevLayers; i++) referentialLayer->prevLayers[i] = prev[i];
 
-    referentialLayer->prevLayers[numPrevLayers] = thisLayer;
+    referentialLayer->prevLayers[numPrevLayers] = thisLayerAddress;
 
     // Make this layer a next layer for all previous layers
     for(int i = 0; i < numPrevLayers; i++) referentialLayer->numPrevNodes += (*referentialLayer->prevLayers[i])->numNodes;
@@ -238,7 +239,7 @@ layer* make_referential_layer(layer*** prev, int numNodes, int numPrevLayers, ch
     referentialLayer->activationFunction = activation_function;
     referentialLayer->layerID = -1;
     referentialLayer->switchVar = '0';
-    referentialLayer->layerType = 'f'; 
+    referentialLayer->layerType = 'r'; 
 
     return referentialLayer;
 
@@ -264,5 +265,49 @@ error1:
     return NULL;
 }
 
-// layer* make_normalization_layer();
-// layer* make_convolutional_layer();
+layer* make_window_layer(layer*** prev, int numNodes, int numPrevLayers, char activationFunction, int numPrevNodes)
+{
+    // Allocate space for the input layer
+    layer *windowLayer = (layer*)malloc(sizeof(layer));
+    if(windowLayer == NULL) return NULL;
+
+    windowLayer->numPrevLayers = numPrevLayers;
+    windowLayer->numPrevNodes = numPrevNodes;
+    windowLayer->layerType = 'w';
+    windowLayer->weights = NULL; // Just holds previous values, doesn't need actual weights, just something to facilitate forwarding values
+    windowLayer->biases = NULL;
+
+    windowLayer->prevLayers = (layer ***)calloc(numPrevLayers, sizeof(layer**)); // Possibly one prev layer, none if last in window
+    if(windowLayer->prevLayers == NULL) goto error1;
+
+    windowLayer->backErrors = (float *)calloc(numNodes, sizeof(float));
+    if(windowLayer->backErrors == NULL) goto error1;
+
+    windowLayer->preActivations = (float *)calloc(numNodes, sizeof(float));
+    if(windowLayer->preActivations == NULL) goto error1;
+
+    
+    windowLayer->outputs = (float *)calloc(numNodes, sizeof(float));
+    if(windowLayer->outputs == NULL) goto error1;
+
+    windowLayer->numNodes = numNodes;
+    windowLayer->activationFunction = activationFunction;
+    windowLayer->layerID = -1;
+    windowLayer->switchVar = '0';
+
+    for(int i = 0; i < numPrevLayers; i++) windowLayer->prevLayers[i] = prev[i];
+
+    return windowLayer;
+
+error1:
+    free(windowLayer);
+    windowLayer = NULL;
+
+    return NULL;
+}
+
+// Not Yet Implemented 
+layer* make_convolutional_layer(layer*** prevLayers, int numPrevLayers, int numFilters, int numDims, int* dims, int hasPadding);
+
+// Not yet implemented
+layer* make_attention_layer(layer** windowLayers, int windowSize, char activationFunction);

@@ -6,7 +6,7 @@
 int main()
 {
     layer** layerArray = (layer**)NULL; // Necessary so model creator retains ownership of all allocated resources - array of layer struct allocation pointers
-    model *myModel = load_model("testModel1.cml", &layerArray);
+    model *myModel = load_model("test1Model.cml", &layerArray);
     if(myModel == NULL)
     {
         printf("Memory allocation failed at model\n");
