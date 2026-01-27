@@ -38,8 +38,8 @@
 static int32_t t_fine = 0;
 
 static uint16_t dig_T1 = 0;
-static int16_t dig_T1 = 0;
 static int16_t dig_T2 = 0;
+static int16_t dig_T3 = 0;
 
 static uint16_t dig_P1 = 0;
 static int16_t dig_P2 = 0;
@@ -61,14 +61,14 @@ static int8_t dig_H6 = 0;
 static int fd = 0;
 
 double BME280_compensate_T_double(int32_t adc_T) {
-    double var1, var2, T;
+    double var1, var2, cTemp;
     var1 = (((double)adc_T) / 16384.0 - ((double)dig_T1) / 1024.0) * ((double)dig_T2);
     var2 = ((((double)adc_T) / 131072.0 - ((double)dig_T1) / 8192.0) *
             (((double)adc_T) / 131072.0 - ((double)dig_T1) / 8192.0)) *
            ((double)dig_T3);
     t_fine = (int32_t)(var1 + var2);
-    T = (var1 + var2) / 5120.0;
-    return T;
+    cTemp = (var1 + var2) / 5120.0;
+    return cTemp;
 }
 
 /* Returns pressure in Pa as double. Output value of “96386.2” equals 96386.2 Pa

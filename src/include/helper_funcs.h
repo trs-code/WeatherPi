@@ -549,7 +549,7 @@ int vectorized_forward_out_calc(layer** myLayer)
     float32x4_t preActs = vdupq_n_f32(0.0f);
     float32x4_t prevOuts = vdupq_n_f32(0.0f);
     float32x4_t mulWeights = vdupq_n_f32(0.0f);
-    float tailSum = 0.0
+    float tailSum = 0.0;
     int numPrevsTraversed = 0;
     int leftoverBatch = (*myLayer)->numPrevNodes % 4;
     int batchesOfFour = ((*myLayer)->numPrevNodes - leftoverBatch) / 4;
@@ -572,7 +572,7 @@ int vectorized_forward_out_calc(layer** myLayer)
             preActs = vfmaq_f32(preActs, prevOuts, mulWeights);
         }
 
-        for(int i = 0; i < leftoverBatch; i++) tail_sum += prevNodeOuts[(4 * batchesOfFour) + i] * (*myLayer)->weights[i][(4 * batchesOfFour) + i];
+        for(int i = 0; i < leftoverBatch; i++) tailSum += prevNodeOuts[(4 * batchesOfFour) + i] * (*myLayer)->weights[i][(4 * batchesOfFour) + i];
         
         (*myLayer)->preActivations[i] = vaddvq_f32(preActs) + tailSum + (*myLayer)->biases[i];
         preActs = vdupq_n_f32(0.0f);
