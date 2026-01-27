@@ -6,8 +6,8 @@
 int main()
 {
     float vals[3] = {0.0, 0.0, 0.0};
-    int success = sensor_setup();
-    //model = load_model("weathrModelContextBest");
+    layer** modelLayers = NULL;
+    model* wModel = load_model("weathrModelContextBest", modelLayers;
     if(success != 0) exit(EXIT_FAILURE);
 
     success = getWeatherInfo(vals);
@@ -15,5 +15,8 @@ int main()
 
     for(int i = 0; i < 3; i++) printf("%d\n", vals[i]);
 
+    hakai_model(&wModel);
+    free(modelLayers);
+    modelLayers = NULL;
     return 0;
 }

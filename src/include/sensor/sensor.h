@@ -58,11 +58,6 @@ static int16_t dig_H4 = 0;
 static int16_t dig_H5 = 0;
 static int8_t dig_H6 = 0;
 
-static uint8_t calData0[25];
-static uint8_t calData1[7];
-
-static int fd = 0;
-
 double BME280_compensate_T_double(int32_t adc_T) {
     double var1, var2, cTemp;
     var1 = (((double)adc_T) / 16384.0 - ((double)dig_T1) / 1024.0) * ((double)dig_T2);
@@ -114,6 +109,9 @@ double BME280_compensate_H_double(int32_t adc_H) {
 
 /* Read calibration data and determine trimming parameters */
 void setCompensationParams(int fd) {
+    uint8_t calData0[25];
+    uint8_t calData1[7];
+
     /* read calibration data */
     i2c_smbus_read_i2c_block_data(fd, CAL_DATA0_START_ADDR, CAL_DATA0_LENGTH, calData0);
     i2c_smbus_read_i2c_block_data(fd, CAL_DATA1_START_ADDR, CAL_DATA1_LENGTH, calData1);
@@ -146,26 +144,32 @@ float sta2sea(float station_press)
     return station_press * fast_exp((-M * G * -LOCAL_HASL) / (R * T));
 }
 
-int sensor_setup()
+int getWeatherInfo(float* vals) // float[3] array variable passed into argument
 {
+    uint8_t dataBlock[8];
+    int32_t temp_int = 0;
+    int32_t press_int = 0;
+    int32_t hum_int = 0;
+    float station_press = 0.0;
+
     /* open i2c comms */
     if ((fd = open(DEV_PATH, O_RDWR)) < 0) {
         perror("Unable to open i2c device");
-        return -1;
+        return 1;
     }
 
     /* configure i2c slave */
     if (ioctl(fd, I2C_SLAVE, DEV_ID) < 0) {
         perror("Unable to configure i2c slave device");
         close(fd);
-        return -2;
+        return 2;
     }
 
     /* check our identification */
     if (i2c_smbus_read_byte_data(fd, IDENT) != 0x60) {
         perror("device ident error");
         close(fd);
-        return -3;
+        return 3;
     }
 
     /* device soft reset */
@@ -174,17 +178,6 @@ int sensor_setup()
 
     /* read and set compensation parameters */
     setCompensationParams(fd);
-
-    return 0;
-}
-
-int getWeatherInfo(float* vals) // float[3] array variable passed into argument
-{
-    uint8_t dataBlock[8];
-    int32_t temp_int = 0;
-    int32_t press_int = 0;
-    int32_t hum_int = 0;
-    double station_press = 0.0;
 
     /* humidity o/s x 1 */
     i2c_smbus_write_byte_data(fd, CTRL_HUM, 0x1);
