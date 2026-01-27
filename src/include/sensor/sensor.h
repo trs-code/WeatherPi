@@ -58,6 +58,9 @@ static int16_t dig_H4 = 0;
 static int16_t dig_H5 = 0;
 static int8_t dig_H6 = 0;
 
+static uint8_t calData0[25];
+static uint8_t calData1[7];
+
 static int fd = 0;
 
 double BME280_compensate_T_double(int32_t adc_T) {
@@ -111,9 +114,6 @@ double BME280_compensate_H_double(int32_t adc_H) {
 
 /* Read calibration data and determine trimming parameters */
 void setCompensationParams(int fd) {
-    uint8_t calData0[25];
-    uint8_t calData1[7];
-
     /* read calibration data */
     i2c_smbus_read_i2c_block_data(fd, CAL_DATA0_START_ADDR, CAL_DATA0_LENGTH, calData0);
     i2c_smbus_read_i2c_block_data(fd, CAL_DATA1_START_ADDR, CAL_DATA1_LENGTH, calData1);
