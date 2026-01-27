@@ -18,7 +18,7 @@ float mse_loss_derivative(float target, float yHat, int n)
 float mae_loss(model* myModel)
 {
     float sum = 0;
-    for(int i = 0; i < (*myModel->outLayer)->numNodes; i++) sum += abs((*myModel->outLayer)->outputs[i] - (myModel->targets[i]));
+    for(int i = 0; i < (*myModel->outLayer)->numNodes; i++) sum += absolute((*myModel->outLayer)->outputs[i] - (myModel->targets[i]));
     return (sum / (*myModel->outLayer)->numNodes);
 }
 
@@ -45,7 +45,7 @@ float huber_loss(model* myModel)
     float error = 0.0;
     for(int i = 0; i < (*myModel->outLayer)->numNodes; i++)
     {
-        error = abs((*myModel->outLayer)->outputs[i] - (myModel->targets[i]));
+        error = absolute((*myModel->outLayer)->outputs[i] - (myModel->targets[i]));
         if(error > 0.01) sum += 0.01 * (error - 0.005);
         else sum +=  0.5 * error * error;
     }
@@ -56,7 +56,7 @@ float huber_loss(model* myModel)
 float huber_loss_derivative(float target, float yHat, int n)
 {
     float error = yHat - target;
-    if(abs(error) > 0.01) return 0.01 * sign(error);
+    if(absolute(error) > 0.01) return 0.01 * sign(error);
     else return error / (float)n;
 }
 
@@ -99,7 +99,7 @@ float categorical_cross_entropy_loss(model* myModel)
     return (sum);
 }
 
-float categorical_cross_entropy_loss_derivative(float target, float yHat, int n)
+float categorical_cross_entropy_loss_derivative(float target, float yHat)
 {
     return (yHat - target);
 }
@@ -112,7 +112,7 @@ float fast_categorical_cross_entropy_loss(model* myModel)
     return (sum);
 }
 
-float fast_categorical_cross_entropy_loss_derivative(float target, float yHat, int n)
+float fast_categorical_cross_entropy_loss_derivative(float target, float yHat)
 {
     return (yHat - target);
 }
@@ -161,9 +161,9 @@ float loss_derivative(float target, float yHat, model* myModel)
         case 'r':
             return fast_binary_cross_entropy_loss_derivative(target, yHat);
         case 'c':
-            return categorical_cross_entropy_loss_derivative(target, yHat, numNodes);
+            return categorical_cross_entropy_loss_derivative(target, yHat);
         case 'x':
-            return fast_categorical_cross_entropy_loss_derivative(target, yHat, numNodes);
+            return fast_categorical_cross_entropy_loss_derivative(target, yHat);
         default:
             return 1;
     }

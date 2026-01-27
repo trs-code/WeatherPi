@@ -453,7 +453,7 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
         {
             (*modelLayers)[layerID] = make_output_layer(layerArr, numNodes, numPrevLayers, activationFunction);
             if((*modelLayers)[layerID] == NULL) goto error8;
-            
+
             outLayerID = layerID;
         }
 
@@ -561,8 +561,6 @@ void shift_context_train(layer** thisLayer, layer** prevLayer)
 
 void shift_context_infer(layer** thisLayer, layer** prevLayer)
 {
-    int numPrevsTraversed = 0;
-
     memcpy((*prevLayer)->outputs, (*thisLayer)->outputs, sizeof(float) * (*thisLayer)->numNodes);
 }
 
@@ -696,6 +694,8 @@ int _mm256_calculate_and_apply_grads(layer** myLayer, float learningRate)
     for(int i = 0; i < (*myLayer)->numPrevLayers; i++) if(_mm256_calculate_and_apply_grads(((*myLayer)->prevLayers[i]), learningRate) != 0) return -1;
 
     if(vectorized_calculate_and_apply_grads(myLayer, learningRate) != 0) return -1;
+
+    return 0;
 }
 
 int _mm256_calculate_and_apply_grads_through_time(layer** myLayer, float learningRate)
@@ -709,6 +709,8 @@ int _mm256_calculate_and_apply_grads_through_time(layer** myLayer, float learnin
     for(int i = 0; i < (*myLayer)->numPrevLayers; i++) if(_mm256_calculate_and_apply_grads_through_time(((*myLayer)->prevLayers[i]), learningRate) != 0) return -1;
 
     if(vectorized_calculate_and_apply_grads_through_time(myLayer, learningRate) != 0) return -1;
+
+    return 0;
 }
 
 #endif
