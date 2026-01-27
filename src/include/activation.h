@@ -52,7 +52,7 @@ float sigmoid_derivative(float x) {
 }
 
 float fast_sigmoid(float x) {
-    return 0.5 + 0.5 * (x / (1.3 + abs(x)));
+    return 0.5 + 0.5 * (x / (1.3 + absolute(x)));
 }
 
 float fast_sigmoid_derivative(float x) {

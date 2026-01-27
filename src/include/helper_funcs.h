@@ -419,10 +419,6 @@ int vectorized_calculate_and_apply_grads_through_time(layer** myLayer, float lea
     if((*(*myLayer)->prevLayers[(*myLayer)->numPrevLayers - 1])->layerType == 'w')
     {
         layer* currLayer = *((*myLayer)->prevLayers[(*myLayer)->numPrevLayers - 1]);
-        layer** prevs[2];
-        int g = (*myLayer)->numPrevLayers - 1;
-        prevs[0] = (*myLayer)->prevLayers[0];
-        prevs[1] = (*myLayer)->prevLayers[1];
 
         while(currLayer->numPrevLayers == 2)
         {

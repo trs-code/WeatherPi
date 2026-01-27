@@ -10,9 +10,7 @@ int main()
     int numIns = 3;
     int numOuts = 2;
     int numSamples = 67764;
-    int windowSize = 6;
-
-    layer* window[2 * windowSize];
+    int windowSize = 24;
 
     layer* inLayer0 = make_input_layer(3);
     if(inLayer0 == NULL)
@@ -28,7 +26,6 @@ int main()
 
     extend_context(&hiddenLayer0, windowSize, &windowLayers);
     if(windowLayers == NULL) goto error3;
-    for(int i = 0; i < 2 * windowSize; i++) window[i] = windowLayers[i];
 
     layer* outLayer = make_output_layer((layer**[]){&hiddenLayer0}, 2, 1, 'x');
     if(outLayer == NULL) goto error4;
@@ -38,7 +35,7 @@ int main()
 
     if(read_csv(filename, numSamples, numIns, numOuts, &inArrays, &outArrays) != 0) goto error6;
 
-    train_rnn_sgd(wethrModel, 10, numSamples, inArrays, outArrays, 0.8);
+    train_rnn_sgd(wethrModel, 100, numSamples, inArrays, outArrays, 0.8, windowSize);
 
     save_model(&wethrModel, "weathrModelContext.cml");
     hakai_matrix(&inArrays, numSamples);
