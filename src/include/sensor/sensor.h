@@ -35,30 +35,30 @@
 #define T 288.15
 #define R 8.3144598
 
-int32_t t_fine = 0;
+static int32_t t_fine = 0;
 
-uint16_t dig_T1 = 0;
-int16_t dig_T1 = 0;
-int16_t dig_T2 = 0;
+static uint16_t dig_T1 = 0;
+static int16_t dig_T1 = 0;
+static int16_t dig_T2 = 0;
 
-uint16_t dig_P1 = 0;
-int16_t dig_P2 = 0;
-int16_t dig_P3 = 0;
-int16_t dig_P4 = 0;
-int16_t dig_P5 = 0;
-int16_t dig_P6 = 0;
-int16_t dig_P7 = 0;
-int16_t dig_P8 = 0;
-int16_t dig_P9 = 0;
+static uint16_t dig_P1 = 0;
+static int16_t dig_P2 = 0;
+static int16_t dig_P3 = 0;
+static int16_t dig_P4 = 0;
+static int16_t dig_P5 = 0;
+static int16_t dig_P6 = 0;
+static int16_t dig_P7 = 0;
+static int16_t dig_P8 = 0;
+static int16_t dig_P9 = 0;
 
-uint8_t dig_H1 = 0;
-int16_t dig_H2 = 0;
-uint8_t dig_H3 = 0;
-int16_t dig_H4 = 0;
-int16_t dig_H5 = 0;
-int8_t dig_H6 = 0;
+static uint8_t dig_H1 = 0;
+static int16_t dig_H2 = 0;
+static uint8_t dig_H3 = 0;
+static int16_t dig_H4 = 0;
+static int16_t dig_H5 = 0;
+static int8_t dig_H6 = 0;
 
-int fd = 0;
+static int fd = 0;
 
 double BME280_compensate_T_double(int32_t adc_T) {
     double var1, var2, T;

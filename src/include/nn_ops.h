@@ -405,7 +405,7 @@ void model_inference_fast(model* myModel, float* inputs, float** outputs) //(mod
     zero_everything(myModel->outLayer);
 }
 
-void rnn_model_inference(model* myModel, float* inputs, float** outputs) //(model*, float*, &float[])
+void rnn_model_inference_fast(model* myModel, float* inputs, float** outputs) //(model*, float*, &float[])
 {
     int inputsTraversed = 0;
     for(int i = 0; i < myModel->numInLayers; i++)

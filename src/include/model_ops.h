@@ -727,7 +727,7 @@ void vforward_out(layer** myLayer)
     {
         int numPrevsTraversed = 0;
         
-        for(int i = 0; i < (*myLayer)->numPrevLayers; i++) _mm256_forward_out((*myLayer)->prevLayers[i]);
+        for(int i = 0; i < (*myLayer)->numPrevLayers; i++) vforward_out((*myLayer)->prevLayers[i]);
 
         vectorized_forward_out_calc(myLayer);
 
