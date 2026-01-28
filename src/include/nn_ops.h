@@ -192,7 +192,7 @@ void model_inference(model* myModel, float* inputs, float** outputs) //(model*, 
     zero_everything(myModel->outLayer);
 }
 
-void rnn_model_inference(model* myModel, float* inputs, float** outputs) //(model*, float*, &float[])
+void rnn_model_inference(model* myModel, float inputs[], float* outputs[]) //(model*, float*, &float[])
 {
     int inputsTraversed = 0;
     for(int i = 0; i < myModel->numInLayers; i++)

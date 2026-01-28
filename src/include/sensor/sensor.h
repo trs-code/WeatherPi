@@ -146,6 +146,7 @@ float sta2sea(float station_press)
 
 int getWeatherInfo(float* vals) // float[3] array variable passed into argument
 {
+    int fd = 0;
     uint8_t dataBlock[8];
     int32_t temp_int = 0;
     int32_t press_int = 0;
