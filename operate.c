@@ -6,6 +6,7 @@
 int main()
 {
     float vals[3] = {0.0, 0.0, 0.0};
+    float outputs[2] = {0.0, 0.0};
     layer** modelLayers = NULL;
     model* wModel = load_model("weathrModelContextBest.cml", &modelLayers);
 
@@ -16,7 +17,9 @@ int main()
         exit(EXIT_FAILURE);
     }
 
-    for(int i = 0; i < 3; i++) printf("%.2f\n", vals[i]);
+    rnn_model_inference(wModel, vals, outputs);
+
+    for(int i = 0; i < 2; i++) printf("%.2f\n", outputs[i]);
 
     hakai_model(&wModel);
     free(modelLayers);

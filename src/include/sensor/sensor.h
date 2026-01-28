@@ -190,9 +190,7 @@ int getWeatherInfo(float* vals) // float[3] array variable passed into argument
 
     /* check data is ready to read */
     while ((i2c_smbus_read_byte_data(fd, STATUS) & 0x9) != 0) {
-        printf("%s\n", "Error, data not ready");
         sleep(1);
-        continue;
     }
 
     /* read data registers */
@@ -201,20 +199,11 @@ int getWeatherInfo(float* vals) // float[3] array variable passed into argument
     /* awake and take next reading */
     i2c_smbus_write_byte_data(fd, CTRL_MEAS, 0x25);
 
-    /* get raw temp */
-    temp_int = (dataBlock[3] << 16 | dataBlock[4] << 8 | dataBlock[5]) >> 4;
+    vals[0] = (1.8 * BME280_compensate_T_double((dataBlock[3] << 16 | dataBlock[4] << 8 | dataBlock[5]) >> 4)) + 32;
 
-    /* get raw pressure */
-    press_int = (dataBlock[0] << 16 | dataBlock[1] << 8 | dataBlock[2]) >> 4;
+    vals[1] = 0.02953 * sta2sea(BME280_compensate_P_double((dataBlock[0] << 16 | dataBlock[1] << 8 | dataBlock[2]) >> 4) / 100.0);
 
-    /* get raw humidity */
-    hum_int = dataBlock[6] << 8 | dataBlock[7];
-
-    vals[0] = (1.8 * BME280_compensate_T_double(temp_int)) + 32;
-
-    vals[1] = 0.02953 * sta2sea(BME280_compensate_P_double(press_int) / 100.0);
-
-    vals[2] = BME280_compensate_H_double(hum_int);
+    vals[2] = BME280_compensate_H_double(dataBlock[6] << 8 | dataBlock[7]);
 
     i2c_smbus_write_byte_data(fd, CTRL_HUM, 0x0);
 

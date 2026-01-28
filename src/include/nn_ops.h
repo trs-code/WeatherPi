@@ -386,6 +386,23 @@ void model_inference_fast(model* myModel, float* inputs, float** outputs) //(mod
     memcpy(*outputs, (*myModel->outLayer)->outputs, sizeof(float) * (*myModel->outLayer)->numNodes);
     zero_everything(myModel->outLayer);
 }
+
+void rnn_model_inference_fast(model* myModel, float* inputs, float** outputs) //(model*, float*, &float[])
+{
+    int inputsTraversed = 0;
+    for(int i = 0; i < myModel->numInLayers; i++)
+    {
+        for(int j = 0; j < (*myModel->inLayers[i])->numNodes; j++) (*myModel->inLayers[i])->outputs[j] = inputs[j + inputsTraversed];
+        inputsTraversed += (*myModel->inLayers[i])->numNodes;
+    }
+
+    _mm256_forward_out(myModel->outLayer);
+    shift_model(myModel->outLayer, 'i');
+
+    memcpy(*outputs, (*myModel->outLayer)->outputs, sizeof(float) * (*myModel->outLayer)->numNodes);
+    zero_base_model(myModel->outLayer);
+}
+
 #endif
 
 #if defined(__ARM_NEON)
