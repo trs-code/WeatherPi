@@ -7,13 +7,16 @@ int main()
 {
     float vals[3] = {0.0, 0.0, 0.0};
     layer** modelLayers = NULL;
-    model* wModel = load_model("weathrModelContextBest", modelLayers;
-    if(success != 0) exit(EXIT_FAILURE);
+    model* wModel = load_model("weathrModelContextBest.cml", &modelLayers);
 
-    success = getWeatherInfo(vals);
-    if(success != 0) exit(EXIT_FAILURE);
+    int success = getWeatherInfo(vals);
+    if(success != 0) 
+    {
+        printf("FAIL\n");
+        exit(EXIT_FAILURE);
+    }
 
-    for(int i = 0; i < 3; i++) printf("%d\n", vals[i]);
+    for(int i = 0; i < 3; i++) printf("%.2f\n", vals[i]);
 
     hakai_model(&wModel);
     free(modelLayers);
