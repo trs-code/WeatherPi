@@ -225,6 +225,31 @@ int vectorized_forward_out_calc(layer** myLayer)
     return 0;
 }
 
+void vectorized_sgd_backprop_calc(layer** myLayer, model** myModel)
+{ // start at output layer and calculate backerrors for each previous layer
+    
+    int maskHelp[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    __m256 preActs = _mm256_setzero_ps();
+    __m256 prevOuts = _mm256_setzero_ps();
+    __m256 mulWeights = _mm256_setzero_ps();
+    int numPrevsTraversed = 0;
+    int leftoverBatch = (*myLayer)->numPrevNodes % 8;
+    int batchesOfEight = ((*myLayer)->numPrevNodes - leftoverBatch) / 8;
+
+    // backErrorsForOutputLayer = lossDerivative · activationFunctionDerivative(preActivations) - for output layer
+    if((*myLayer)->layerType == 'o') for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->backErrors[i] = -1 * loss_derivative((*myModel)->targets[i], (*myLayer)->outputs[i], (*myModel)) * activation_derivative((*myLayer)->preActivations[i], (*myLayer)->activationFunction, *myLayer, i);
+    
+    // backErrorsForPreviousLayers[j] = SUM_OVER_I((thisLayersBackErrors[i])(thisLayersWeightMatrix[i][j]) · activationFunctionDerivative(previousLayersPreActivation[j])) - where j is considered to be a traversal of all previous 'J' layers' 'K' values as one vector
+    // e.g. J = 3 prev layers with K = 5 nodes each are considered as one prev layer with J = 15 nodes in this formulation
+    int prevsTraversed = 0;
+    for(int i = 0; i < (*myLayer)->numPrevLayers; i++)
+    {
+        if((*(*myLayer)->prevLayers[i])->layerType == 'i' || (*(*myLayer)->prevLayers[i])->layerType == 't') continue;
+        for(int j = 0; j < (*(*myLayer)->prevLayers[i])->numNodes; j++) for(int k = 0; k < (*myLayer)->numNodes; k++) (*(*myLayer)->prevLayers[i])->backErrors[j] += (*myLayer)->backErrors[k] * (*myLayer)->weights[k][prevsTraversed + j] * activation_derivative((*(*myLayer)->prevLayers[i])->preActivations[j], (*(*myLayer)->prevLayers[i])->activationFunction, *myLayer, i);
+        prevsTraversed += (*(*myLayer)->prevLayers[i])->numNodes;
+    }
+}
+
 int vectorized_calculate_and_apply_grads(layer** myLayer, float learningRate)
 {
     int maskHelp[8] = {0, 0, 0, 0, 0, 0, 0, 0};
@@ -327,7 +352,7 @@ int vectorized_calculate_and_apply_grads(layer** myLayer, float learningRate)
 int vectorized_calculate_and_apply_grads_through_time(layer** myLayer, float learningRate)
 {
     int maskHelp[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-    float* prevNodeOuts = NULL;
+    float prevNodeOuts[(*myLayer)->numPrevNodes];
     float f[8];
     __m256 learningRates = _mm256_set1_ps(learningRate);
     __m256 biases = _mm256_setzero_ps();
@@ -377,8 +402,8 @@ int vectorized_calculate_and_apply_grads_through_time(layer** myLayer, float lea
         memcpy(&(*myLayer)->biases[8 * batchesOfEight], f, sizeof(float) * leftoverBatch);
     }
 
-    prevNodeOuts = (float*)calloc((*myLayer)->numPrevNodes, sizeof(float));
-    if(prevNodeOuts== NULL) return -1;
+    // prevNodeOuts = (float*)calloc((*myLayer)->numPrevNodes, sizeof(float));
+    // if(prevNodeOuts== NULL) return -1;
     
     for(int i = 0; i < (*myLayer)->numPrevLayers; i++)
     {
@@ -534,8 +559,8 @@ int vectorized_calculate_and_apply_grads_through_time(layer** myLayer, float lea
         }
     }
 
-    free(prevNodeOuts);
-    prevNodeOuts = NULL;
+    // free(prevNodeOuts);
+    // prevNodeOuts = NULL;
 
     return 0;
 }

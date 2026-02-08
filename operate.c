@@ -8,7 +8,7 @@ int main()
     float vals[3] = {0.0, 0.0, 0.0};
     float outputs[2] = {0.0, 0.0};
     layer** modelLayers = NULL;
-    model* wModel = load_model("weathrModelContextBest.cml", &modelLayers);
+    model* wModel = load_model("weathrModelContext.cml", &modelLayers);
 
     int success = getWeatherInfo(vals);
     if(success != 0) 

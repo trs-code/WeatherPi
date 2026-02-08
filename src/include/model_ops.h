@@ -683,6 +683,19 @@ int _mm256_forward_out(layer** myLayer)
     return 0;
 }
 
+void _mm256_sgd_backprop(layer** myLayer, model** myModel)
+{ // start at output layer and calculate backerrors for each previous layer
+    if((*myLayer)->switchVar == '2') return;
+
+    (*myLayer)->switchVar = '2';
+    
+    vectorized_sgd_backprop_calc(myLayer, myModel);
+
+    for(int i = 0; i < (*myLayer)->numPrevLayers; i++) if((*(*myLayer)->prevLayers[i])->numPrevLayers != 0 && (*(*myLayer)->prevLayers[i])->layerType != 'w') sgd_backprop((*myLayer)->prevLayers[i], myModel);
+    // calculate backErrors for previous layers' previous layers according to already established layers' backErrors - All roads spring forth from Rome
+}
+
+
 int _mm256_calculate_and_apply_grads(layer** myLayer, float learningRate)
 {
     if((*myLayer)->switchVar == '3') return 0;
