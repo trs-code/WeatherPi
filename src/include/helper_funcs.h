@@ -45,7 +45,6 @@ int bin2int(const char* bin, int size)
     return retVal;
 }
 
-
 void shuffle(float*** arr1, float*** arr2, int n) 
 {
     float* temp;
@@ -62,13 +61,6 @@ void shuffle(float*** arr1, float*** arr2, int n)
         (*arr2)[j] = temp;
     }
 }
-
-// float accuracy(model* myModel)
-// {
-//     float sum = 0;
-//     for(int i = 0; i < (*myModel->outLayer)->numNodes; i++) sum += ((*myModel->outLayer)->outputs[i] - (myModel->targets[i])) / (myModel->targets[i]);
-//     return absolute(sum / (*myModel->outLayer)->numNodes);
-// }
 
 float accuracy(model* myModel)
 {
@@ -225,6 +217,7 @@ int vectorized_forward_out_calc(layer** myLayer)
     return 0;
 }
 
+// Still need to finish
 void vectorized_sgd_backprop_calc(layer** myLayer, model** myModel)
 { // start at output layer and calculate backerrors for each previous layer
     
@@ -558,9 +551,6 @@ int vectorized_calculate_and_apply_grads_through_time(layer** myLayer, float lea
             
         }
     }
-
-    // free(prevNodeOuts);
-    // prevNodeOuts = NULL;
 
     return 0;
 }

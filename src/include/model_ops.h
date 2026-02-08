@@ -683,6 +683,7 @@ int _mm256_forward_out(layer** myLayer)
     return 0;
 }
 
+//Need to finish
 void _mm256_sgd_backprop(layer** myLayer, model** myModel)
 { // start at output layer and calculate backerrors for each previous layer
     if((*myLayer)->switchVar == '2') return;

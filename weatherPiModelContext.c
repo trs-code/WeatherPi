@@ -41,7 +41,7 @@ int main()
 
     if(read_csv(filename, numSamples, numIns, numOuts, &inArrays, &outArrays) != 0) goto error6;
 
-    train_rnn_sgd_fast(wethrModel, 5, numSamples, inArrays, outArrays, 0.8, windowSize);
+    train_rnn_sgd_fast(wethrModel, 1, numSamples, inArrays, outArrays, 0.8, windowSize);
 
     save_model(&wethrModel, "weathrModelContext.cml");
     hakai_matrix(&inArrays, numSamples);

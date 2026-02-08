@@ -317,9 +317,9 @@ void train_rnn_sgd_fast(model* myModel, int epochs, int numSamples, float** inpu
         
         for(int i = 0; i < trainSamples; i += seqLength)
         {                
-            inputsTraversed = 0;
             for(int j = i; j < i + seqLength && j < trainSamples; j++)
             {
+                inputsTraversed = 0;
                 for(int k = 0; k < myModel->numInLayers; k++)
                 {
                     memcpy((*myModel->inLayers[k])->outputs, &(inputs[j][inputsTraversed]), sizeof(float) * (*myModel->inLayers[k])->numNodes);
