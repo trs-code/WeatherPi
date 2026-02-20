@@ -306,6 +306,39 @@ error1:
     return NULL;
 }
 
+// Not yet implemented
+layer* make_dropout_layer(layer** prevLayer)
+{
+    layer *dropLayer = (layer*)malloc(sizeof(layer));
+    if(dropLayer == NULL) return NULL;
+
+    dropLayer->numPrevLayers = 1;
+    dropLayer->numPrevNodes = (*prevLayer)->numNodes;
+    dropLayer->layerType = 'd';
+    dropLayer->prevLayers = (layer ***)calloc(1, sizeof(layer**)); // No previous layers for an input layer
+    dropLayer->weights = NULL;    // Input layer just accepts inputs, doesn't need actual weights, just something to facilitate forwarding values
+    dropLayer->biases = NULL;
+    dropLayer->backErrors = NULL;  // Input layer doesn't need backErrors
+    dropLayer->preActivations = NULL;
+    
+    dropLayer->outputs = (float *)calloc((*prevLayer)->numNodes, sizeof(float));
+    if(dropLayer->outputs == NULL) goto error1;
+
+    dropLayer->numNodes = (*prevLayer)->numNodes;
+    dropLayer->activationFunction = '\0';
+    dropLayer->layerID = -1;
+    dropLayer->switchVar = '0';
+
+    return dropLayer;
+
+error1:
+    free(dropLayer);
+    dropLayer = NULL;
+
+    return NULL;
+
+}
+
 // Not Yet Implemented 
 layer* make_convolutional_layer(layer*** prevLayers, int numPrevLayers, int numFilters, int numDims, int* dims, int hasPadding);
 
