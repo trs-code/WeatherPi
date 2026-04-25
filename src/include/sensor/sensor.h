@@ -1,7 +1,7 @@
 #pragma once
 
 #include <stdint.h>
-#include <i2c/smbus.h>
+//#include <i2c/smbus.h>
 #include <fcntl.h>
 #include <linux/i2c-dev.h>
 #include <stdlib.h>

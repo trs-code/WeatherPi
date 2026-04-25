@@ -56,7 +56,7 @@ int main()
     memcpy((*myModel->inLayers[0])->outputs, (float[]){0.05, 0.10, 0.15}, 3*sizeof(float));
     memcpy(myModel->targets, (float[]){0.905405}, sizeof(float));
 
-    forward_out(myModel->outLayer);
+    forward_out(myModel->outLayer, 0.0);
     sgd_backprop(myModel->outLayer, &myModel);
     for(int i = 0; i < 1; i++) printf("hiddenLayer0 output[%d] is: %f\n", i, hiddenLayer0->outputs[i]);
 
@@ -69,7 +69,7 @@ int main()
     for(int i = 0; i < 500; i++)
     {
         zero_everything(myModel->outLayer);
-        forward_out(myModel->outLayer);
+        forward_out(myModel->outLayer, 0.0);
         sgd_backprop(myModel->outLayer, &myModel);
         calculate_and_apply_grads(myModel->outLayer, myModel->learning_rate);
     }

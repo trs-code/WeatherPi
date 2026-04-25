@@ -2,6 +2,7 @@
 
 weatherPiModel
 weatherPiModelContext
+weatherPiModelBasic
 operate
 
 src/tests/test1

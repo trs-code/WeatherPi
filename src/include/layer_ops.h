@@ -3,6 +3,15 @@
 #include "layer_destruct.h"
 #include <string.h>
 #include <time.h>
+#include <math.h>
+
+void glorot_uniform_init(layer* myLayer) 
+{
+    float limit = sqrt(6.0 / (myLayer->numPrevNodes + myLayer->numNodes));
+    for (int i = 0; i < myLayer->numNodes; ++i) {
+        for(int j = 0; j < myLayer->numPrevNodes; j++) myLayer->weights[i][j] = ((float)rand() / RAND_MAX) * 2.0 * limit - limit;
+    }
+}
 
 // Solely to load input values into the model in a form where layer operations can be generalized into
 layer* make_input_layer(int numNodes)
@@ -63,16 +72,13 @@ layer* make_hidden_layer(layer*** prev, int numNodes, int numPrevLayers, char ac
     hiddenLayer->weights = (float **)malloc(numNodes * sizeof(float*));
     if(hiddenLayer->weights == NULL) goto error2;
 
-    hiddenLayer->biases = (float *)malloc(numNodes * sizeof(float)); // Bias for each neuron
+    hiddenLayer->biases = (float *)calloc(numNodes, sizeof(float)); // Bias for each neuron
     if(hiddenLayer->biases == NULL) goto error3;
 
     for(int i = 0; i < numNodes; i++)
     {
         hiddenLayer->weights[i] = (float *)malloc(sizeof(float) * (hiddenLayer->numPrevNodes)); // Each column is a connection to each neuron in the previous layer pus a bias
         if(hiddenLayer->weights[i] == NULL) goto error4;
-        
-        for(int j = 0; j < hiddenLayer->numPrevNodes; j++) hiddenLayer->weights[i][j] = ((rand() % 100000) + 50000)/100000; 
-        hiddenLayer->biases[i] = ((rand() % 100000) + 50000)/100000; // Initialize biases
     }
     
     hiddenLayer->backErrors = (float *)calloc((numNodes), sizeof(float));
@@ -89,6 +95,8 @@ layer* make_hidden_layer(layer*** prev, int numNodes, int numPrevLayers, char ac
     hiddenLayer->layerID = -1;
     hiddenLayer->switchVar = '0';
     hiddenLayer->layerType = 'h';
+
+    glorot_uniform_init(hiddenLayer);
 
     return hiddenLayer;
 
@@ -133,16 +141,13 @@ layer* make_output_layer(layer*** prev, int numNodes, int numPrevLayers, char ac
     outLayer->weights = (float **)malloc(numNodes * sizeof(float*)); // Each row is a neuron
     if(outLayer->weights == NULL) goto error2;
 
-    outLayer->biases = (float *)malloc(numNodes * sizeof(float)); // Bias for each neuron
+    outLayer->biases = (float *)calloc(numNodes, sizeof(float)); // Bias for each neuron
     if(outLayer->biases == NULL) goto error3;
 
     for(int i = 0; i < numNodes; i++)
     {
         outLayer->weights[i] = (float *)malloc(sizeof(float) * (outLayer->numPrevNodes + 1));
         if(outLayer->weights[i] == NULL) goto error4;
-        
-        for(int j = 0; j < outLayer->numPrevNodes; j++) outLayer->weights[i][j] = ((rand() % 100000) + 50000)/100000; // Initialize weight connections
-        outLayer->biases[i] = ((rand() % 100000) + 50000)/100000;
     }
 
     outLayer->backErrors = (float *)calloc(numNodes, sizeof(float));
@@ -160,6 +165,8 @@ layer* make_output_layer(layer*** prev, int numNodes, int numPrevLayers, char ac
     outLayer->layerID = -1;
     outLayer->switchVar = '0';
     outLayer->layerType = 'o';
+
+    glorot_uniform_init(outLayer);
 
     return outLayer;
 
@@ -214,16 +221,13 @@ layer* make_referential_layer(layer*** prev, int numNodes, int numPrevLayers, ch
     referentialLayer->weights = (float **)malloc(numNodes * sizeof(float*));
     if(referentialLayer->weights == NULL) goto error2;
 
-    referentialLayer->biases = (float *)malloc(numNodes * sizeof(float)); // Bias for each neuron
+    referentialLayer->biases = (float *)calloc(numNodes, sizeof(float)); // Bias for each neuron
     if(referentialLayer->biases == NULL) goto error3;
 
     for(int i = 0; i < numNodes; i++)
     {
         referentialLayer->weights[i] = (float *)malloc(sizeof(float) * (referentialLayer->numPrevNodes)); // Each column is a connection to each neuron in the previous layer pus a bias
         if(referentialLayer->weights[i] == NULL) goto error4;
-        
-        for(int j = 0; j < referentialLayer->numPrevNodes; j++) referentialLayer->weights[i][j] = ((rand() % 100000) + 50000)/100000; 
-        referentialLayer->biases[i] = ((rand() % 100000) + 50000)/100000; // Initialize biases
     }
     
     referentialLayer->backErrors = (float *)calloc((numNodes), sizeof(float));
@@ -240,6 +244,8 @@ layer* make_referential_layer(layer*** prev, int numNodes, int numPrevLayers, ch
     referentialLayer->layerID = -1;
     referentialLayer->switchVar = '0';
     referentialLayer->layerType = 'r'; 
+
+    glorot_uniform_init(referentialLayer);
 
     return referentialLayer;
 
@@ -304,39 +310,6 @@ error1:
     windowLayer = NULL;
 
     return NULL;
-}
-
-// Not yet implemented
-layer* make_dropout_layer(layer** prevLayer)
-{
-    layer *dropLayer = (layer*)malloc(sizeof(layer));
-    if(dropLayer == NULL) return NULL;
-
-    dropLayer->numPrevLayers = 1;
-    dropLayer->numPrevNodes = (*prevLayer)->numNodes;
-    dropLayer->layerType = 'd';
-    dropLayer->prevLayers = (layer ***)calloc(1, sizeof(layer**)); // No previous layers for an input layer
-    dropLayer->weights = NULL;    // Input layer just accepts inputs, doesn't need actual weights, just something to facilitate forwarding values
-    dropLayer->biases = NULL;
-    dropLayer->backErrors = NULL;  // Input layer doesn't need backErrors
-    dropLayer->preActivations = NULL;
-    
-    dropLayer->outputs = (float *)calloc((*prevLayer)->numNodes, sizeof(float));
-    if(dropLayer->outputs == NULL) goto error1;
-
-    dropLayer->numNodes = (*prevLayer)->numNodes;
-    dropLayer->activationFunction = '\0';
-    dropLayer->layerID = -1;
-    dropLayer->switchVar = '0';
-
-    return dropLayer;
-
-error1:
-    free(dropLayer);
-    dropLayer = NULL;
-
-    return NULL;
-
 }
 
 // Not Yet Implemented 

@@ -70,7 +70,7 @@ int main()
 
     memcpy(myModel->targets, (float[]){0.905405}, sizeof(float));
 
-    forward_out(myModel->outLayer);
+    forward_out(myModel->outLayer, 0.0);
     sgd_backprop(myModel->outLayer, &myModel);
     // printf("Layer 0 Activation[0] is: %f\n", layer0->outputs[0]);
     // printf("Layer 0 Activation[1] is: %f\n", layer0->outputs[1]);

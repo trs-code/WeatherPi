@@ -8,7 +8,7 @@
 #include <pthread.h>
 
 //  Gets an output from the target layer, is essentially also a inference function
-void forward_out(layer** myLayer)
+void forward_out(layer** myLayer, float dropoutVal)
 {
     if((*myLayer)->switchVar == '1' || (*myLayer)->layerType == 'w') return; // If layer has been traversed or if layer is a window layer for a context window
 
@@ -18,7 +18,7 @@ void forward_out(layer** myLayer)
     {
         int numPrevsTraversed = 0;
         
-        for(int i = 0; i < (*myLayer)->numPrevLayers; i++) forward_out((*myLayer)->prevLayers[i]);
+        for(int i = 0; i < (*myLayer)->numPrevLayers; i++) forward_out((*myLayer)->prevLayers[i], dropoutVal);
 
         // preActivation[i] = SUM_OVER_J(prevNodeOutputs[j] * weights[i][j]) 
         for(int i = 0; i < (*myLayer)->numNodes; i++) 
@@ -48,6 +48,10 @@ void forward_out(layer** myLayer)
         
         // outputs[i] = activation_function(preActivations[i])
         for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->outputs[i] = activation_function((*myLayer)->preActivations[i], (*myLayer)->activationFunction);
+
+        if((*myLayer)->layerType == 'o' || dropoutVal <= 0.0) return;
+        float scalingFactor = 1/(1-dropoutVal);
+        for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->outputs[i] *= ((float)((rand() % 999))/1000.0 < dropoutVal) ? 0 : scalingFactor;
     }
 }
 
@@ -123,6 +127,8 @@ void zero_everything(layer** myLayer)
     memset((*myLayer)->outputs, 0.0f, (*myLayer)->numNodes * sizeof(float));
 }
 
+
+// Fix required to properly handle referential layers
 // Encode and save a model to file
 int save_model(model** saveModel, char* modelFileName)
 {
@@ -222,7 +228,7 @@ int save_model(model** saveModel, char* modelFileName)
             fputs("\n", modFile);
             
             free(line);
-            line = NULL;
+            line = (char*)NULL;
             continue;
         }
 
@@ -259,7 +265,7 @@ int save_model(model** saveModel, char* modelFileName)
             fputs("\n", modFile);
             
             free(line);
-            line = NULL;
+            line = (char*)NULL;
             continue;
         }
 
@@ -651,7 +657,7 @@ void calculate_and_apply_grads_through_time(layer** myLayer, float learningRate)
 #if defined(__AVX__) || defined(__AVX2__)
 //  Gets an output from the target layer, is essentially also a inference function
 // Vectorized version of forward out, only really makes a difference on industrial grade models so it will be shelved for now
-int _mm256_forward_out(layer** myLayer)
+int _mm256_forward_out(layer** myLayer, float dropoutVal)
 {
     if((*myLayer)->switchVar == '1') return 0;
 
@@ -659,7 +665,7 @@ int _mm256_forward_out(layer** myLayer)
 
     if((*myLayer)->numPrevLayers != 0 && (*myLayer)->layerType != 'w')
     {        
-        for(int i = 0; i < (*myLayer)->numPrevLayers; i++) if(_mm256_forward_out((*myLayer)->prevLayers[i]) != 0) return -1;
+        for(int i = 0; i < (*myLayer)->numPrevLayers; i++) if(_mm256_forward_out((*myLayer)->prevLayers[i], dropoutVal) != 0) return -1;
 
         if(vectorized_forward_out_calc(myLayer) != 0) return -1;
 
@@ -678,6 +684,10 @@ int _mm256_forward_out(layer** myLayer)
         }
         
         for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->outputs[i] = activation_function((*myLayer)->preActivations[i], (*myLayer)->activationFunction);
+        
+        if((*myLayer)->layerType == 'o' || dropoutVal <= 0.0) return 0;
+        float scalingFactor = 1/(1-dropoutVal);
+        for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->outputs[i] *= ((float)((rand() % 999))/1000.0 < dropoutVal) ? 0 : scalingFactor;
     }
 
     return 0;
@@ -731,7 +741,7 @@ int _mm256_calculate_and_apply_grads_through_time(layer** myLayer, float learnin
 
 #if defined(__ARM_NEON)
 
-void vforward_out(layer** myLayer)
+void vforward_out(layer** myLayer, float dropoutVal)
 {
     if((*myLayer)->switchVar == '1') return;
 
@@ -741,7 +751,7 @@ void vforward_out(layer** myLayer)
     {
         int numPrevsTraversed = 0;
         
-        for(int i = 0; i < (*myLayer)->numPrevLayers; i++) vforward_out((*myLayer)->prevLayers[i]);
+        for(int i = 0; i < (*myLayer)->numPrevLayers; i++) vforward_out((*myLayer)->prevLayers[i], dropoutVal);
 
         vectorized_forward_out_calc(myLayer);
 
@@ -760,6 +770,10 @@ void vforward_out(layer** myLayer)
         }
         
         for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->outputs[i] = activation_function((*myLayer)->preActivations[i], (*myLayer)->activationFunction);
+
+        if((*myLayer)->layerType == 'o' || dropoutVal <= 0.0) return 0;
+        float scalingFactor = 1/(1-dropoutVal);
+        for(int i = 0; i < (*myLayer)->numNodes; i++) (*myLayer)->outputs[i] *= ((float)((rand() % 999))/1000.0 < dropoutVal) ? 0 : scalingFactor;
     }
 }
 

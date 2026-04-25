@@ -8,8 +8,9 @@
 //                                              SINGLE
 //                                              LAYER
 //
-// STARTING FROM THE OUTPUT AND ITERATE THROUGH THE LINKED LIST FREEING THE MEMORY FOR EACH LAYER WEIGHTS AND LAYER
+// STARTING FROM THE OUTPUT AND ITERATE THROUGH THE LINKED TREE FREEING THE MEMORY FOR EACH LAYER WEIGHTS AND LAYER
 //                                      WHEN OPERATIONS ARE CONCLUDED
+// I tried my best to build the functionality for this into the library itself, but the possibility of human error is NEVER zero
 
 
 // 72 Bytes to allocate for the structure at base

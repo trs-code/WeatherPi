@@ -8,7 +8,7 @@
 // Next m inputs correspond to m nodes of second input layer
 // So on and so forth
 
-void train_model_sgd(model* myModel, int epochs, int numSamples, float** inputs, float **targets, float valSplit)
+void train_model_sgd(model* myModel, int epochs, int numSamples, float** inputs, float **targets, float valSplit, float dropoutVal)
 {
     int inputsTraversed = 0;
     float trainingLoss = 0.0;
@@ -47,7 +47,7 @@ void train_model_sgd(model* myModel, int epochs, int numSamples, float** inputs,
 
             memcpy(myModel->targets, targets[i], sizeof(float) * (*myModel->outLayer)->numNodes);
             
-            forward_out(myModel->outLayer);
+            forward_out(myModel->outLayer, dropoutVal);
             sgd_backprop(myModel->outLayer, &myModel);
             calculate_and_apply_grads(myModel->outLayer, myModel->learning_rate);
 
@@ -67,7 +67,7 @@ void train_model_sgd(model* myModel, int epochs, int numSamples, float** inputs,
 
             memcpy(myModel->targets, targets[i], sizeof(float) * (*myModel->outLayer)->numNodes);
             
-            forward_out(myModel->outLayer);
+            forward_out(myModel->outLayer, 0.0);
 
             testingLoss += loss_function(myModel);
             numTestLosses++;
@@ -89,7 +89,7 @@ void train_model_sgd(model* myModel, int epochs, int numSamples, float** inputs,
     printf("\nTotal training time: %ldms\n", (tEnd-tStart));
 }
 
-void train_rnn_sgd(model* myModel, int epochs, int numSamples, float** inputs, float **targets, float valSplit, int seqLength)
+void train_rnn_sgd(model* myModel, int epochs, int numSamples, float** inputs, float **targets, float valSplit, int seqLength, float dropoutVal)
 {
     int inputsTraversed = 0;
     int currTargs = 0;
@@ -127,7 +127,7 @@ void train_rnn_sgd(model* myModel, int epochs, int numSamples, float** inputs, f
                     inputsTraversed += (*myModel->inLayers[k])->numNodes;
                 }
 
-                forward_out(myModel->outLayer);
+                forward_out(myModel->outLayer, dropoutVal);
                 
                 shift_model(myModel->outLayer, 't');
 
@@ -150,7 +150,7 @@ void train_rnn_sgd(model* myModel, int epochs, int numSamples, float** inputs, f
                 inputsTraversed += (*myModel->inLayers[j])->numNodes;
             }
             
-            forward_out(myModel->outLayer);
+            forward_out(myModel->outLayer, 0.0);
             memcpy(myModel->targets, targets[i], sizeof(float) * (*myModel->outLayer)->numNodes);
             testingLoss += loss_function(myModel);
             
@@ -186,7 +186,7 @@ void model_inference(model* myModel, float* inputs, float** outputs) //(model*, 
         inputsTraversed += (*myModel->inLayers[i])->numNodes;
     }
 
-    forward_out(myModel->outLayer);
+    forward_out(myModel->outLayer, 0.0);
 
     memcpy(*outputs, (*myModel->outLayer)->outputs, sizeof(float) * (*myModel->outLayer)->numNodes);
     zero_everything(myModel->outLayer);
@@ -201,7 +201,7 @@ void rnn_model_inference(model* myModel, float inputs[], float outputs[]) //(mod
         inputsTraversed += (*myModel->inLayers[i])->numNodes;
     }
 
-    forward_out(myModel->outLayer);
+    forward_out(myModel->outLayer, 0.0);
     shift_model(myModel->outLayer, 'i');
 
     memcpy(outputs, (*myModel->outLayer)->outputs, sizeof(float) * (*myModel->outLayer)->numNodes);
@@ -209,7 +209,7 @@ void rnn_model_inference(model* myModel, float inputs[], float outputs[]) //(mod
 }
 
 #if defined(__AVX__) || defined(__AVX2__)
-void train_model_sgd_fast(model* myModel, int epochs, int numSamples, float** inputs, float **targets, float valSplit)
+void train_model_sgd_fast(model* myModel, int epochs, int numSamples, float** inputs, float **targets, float valSplit, float dropoutVal)
 {
     int inputsTraversed = 0;
     float trainingLoss = 0.0;
@@ -246,7 +246,7 @@ void train_model_sgd_fast(model* myModel, int epochs, int numSamples, float** in
 
             memcpy(myModel->targets, targets[i], sizeof(float) * (*myModel->outLayer)->numNodes);
             
-            _mm256_forward_out(myModel->outLayer);
+            _mm256_forward_out(myModel->outLayer, dropoutVal);
             sgd_backprop(myModel->outLayer, &myModel);
             _mm256_calculate_and_apply_grads(myModel->outLayer, myModel->learning_rate);
 
@@ -265,7 +265,7 @@ void train_model_sgd_fast(model* myModel, int epochs, int numSamples, float** in
 
             memcpy(myModel->targets, targets[i], sizeof(float) * (*myModel->outLayer)->numNodes);
             
-            _mm256_forward_out(myModel->outLayer);
+            _mm256_forward_out(myModel->outLayer, 0.0);
 
             testingLoss += loss_function(myModel);
             zero_everything(myModel->outLayer);
@@ -288,7 +288,7 @@ void train_model_sgd_fast(model* myModel, int epochs, int numSamples, float** in
 
 }
 
-void train_rnn_sgd_fast(model* myModel, int epochs, int numSamples, float** inputs, float **targets, float valSplit, int seqLength)
+void train_rnn_sgd_fast(model* myModel, int epochs, int numSamples, float** inputs, float **targets, float valSplit, int seqLength, float dropoutVal)
 {
     int inputsTraversed = 0;
     int currTargs = 0;
@@ -326,7 +326,7 @@ void train_rnn_sgd_fast(model* myModel, int epochs, int numSamples, float** inpu
                     inputsTraversed += (*myModel->inLayers[k])->numNodes;
                 }
 
-                _mm256_forward_out(myModel->outLayer);
+                _mm256_forward_out(myModel->outLayer, dropoutVal);
                 
                 shift_model(myModel->outLayer, 't');
 
@@ -349,7 +349,7 @@ void train_rnn_sgd_fast(model* myModel, int epochs, int numSamples, float** inpu
                 inputsTraversed += (*myModel->inLayers[j])->numNodes;
             }
             
-            _mm256_forward_out(myModel->outLayer);
+            _mm256_forward_out(myModel->outLayer, 0.0);
             memcpy(myModel->targets, targets[i], sizeof(float) * (*myModel->outLayer)->numNodes);
             testingLoss += loss_function(myModel);
             
@@ -381,7 +381,7 @@ void model_inference_fast(model* myModel, float* inputs, float** outputs) //(mod
         inputsTraversed += (*myModel->inLayers[i])->numNodes;
     }
 
-    _mm256_forward_out(myModel->outLayer);
+    _mm256_forward_out(myModel->outLayer, 0.0);
 
     memcpy(*outputs, (*myModel->outLayer)->outputs, sizeof(float) * (*myModel->outLayer)->numNodes);
     zero_everything(myModel->outLayer);
@@ -396,7 +396,7 @@ void rnn_model_inference_fast(model* myModel, float* inputs, float** outputs) //
         inputsTraversed += (*myModel->inLayers[i])->numNodes;
     }
 
-    _mm256_forward_out(myModel->outLayer);
+    _mm256_forward_out(myModel->outLayer, 0.0);
     shift_model(myModel->outLayer, 'i');
 
     memcpy(*outputs, (*myModel->outLayer)->outputs, sizeof(float) * (*myModel->outLayer)->numNodes);
@@ -416,7 +416,7 @@ void model_inference_fast(model* myModel, float* inputs, float** outputs) //(mod
         inputsTraversed += (*myModel->inLayers[i])->numNodes;
     }
 
-    vforward_out(myModel->outLayer);
+    vforward_out(myModel->outLayer, 0.0);
 
     memcpy(*outputs, (*myModel->outLayer)->outputs, sizeof(float) * (*myModel->outLayer)->numNodes);
     zero_everything(myModel->outLayer);
@@ -431,7 +431,7 @@ void rnn_model_inference_fast(model* myModel, float* inputs, float** outputs) //
         inputsTraversed += (*myModel->inLayers[i])->numNodes;
     }
 
-    vforward_out(myModel->outLayer);
+    vforward_out(myModel->outLayer, 0.0);
     shift_model(myModel->outLayer, 'i');
 
     memcpy(*outputs, (*myModel->outLayer)->outputs, sizeof(float) * (*myModel->outLayer)->numNodes);

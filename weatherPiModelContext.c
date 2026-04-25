@@ -36,12 +36,12 @@ int main()
     layer* outLayer = make_output_layer((layer**[]){&hiddenLayer1, &hiddenLayer0}, 2, 2, 'x');
     if(outLayer == NULL) goto error4;
 
-    model *wethrModel = construct_model((layer**[]){&inLayer0}, &outLayer, 4 + (2 * windowSize), 1, 0.0000001f, 'c');
+    model *wethrModel = construct_model((layer**[]){&inLayer0}, &outLayer, 4 + (2 * windowSize), 1, 0.00000005f, 'c');
     if(wethrModel == NULL) goto error5;
 
     if(read_csv(filename, numSamples, numIns, numOuts, &inArrays, &outArrays) != 0) goto error6;
 
-    train_rnn_sgd_fast(wethrModel, 50, numSamples, inArrays, outArrays, 0.8, windowSize);
+    train_rnn_sgd_fast(wethrModel, 20, numSamples, inArrays, outArrays, 0.8, windowSize, 0.4);
 
     save_model(&wethrModel, "weathrModelContext.cml");
     hakai_matrix(&inArrays, numSamples);

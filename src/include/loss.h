@@ -65,7 +65,7 @@ float binary_cross_entropy_loss(model* myModel)
     if((*myModel->outLayer)->numNodes > 1) exit(EXIT_FAILURE);
     float sum = 0;
     
-    sum -= ((myModel->targets[0]) * log((*myModel->outLayer)->outputs[0])) + ((1-(myModel->targets[0])) * log((1 - (*myModel->outLayer)->outputs[0])));
+    sum -= ((myModel->targets[0]) * log((*myModel->outLayer)->outputs[0] + 0.00000001)) + ((1-(myModel->targets[0])) * log((1 - (*myModel->outLayer)->outputs[0] + 0.00000001)));
     
     return (sum);
 }
@@ -94,7 +94,7 @@ float categorical_cross_entropy_loss(model* myModel)
 {
     float sum = 0;
     
-    for(int i = 0; i < (*myModel->outLayer)->numNodes; i++) sum -= (myModel->targets[i]) * log((*myModel->outLayer)->outputs[i]);
+    for(int i = 0; i < (*myModel->outLayer)->numNodes; i++) sum -= (myModel->targets[i]) * log((*myModel->outLayer)->outputs[i] + 0.000000001);
     
     return (sum);
 }
