@@ -5,7 +5,8 @@
 // 40 Bytes for an empty model husk 
 typedef struct
 {   
-    layer ***inLayers;      // References to the input layers of the model - entry point for model operations, array of pointers to layer allocation pointers
+    layer*** inLayers;      // References to the input layers of the model - entry point for model operations, array of pointers to layer allocation pointers
+    layer*** layerList;     // List of all layers in the model - for operations to encourage spatial locality, array of pointers to layer allocation pointers
     layer **outLayer;       // References the output layers of the model - entry point for model operations - pointer to layer allocation pointer
     float *targets;         // target values for the current training iteration
     float learning_rate;    // Learning rate for the NN

@@ -70,28 +70,28 @@ int main()
 
     memcpy(myModel->targets, (float[]){0.905405}, sizeof(float));
 
-    forward_out(myModel->outLayer, 0.0);
-    sgd_backprop(myModel->outLayer, &myModel);
+    forward_out(myModel, 0.0);
+    sgd_backprop(myModel);
     // printf("Layer 0 Activation[0] is: %f\n", layer0->outputs[0]);
     // printf("Layer 0 Activation[1] is: %f\n", layer0->outputs[1]);
     // printf("Layer 1 Activation[0] is: %f\n", layer0->outputs[0]);
     // printf("\noutLayer Activation is: %f\n", outLayer->outputs[0]);
 
-    calculate_and_apply_grads(myModel->outLayer, myModel->learning_rate);
+    calculate_and_apply_grads(myModel);
     
-    // for(int i = 0; i < 10000; i++)
-    // {
-    //     zero_everything(myModel->outLayer);
-    //     forward_out(myModel->outLayer);
-    //     sgd_backprop(myModel->outLayer, myModel);
-    //     calculate_and_apply_grads(myModel->outLayer, myModel->learning_rate);
-    //     //printf("%d\n", i);
-    // }
+    for(int i = 0; i < 10000; i++)
+    {
+        zero_everything(myModel);
+        forward_out(myModel, 0.0);
+        sgd_backprop(myModel);
+        calculate_and_apply_grads(myModel);
+        //printf("%d\n", i);
+    }
     
-    // printf("\nModel output is: %f\nTarget is : %f", myModel->outLayer->outputs[0], target[0]);
-    // printf("\noutLayer Weights:\n");
-    // for(int i = 0; i < 3; i++) printf("[%f]\n", outLayer->weights[0][i]);
-    // printf("\nMid Layer Weights:\n");
+    printf("\nModel output is: %f\nTarget is : %f", (*myModel->outLayer)->outputs[0], myModel->targets[0]);
+    printf("\noutLayer Weights:\n");
+    for(int i = 0; i < 3; i++) printf("[%f]\n", outLayer->weights[0][i]);
+    printf("\nMid Layer Weights:\n");
 
     // printf("[%f] [%f] [%f]\n", layer0->weights[0][0], layer0->weights[0][1], layer0->weights[0][2]);
     // printf("[%f] [%f] [%f]\n", layer0->weights[1][0], layer0->weights[1][1], layer0->weights[1][2]);

@@ -18,7 +18,7 @@ int main()
     memcpy((*myModel->inLayers[0])->outputs, (float[]){0.05, 0.10, 0.15}, 3*sizeof(float));
     memcpy(myModel->targets, (float[]){0.905405}, sizeof(float));
 
-    forward_out(myModel->outLayer, 0.0);
+    forward_out(myModel, 0.0);
     
     printf("\nModel output is: %f\nTarget is : %f\n", (*myModel->outLayer)->outputs[0], myModel->targets[0]);
 

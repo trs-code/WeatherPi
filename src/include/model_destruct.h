@@ -4,7 +4,7 @@
 #include "layer_ops.h"
 
 
-// Destroy a model object independently from any layers(IMPORTANT TO DESTROY LAYERS MANUALLY IF USED)
+// Destroy a model object independently from any layers(IMPORTANT TO DESTROY EVERY SINGLE LAYER MANUALLY IF USED)
 void hakai_model_mfree(model** myModel)
 {
     free((*myModel)->targets);
@@ -38,8 +38,8 @@ void clear_model(layer*** layerArr, int layerNums)
     layerArr = NULL;
 }
 
-// Actual user called function to destroy the entire model which sets up an outArray to keep consistency with the clear model logic, followed by model cleanup
-void hakai_model(model** myModel)
+// Actual user called function to destroy the entire model which sets up an outArray to keep consistency with the clear model logic, followed by model cleanup, recursive version
+void hakai_model_recur(model** myModel)
 {
     layer ***outArr = (layer***)malloc(sizeof(layer**));
     if(outArr == NULL) return;
@@ -47,6 +47,24 @@ void hakai_model(model** myModel)
     outArr[0] = (*myModel)->outLayer;
     
     clear_model(outArr, 1);
+
+    free((*myModel)->inLayers);
+    (*myModel)->inLayers = NULL;
+
+    free((*myModel)->targets);
+    (*myModel)->targets = NULL;
+
+    free(*myModel);
+    *myModel= NULL;
+}
+
+// Actual user called function to destroy the entire model which sets up an outArray to keep consistency with the clear model logic, followed by model cleanup, iterative version
+void hakai_model(model** myModel)
+{
+    for(int i = 0; i < (*myModel)->numLayers; i++) hakai_layer_mfree((*myModel)->layerList[i]);
+
+    free((*myModel)->layerList);
+    (*myModel)->layerList = NULL;
 
     free((*myModel)->inLayers);
     (*myModel)->inLayers = NULL;

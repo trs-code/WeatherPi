@@ -4,22 +4,22 @@
 /*  
 Model Structure
                     
-            X(t - 1) 
-        inLayer----hiddenLayer0 
-            |          |
-            |          |h(t-1)
-            |          |        h(t)
-            X(t)---hiddenLayer1 -- outLayer
+            X(t - 1)            h(t)
+        inLayer----hiddenLayer0 ---  outLayer
+                        |
+                        |h(t-1)
+                        |        
+    prevLayers --- hiddenLayer1 
                         .
                         .
                         .
-                context x windowSize
+                2 * context x windowSize
 */
 
 int main() 
 {
     layer** windowLayers = NULL;
-    int windowSize = 1;
+    int windowSize = 20;
 
     layer* inLayer0 = make_input_layer(3);
     if(inLayer0 == NULL)
@@ -58,37 +58,36 @@ int main()
     memcpy((*myModel->inLayers[0])->outputs, (float[]){0.05, 0.10, 0.15}, 3*sizeof(float));
     memcpy(myModel->targets, (float[]){0.905405}, sizeof(float));
 
-    forward_out(myModel->outLayer, 0.0);
-    sgd_backprop(myModel->outLayer, &myModel);
+    forward_out(myModel, 0.3);
+    sgd_backprop(myModel);
 
     for(int i = 0; i < 1; i++) printf("hiddenLayer0 output[%d] is: %f\n", i, hiddenLayer0->outputs[i]);
 
     printf("\nModel output is: %f\n", (*myModel->outLayer)->outputs[0]);
     printf("\noutLayer Backerror is: %f\n", outLayer->backErrors[0]);
     
-    calculate_and_apply_grads_through_time(myModel->outLayer, myModel->learning_rate);
-    shift_model(myModel->outLayer, 't');
+    calculate_and_apply_grads_through_time(myModel);
     
-    // for(int i = 0; i < 200; i++)
-    // {
-    //     zero_everything(myModel->outLayer);
-    //     load_context_window(windowLayers, (float[]){0.05, 0.10, 0.15}, windowSize);
-    //     forward_out(myModel->outLayer);
-    //     sgd_backprop(myModel->outLayer, &myModel);
-    //     calculate_and_apply_grads(myModel->outLayer, myModel->learning_rate);
-    // }
+    for(int i = 0; i < 50000; i++)
+    {
+        zero_base_model(myModel);
+        shift_model(myModel, 't');
+        forward_out(myModel, 0.3);
+        sgd_backprop(myModel);
+        calculate_and_apply_grads_through_time(myModel);
+    }
 
-    // printf("\nModel output is: %f\nTarget is : %f", (*myModel->outLayer)->outputs[0], myModel->targets[0]);
-    // printf("\noutLayer Weights:\n");
-    // for(int i = 0; i < 1; i++) printf("[%f]\n", outLayer->weights[0][i]);
+    printf("\nModel output is: %f\nTarget is : %f", (*myModel->outLayer)->outputs[0], myModel->targets[0]);
+    printf("\noutLayer Weights:\n");
+    for(int i = 0; i < 1; i++) printf("[%f]\n", outLayer->weights[0][i]);
 
-    // printf("\noutLayer Backerror is: %f\n", outLayer->backErrors[0]);
-    // for(int i = 0; i < 1; i++) printf("hiddenLayer0 Backerror[%d] is: %f\n", i, hiddenLayer0->backErrors[i]);
+    printf("\noutLayer Backerror is: %f\n", outLayer->backErrors[0]);
+    for(int i = 0; i < 1; i++) printf("hiddenLayer0 Backerror[%d] is: %f\n", i, hiddenLayer0->backErrors[i]);
 
-    // printf("\noutLayer preActivation is: %f\n", outLayer->preActivations[0]);
-    // for(int i = 0; i < 1; i++) printf("hiddenLayer0 preActivation[%d] is: %f\n", i, hiddenLayer0->preActivations[i]);
+    printf("\noutLayer preActivation is: %f\n", outLayer->preActivations[0]);
+    for(int i = 0; i < 1; i++) printf("hiddenLayer0 preActivation[%d] is: %f\n", i, hiddenLayer0->preActivations[i]);
 
-    // save_model(&myModel, "test10Model.cml");
+    //save_model(myModel, "test10Model.cml");
 
     hakai_model(&myModel);
 

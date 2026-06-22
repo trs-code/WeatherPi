@@ -17,7 +17,7 @@ void hakai_matrix(float*** mat, int rows)
     *mat = NULL;
 }
 
-// Destroy an individual layer after operations are concluded but a model hasn't been built yet
+// Destroy an individual layer after operations are concluded
 void hakai_layer_mfree(layer** myLayer)
 {    
     if(*myLayer == NULL) return;

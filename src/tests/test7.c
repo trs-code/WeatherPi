@@ -53,7 +53,7 @@ int main()
 
     train_model_sgd(wethrModel, 500, numSamples, inArrays, outArrays, 0.5, 0.2);
 
-    save_model(&wethrModel, "testWeatherModel.cml");
+    save_model(wethrModel, "testWeatherModel.cml");
     
     hakai_matrix(&inArrays, numSamples);
     hakai_matrix(&outArrays, numSamples);

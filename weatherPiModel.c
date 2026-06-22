@@ -37,14 +37,14 @@ int main()
     layer* outLayer = make_output_layer((layer**[]){&denseLayer4}, 1, 1, 's');
     if(denseLayer2 == NULL) goto error9;
 
-    model *wethrModel = construct_model((layer**[]){&inLayer0, &inLayer1, &inLayer2}, &outLayer, 9, 3, 0.000000000005f, 'n');
+    model *wethrModel = construct_model((layer**[]){&inLayer0, &inLayer1, &inLayer2}, &outLayer, 9, 3, 0.0000005f, 'n');
     if(wethrModel == NULL) goto error10;
 
     if(read_csv(filename, numSamples, numIns, numOuts, &inArrays, &outArrays) != 0) goto error11;
 
-    train_model_sgd_fast(wethrModel, 10, numSamples, inArrays, outArrays, 0.8, 0.5);
+    train_model_sgd(wethrModel, 10, numSamples, inArrays, outArrays, 0.8, 0.5);
 
-    save_model(&wethrModel, "weathrModel.cml");
+    //save_model(wethrModel, "weathrModel.cml");
     hakai_matrix(&inArrays, numSamples);
     hakai_matrix(&outArrays, numSamples);
     hakai_model(&wethrModel);

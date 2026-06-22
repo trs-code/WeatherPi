@@ -20,7 +20,7 @@ int main()
 
     if(read_csv(filename, numSamples, numIns, numOuts, &inArrays, &outArrays) != 0) goto error2;
 
-    train_rnn_sgd(wethrModel, 2, numSamples, inArrays, outArrays, 0.8, 24, 0.2);
+    train_rnn_sgd_fast(wethrModel, 20, numSamples, inArrays, outArrays, 0.0, 24, 0.0);
 
     hakai_matrix(&inArrays, numSamples);
     hakai_matrix(&outArrays, numSamples);

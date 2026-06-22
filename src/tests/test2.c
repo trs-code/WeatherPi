@@ -55,21 +55,21 @@ int main()
 
     memcpy(myModel->targets, (float[]){0.905405}, sizeof(float));
 
-    // forward_out(myModel->outLayer);
-    // sgd_backprop(myModel->outLayer, &myModel);
+    // forward_out(myModel);
+    // sgd_backprop(myModel);
     // for(int i = 0; i < 3; i++) printf("Layer 1 Activation[%d] is: %f\n", i, layer0->outputs[i]);
     // printf("\noutLayer Activation is: %f\n", outLayer->outputs[0]);
     
     // for(int i = 0; i < 3; i++) printf("Layer 1 Backerror[%d] is: %f\n", i, layer0->backErrors[i]);
     
-    // calculate_and_apply_grads(myModel->outLayer, myModel->learning_rate);
+    // calculate_and_apply_grads(myModel, myModel->learning_rate);
     
-    for(int i = 0; i < 1; i++)
+    for(int i = 0; i < 100; i++)
     {
-        zero_everything(myModel->outLayer);
-        forward_out(myModel->outLayer, 0.0);
-        sgd_backprop(myModel->outLayer, &myModel);
-        calculate_and_apply_grads(myModel->outLayer, myModel->learning_rate);
+        zero_everything(myModel);
+        forward_out(myModel, 0.0);
+        sgd_backprop(myModel);
+        calculate_and_apply_grads(myModel);
         //printf("%d\n", i);
     }
     
