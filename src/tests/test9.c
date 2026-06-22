@@ -11,7 +11,9 @@ Model Structure
                                \  /
                                 \/
 */
-
+// Used to be a test for the referential layer, but due to reconsideration of how the model operates it was deemed to be counterintuitive was sundowned
+// Perhaps in the future can be used to test cross connected layer functionality (layers that are dependent on an input and each others' output, similar to a flip flop circuit)
+// Would need to move zero functionality to forward out, but then I would still need a zero_everything model specifically for RNNs - done
 int main()
 {
     layer* inLayer = make_input_layer(3);
@@ -22,14 +24,14 @@ int main()
         goto error1;
     }
     
-    layer* hiddenLayer0 = make_referential_layer((layer**[]){&inLayer}, 1, 1, 'h', &hiddenLayer0);
+    layer* hiddenLayer0 = make_hidden_layer((layer**[]){&inLayer}, 1, 1, 'h');
     if(hiddenLayer0 == NULL)
     {
         printf("Memory allocation failed at hiddenLayer0\n");
         goto error2;
     }
 
-    layer* hiddenLayer1 = make_referential_layer((layer**[]){&hiddenLayer0}, 1, 1, 'h', &hiddenLayer1);
+    layer* hiddenLayer1 = make_hidden_layer((layer**[]){&hiddenLayer0}, 1, 1, 'h');
     if(hiddenLayer0 == NULL)
     {
         printf("Memory allocation failed at hiddenLayer1\n");
@@ -78,7 +80,7 @@ int main()
     printf("\noutLayer Weights:\n");
     for(int i = 0; i < 1; i++) printf("[%f]\n", outLayer->weights[0][i]);
     printf("\nhiddenLayer0 Weights:\n");
-    for(int i = 0; i < 4; i++) printf("[%f]\n", hiddenLayer0->weights[0][i]);
+    for(int i = 0; i < 3; i++) printf("[%f]\n", hiddenLayer0->weights[0][i]);
 
     printf("\noutLayer Backerror is: %f\n", outLayer->backErrors[0]);
     for(int i = 0; i < 1; i++) printf("hiddenLayer0 Backerror[%d] is: %f\n", i, hiddenLayer0->backErrors[i]);
@@ -94,13 +96,13 @@ int main()
     return 0;
 
 error5:
-    hakai_layer_mfree(&outLayer);
+    hakai_layer(&outLayer);
 error4:
-    hakai_layer_mfree(&hiddenLayer1);
+    hakai_layer(&hiddenLayer1);
 error3:
-    hakai_layer_mfree(&hiddenLayer0);
+    hakai_layer(&hiddenLayer0);
 error2:
-    hakai_layer_mfree(&inLayer);
+    hakai_layer(&inLayer);
 error1:
     exit(EXIT_FAILURE);
 }

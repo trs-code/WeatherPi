@@ -10,7 +10,7 @@ int main()
     int numIns = 3;
     int numOuts = 2;
     int numSamples = 67764;
-    int windowSize = 2;
+    int windowSize = 24;
 
     layer* inLayer0 = make_input_layer(3);
     if(inLayer0 == NULL)
@@ -36,14 +36,14 @@ int main()
     layer* outLayer = make_output_layer((layer**[]){&hiddenLayer1, &hiddenLayer0}, 2, 2, 'x');
     if(outLayer == NULL) goto error4;
 
-    model *wethrModel = construct_model((layer**[]){&inLayer0}, &outLayer, 4 + (2 * windowSize), 1, 0.0000001, 'c');
+    model *wethrModel = construct_model((layer**[]){&inLayer0}, &outLayer, 4 + (2 * windowSize), 1, 0.001, 'c');
     if(wethrModel == NULL) goto error5;
 
     if(read_csv(filename, numSamples, numIns, numOuts, &inArrays, &outArrays) != 0) goto error6;
 
-    train_rnn_sgd_fast(wethrModel, 1, numSamples, inArrays, outArrays, 0.8, windowSize, 0.3);
+    train_rnn_sgd_fast(wethrModel, 10, numSamples, inArrays, outArrays, 0.8, windowSize, 0.3);
 
-    save_model(wethrModel, "weathrModelContext.cml");
+    //save_model(wethrModel, "weathrModelContext.cml");
     hakai_matrix(&inArrays, numSamples);
     hakai_matrix(&outArrays, numSamples);
     hakai_model(&wethrModel);
@@ -57,13 +57,13 @@ error6:
     hakai_matrix(&outArrays, numSamples);
     hakai_model(&wethrModel);
 error5:
-    hakai_layer_mfree(&outLayer);
+    hakai_layer(&outLayer);
 error4:
     hakai_context_window(&windowLayers, windowSize);
 error3:
-    hakai_layer_mfree(&hiddenLayer0);
+    hakai_layer(&hiddenLayer0);
 error2:
-    hakai_layer_mfree(&inLayer0);
+    hakai_layer(&inLayer0);
 error1:
     exit(EXIT_FAILURE);
 }

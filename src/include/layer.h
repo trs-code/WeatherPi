@@ -31,6 +31,5 @@ struct layer
     int layerID; // A unique number from [0, (# of layers in the Model) - 1] - maybe made redundant through switchVar?
     char layerType;
     char activationFunction;
-    char switchVar;
 };
 

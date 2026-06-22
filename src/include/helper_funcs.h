@@ -79,6 +79,8 @@ float accuracy(model* myModel)
     return 1.0f - (sum / n);
 }
 
+// If you have trouble accessing a CSV or model save file make sure the program is being run in the same directory as the file that it is referencing
+// Or provide the full path to the file in the filename 
 int read_csv(const char* fileName, int numSamples, int numInputs, int numOutputs, float*** inArrs, float*** outArrs)
 {
     FILE *datFile = fopen(fileName, "r");

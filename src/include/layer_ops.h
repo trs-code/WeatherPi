@@ -8,9 +8,7 @@
 void glorot_uniform_init(layer* myLayer) 
 {
     float limit = sqrt(6.0 / (myLayer->numPrevNodes + myLayer->numNodes));
-    for (int i = 0; i < myLayer->numNodes; ++i) {
-        for(int j = 0; j < myLayer->numPrevNodes; j++) myLayer->weights[i][j] = ((float)rand() / RAND_MAX) * 2.0 * limit - limit;
-    }
+    for (int i = 0; i < myLayer->numNodes; ++i) for(int j = 0; j < myLayer->numPrevNodes; j++) myLayer->weights[i][j] = ((float)rand() / RAND_MAX) * 2.0 * limit - limit;
 }
 
 // Solely to load input values into the model in a form where layer operations can be generalized into
@@ -36,7 +34,6 @@ layer* make_input_layer(int numNodes)
     inLayer->numNodes = numNodes;
     inLayer->activationFunction = 'i';
     inLayer->layerID = -1;
-    inLayer->switchVar = '0';
 
     return inLayer;
 
@@ -93,7 +90,6 @@ layer* make_hidden_layer(layer*** prev, int numNodes, int numPrevLayers, char ac
     hiddenLayer->numNodes = numNodes;
     hiddenLayer->activationFunction = activation_function;
     hiddenLayer->layerID = -1;
-    hiddenLayer->switchVar = '0';
     hiddenLayer->layerType = 'h';
 
     glorot_uniform_init(hiddenLayer);
@@ -163,7 +159,6 @@ layer* make_output_layer(layer*** prev, int numNodes, int numPrevLayers, char ac
     outLayer->numNodes = numNodes;
     outLayer->activationFunction = activation_function;
     outLayer->layerID = -1;
-    outLayer->switchVar = '0';
     outLayer->layerType = 'o';
 
     glorot_uniform_init(outLayer);
@@ -187,86 +182,6 @@ error2:
 error1:
     free(outLayer);
     outLayer = NULL;
-
-    return NULL;
-}
-
-// Currently not in use, can be a space saving way to do RNN inference
-layer* make_referential_layer(layer*** prev, int numNodes, int numPrevLayers, char activation_function, layer** thisLayerAddress)
-{
-    // Allocate space for the layer
-    layer *referentialLayer = (layer *)malloc(sizeof(layer));
-    if(referentialLayer == NULL) return NULL;
-
-    // Set number of previous layers that feed into this layer and number of next layers that this layer feeds into
-    // These make it easier to implement models with more complex structures than traditional NNs which would set these at 1
-    // Also helps with backward passes
-    referentialLayer->numPrevLayers = numPrevLayers + 1;
-    referentialLayer->numPrevNodes = 0;
-
-    // Allocate space for the previous layers using provided parameter - DESIGN YOUR MODEL BEFORE IMPLEMENTING CAREFULLY
-    referentialLayer->prevLayers = (layer ***)malloc(sizeof(layer**) * (numPrevLayers + 1));
-    if(referentialLayer->prevLayers == NULL) goto error1;
-
-    // Set the previous layers as the previous layers
-    for(int i = 0; i < numPrevLayers; i++) referentialLayer->prevLayers[i] = prev[i];
-
-    referentialLayer->prevLayers[numPrevLayers] = thisLayerAddress;
-
-    // Make this layer a next layer for all previous layers
-    for(int i = 0; i < numPrevLayers; i++) referentialLayer->numPrevNodes += (*referentialLayer->prevLayers[i])->numNodes;
-
-    referentialLayer->numPrevNodes += numNodes;
-
-    referentialLayer->weights = (float **)malloc(numNodes * sizeof(float*));
-    if(referentialLayer->weights == NULL) goto error2;
-
-    referentialLayer->biases = (float *)calloc(numNodes, sizeof(float)); // Bias for each neuron
-    if(referentialLayer->biases == NULL) goto error3;
-
-    for(int i = 0; i < numNodes; i++)
-    {
-        referentialLayer->weights[i] = (float *)malloc(sizeof(float) * (referentialLayer->numPrevNodes)); // Each column is a connection to each neuron in the previous layer pus a bias
-        if(referentialLayer->weights[i] == NULL) goto error4;
-    }
-    
-    referentialLayer->backErrors = (float *)calloc((numNodes), sizeof(float));
-    if(referentialLayer->backErrors == NULL) goto error4;
-
-    referentialLayer->outputs = (float *)calloc(numNodes, sizeof(float));
-    if(referentialLayer->outputs == NULL) goto error5;
-    
-    referentialLayer->preActivations = (float *)calloc(numNodes, sizeof(float));
-    if(referentialLayer->preActivations == NULL) goto error6;
-    
-    referentialLayer->numNodes = numNodes;
-    referentialLayer->activationFunction = activation_function;
-    referentialLayer->layerID = -1;
-    referentialLayer->switchVar = '0';
-    referentialLayer->layerType = 'r'; 
-
-    glorot_uniform_init(referentialLayer);
-
-    return referentialLayer;
-
-
-error6:
-    free(referentialLayer->outputs);
-    referentialLayer->outputs = NULL;
-error5:
-    free(referentialLayer->backErrors);
-    referentialLayer->backErrors = NULL;
-error4:
-    hakai_matrix(&(referentialLayer->weights), numNodes);
-error3:
-    free(referentialLayer->biases);
-    referentialLayer->biases = NULL;
-error2:
-    free(referentialLayer->prevLayers);
-    referentialLayer->prevLayers = NULL;
-error1:
-    free(referentialLayer);
-    referentialLayer = NULL;
 
     return NULL;
 }
@@ -299,7 +214,6 @@ layer* make_window_layer(layer*** prev, int numNodes, int numPrevLayers, char ac
     windowLayer->numNodes = numNodes;
     windowLayer->activationFunction = activationFunction;
     windowLayer->layerID = -1;
-    windowLayer->switchVar = '0';
 
     for(int i = 0; i < numPrevLayers; i++) windowLayer->prevLayers[i] = prev[i];
 

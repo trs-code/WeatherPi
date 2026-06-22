@@ -18,7 +18,7 @@ void hakai_matrix(float*** mat, int rows)
 }
 
 // Destroy an individual layer after operations are concluded
-void hakai_layer_mfree(layer** myLayer)
+void hakai_layer(layer** myLayer)
 {    
     if(*myLayer == NULL) return;
     
@@ -44,30 +44,4 @@ void hakai_layer_mfree(layer** myLayer)
 
     free(*myLayer);
     *myLayer = NULL;    
-}
-
-// Destroy an individual layer in the process of clearing the model
-void hakai_layer(layer** myLayer)
-{
-    if(*myLayer == NULL) return;
-
-    free((*myLayer)->outputs);
-    (*myLayer)->outputs = NULL;
-
-    if((*myLayer)->activationFunction != 'i')
-    {
-        hakai_matrix(&(*myLayer)->weights, (*myLayer)->numNodes);
-
-        free((*myLayer)->backErrors);
-        (*myLayer)->backErrors = NULL;
-
-        free((*myLayer)->preActivations);
-        (*myLayer)->preActivations = NULL;
-
-        free((*myLayer)->biases);
-        (*myLayer)->biases = NULL;
-    }
-    
-    free(*myLayer);
-    *myLayer = NULL;
 }

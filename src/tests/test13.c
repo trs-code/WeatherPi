@@ -1,8 +1,6 @@
 #include <stdio.h>
 #include "../include/cml.h"
 
-// Just testing loading functionality of test1 Model
-
 int main()
 {
     char filename[] = "THPDiffsFull.csv";

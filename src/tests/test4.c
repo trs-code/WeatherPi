@@ -112,17 +112,17 @@ int main()
     return 0;
 
 error7:
-    hakai_layer_mfree(&outLayer);
+    hakai_layer(&outLayer);
 error6:
-    hakai_layer_mfree(&layer2);
+    hakai_layer(&layer2);
 error5:
-    hakai_layer_mfree(&layer1);
+    hakai_layer(&layer1);
 error4:
-    hakai_layer_mfree(&layer0);
+    hakai_layer(&layer0);
 error3:
-    hakai_layer_mfree(&inLayer1);
+    hakai_layer(&inLayer1);
 error2:
-    hakai_layer_mfree(&inLayer0);
+    hakai_layer(&inLayer0);
 error1:
     exit(EXIT_FAILURE);
 }

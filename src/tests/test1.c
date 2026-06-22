@@ -74,7 +74,7 @@ int main()
     printf("\nLayer 2 pre-activation is: %f\n", outLayer->preActivations[0]);
     for(int i = 0; i < 3; i++) printf("Layer 1 pre-activation[%d] is: %f\n", i, layer0->preActivations[i]);
 
-    //save_model(myModel, "test1Model.cml");
+    save_model(myModel, "test1Model.cml");
 
     hakai_model(&myModel);
     
@@ -82,11 +82,11 @@ int main()
     return 0;
 
 error4:
-    hakai_layer_mfree(&outLayer);
+    hakai_layer(&outLayer);
 error3:
-    hakai_layer_mfree(&layer0);
+    hakai_layer(&layer0);
 error2:
-    hakai_layer_mfree(&inLayer);
+    hakai_layer(&inLayer);
 error1:
     exit(EXIT_FAILURE);
 }

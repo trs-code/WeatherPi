@@ -19,7 +19,7 @@ Model Structure
 int main() 
 {
     layer** windowLayers = NULL;
-    int windowSize = 20;
+    int windowSize = 10;
 
     layer* inLayer0 = make_input_layer(3);
     if(inLayer0 == NULL)
@@ -58,7 +58,7 @@ int main()
     memcpy((*myModel->inLayers[0])->outputs, (float[]){0.05, 0.10, 0.15}, 3*sizeof(float));
     memcpy(myModel->targets, (float[]){0.905405}, sizeof(float));
 
-    forward_out(myModel, 0.3);
+    forward_out(myModel, 0.0);
     sgd_backprop(myModel);
 
     for(int i = 0; i < 1; i++) printf("hiddenLayer0 output[%d] is: %f\n", i, hiddenLayer0->outputs[i]);
@@ -68,16 +68,15 @@ int main()
     
     calculate_and_apply_grads_through_time(myModel);
     
-    for(int i = 0; i < 50000; i++)
+    for(int i = 0; i < 5000; i++)
     {
-        zero_base_model(myModel);
         shift_model(myModel, 't');
-        forward_out(myModel, 0.3);
+        forward_out(myModel, 0.0);
         sgd_backprop(myModel);
         calculate_and_apply_grads_through_time(myModel);
     }
 
-    printf("\nModel output is: %f\nTarget is : %f", (*myModel->outLayer)->outputs[0], myModel->targets[0]);
+    printf("\nModel output is: %f\tTarget is : %f", (*myModel->outLayer)->outputs[0], myModel->targets[0]);
     printf("\noutLayer Weights:\n");
     for(int i = 0; i < 1; i++) printf("[%f]\n", outLayer->weights[0][i]);
 
@@ -98,11 +97,11 @@ int main()
     return 0;
 
 error4:
-    hakai_layer_mfree(&outLayer);
+    hakai_layer(&outLayer);
 error3:
-    hakai_layer_mfree(&hiddenLayer0);
+    hakai_layer(&hiddenLayer0);
 error2:
-    hakai_layer_mfree(&inLayer0);
+    hakai_layer(&inLayer0);
 error1:
     exit(EXIT_FAILURE);
 }

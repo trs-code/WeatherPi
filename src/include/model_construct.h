@@ -30,18 +30,18 @@ model* construct_model(layer*** inLayers, layer** outLayer, int numLayers, int n
     if(myModel->inLayers == NULL) goto error1;
     
     memcpy(myModel->inLayers, inLayers, sizeof(layer**) * numInLayers);
-    
+
+    myModel->targets = (float *)malloc((*outLayer)->numNodes * sizeof(float));
+    if(myModel->targets == NULL) goto error2;
+
+    myModel->layerList = (layer ***)malloc(numLayers * sizeof(layer**));
+    if(myModel->layerList == NULL) goto error3;
+
     myModel->outLayer = outLayer;
     myModel->numLayers = numLayers;
     myModel->learning_rate = learning_rate;
     myModel->numInLayers = numInLayers;
     myModel->loss_fn = loss_fn;
-
-    myModel->targets = (float *)calloc((*myModel->outLayer)->numNodes, sizeof(float));
-    if(myModel->targets == NULL) goto error2;
-
-    myModel->layerList = (layer ***)calloc(numLayers, sizeof(layer**));
-    if(myModel->layerList == NULL) goto error3;
 
     assign_layer_ids(outLayer, 0, myModel->layerList);
 
@@ -72,17 +72,17 @@ model* construct_model_listed(layer*** inLayers, layer** outLayer, int numLayers
     
     memcpy(myModel->inLayers, inLayers, sizeof(layer**) * numInLayers);
     
+    myModel->targets = (float *)malloc((*outLayer)->numNodes * sizeof(float));
+    if(myModel->targets == NULL) goto error2;
+
+    myModel->layerList = (layer ***)malloc(numLayers * sizeof(layer**));
+    if(myModel->layerList == NULL) goto error3;
+
     myModel->outLayer = outLayer;
     myModel->numLayers = numLayers;
     myModel->learning_rate = learning_rate;
     myModel->numInLayers = numInLayers;
     myModel->loss_fn = loss_fn;
-
-    myModel->targets = (float *)calloc((*myModel->outLayer)->numNodes, sizeof(float));
-    if(myModel->targets == NULL) goto error2;
-
-    myModel->layerList = (layer ***)malloc(numLayers * sizeof(layer**));
-    if(myModel->layerList == NULL) goto error3;
 
     // Ownership is retained by the caller, model only has references to pointers to layer struct allocations which is ultimately owned by caller
     for(int i = 0; i < numInLayers; i++) myModel->layerList[i] = &(*modelLayers)[i];

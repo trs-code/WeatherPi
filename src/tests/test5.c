@@ -15,6 +15,20 @@ int main()
 
     printf("Model creation successful\n\n");
 
+    volatile layer* las[3];
+
+    las[0] = layerArray[0];
+    las[1] = layerArray[1];
+    las[2] = layerArray[2];
+
+    volatile layer* la[3];
+
+    la[0] = *myModel->layerList[0];
+    la[1] = *myModel->layerList[1];
+    la[2] = *myModel->layerList[2];
+    
+
+
     memcpy((*myModel->inLayers[0])->outputs, (float[]){0.05, 0.10, 0.15}, 3*sizeof(float));
     memcpy(myModel->targets, (float[]){0.905405}, sizeof(float));
 

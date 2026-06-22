@@ -12,9 +12,9 @@ int main()
 
     float** inArrays = (float**)NULL;
     float** outArrays = (float**)NULL; 
-
+    
     read_csv(filename, numSamples, numIns, numOuts, &inArrays, &outArrays);
-
+    
     for(int i = 0; i < numSamples; i++)
     {
         for(int j = 0; j < numIns; j++) printf("%f, ", inArrays[i][j]);
