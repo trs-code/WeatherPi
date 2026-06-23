@@ -64,7 +64,7 @@ void sgd_backprop(model* myModel)
     
     for(int l = myModel->numLayers - 1; l > -1; l--)
     {
-        if((*myModel->layerList[l])->numPrevLayers == 0 || (*myModel->layerList[l])->layerType == 'w') continue;
+        if((*myModel->layerList[l])->layerType == 'i' || (*myModel->layerList[l])->layerType == 'w') continue;
         
         // backErrorsForOutputLayer = lossDerivative · activationFunctionDerivative(preActivations) - for output layer
         if((*myModel->layerList[l])->layerType == 'o') for(int i = 0; i < (*myModel->layerList[l])->numNodes; i++) (*myModel->layerList[l])->backErrors[i] = -1 * loss_derivative(myModel->targets[i], (*myModel->layerList[l])->outputs[i], myModel) * activation_derivative((*myModel->layerList[l])->preActivations[i], (*myModel->layerList[l])->activationFunction, *myModel->layerList[l], i);
@@ -579,7 +579,7 @@ void calculate_and_apply_grads_through_time(model* myModel)
     int prevsTraversed = 0;
     for(int l = myModel->numLayers - 1; l > -1; l--)
     {
-        if((*myModel->layerList[l])->numPrevLayers == 0 || (*myModel->layerList[l])->layerType == 'w') continue;
+        if((*myModel->layerList[l])->layerType == 'i' || (*myModel->layerList[l])->layerType == 'w') continue;
 
         // newBiases[i] = oldBiases[i] - (learningRate * backErrors[i])
         for(int i = 0; i < (*myModel->layerList[l])->numNodes; i++) (*myModel->layerList[l])->biases[i] -= myModel->learning_rate * (*myModel->layerList[l])->backErrors[i];
@@ -703,7 +703,7 @@ void vforward_out(layer** myLayer, float dropoutVal)
 {
     for(int l = 0; l < myModel->numLayers; l++)
     {
-        if((*myModel->layerList[l])->layerType == 'i' && (*myModel->layerList[l])->layerType == 'w') continue;
+        if((*myModel->layerList[l])->layerType == 'i' || (*myModel->layerList[l])->layerType == 'w') continue;
 
         memset((*myModel->layerList[l])->backErrors, 0.0f, (*myModel->layerList[l])->numNodes * sizeof(float));
         memset((*myModel->layerList[l])->preActivations, 0.0f, (*myModel->layerList[l])->numNodes * sizeof(float));
