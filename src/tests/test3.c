@@ -61,7 +61,7 @@ int main()
     // printf("Layer 1 Activation[0] is: %f\n", layer0->outputs[0]);
     // printf("\noutLayer Activation is: %f\n", outLayer->outputs[0]);
 
-    // calculate_and_apply_grads(myModel, myModel->learning_rate);
+    // calculate_and_apply_grads(myModel, myModel->learningRate);
     
     for(int i = 0; i < 500; i++)
     {

@@ -20,26 +20,26 @@ void hakai_matrix(float*** mat, int rows)
 // Destroy an individual layer after operations are concluded
 void hakai_layer(layer** myLayer)
 {    
-    if(*myLayer == NULL) return;
+    layer* currLayer = (*myLayer);
     
-    free((*myLayer)->outputs);
-    (*myLayer)->outputs = NULL;
+    free(currLayer->outputs);
+    currLayer->outputs = NULL;
 
-    if((*myLayer)->activationFunction != 'i')
+    if(currLayer->activationFunction != 'i')
     {
-        free((*myLayer)->backErrors);
-        (*myLayer)->backErrors = NULL;
+        free(currLayer->backErrors);
+        currLayer->backErrors = NULL;
 
-        free((*myLayer)->prevLayers);
-        (*myLayer)->prevLayers = NULL;
+        free(currLayer->prevLayers);
+        currLayer->prevLayers = NULL;
 
-        free((*myLayer)->preActivations);
-        (*myLayer)->preActivations = NULL;
+        free(currLayer->preActivations);
+        currLayer->preActivations = NULL;
 
-        free((*myLayer)->biases);
-        (*myLayer)->biases = NULL;
+        free(currLayer->biases);
+        currLayer->biases = NULL;
 
-        hakai_matrix(&(*myLayer)->weights, (*myLayer)->numNodes);
+        hakai_matrix(&currLayer->weights, currLayer->numNodes);
     }
 
     free(*myLayer);

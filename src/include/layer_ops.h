@@ -5,7 +5,7 @@
 #include <time.h>
 #include <math.h>
 
-void glorot_uniform_init(layer* myLayer) 
+static inline void glorot_uniform_init(layer* myLayer) 
 {
     float limit = sqrt(6.0 / (myLayer->numPrevNodes + myLayer->numNodes));
     for (int i = 0; i < myLayer->numNodes; ++i) for(int j = 0; j < myLayer->numPrevNodes; j++) myLayer->weights[i][j] = ((float)rand() / RAND_MAX) * 2.0 * limit - limit;

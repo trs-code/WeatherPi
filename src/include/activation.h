@@ -60,21 +60,21 @@ float fast_sigmoid_derivative(float x) {
     return yHat * (1.0 - yHat);
 }
 
-void softmax(layer** myLayer)
+void softmax(layer* myLayer)
 {
-    int n = (*myLayer)->numNodes;
-    float maxVal = findMax((*myLayer)->outputs, n);
+    int n = myLayer->numNodes;
+    float maxVal = findMax(myLayer->outputs, n);
     float sum = 0.0f;
     
     for (int i = 0; i < n; i++) 
     {
-        (*myLayer)->outputs[i] = exp((*myLayer)->outputs[i] - maxVal);
-        sum += (*myLayer)->outputs[i];
+        myLayer->outputs[i] = exp(myLayer->outputs[i] - maxVal);
+        sum += myLayer->outputs[i];
     }
 
     for (int i = 0; i < n; i++)
     {
-        (*myLayer)->outputs[i] /= sum;
+        myLayer->outputs[i] /= sum;
     }
 }
 
@@ -83,21 +83,21 @@ float softmax_derivative(float x, layer* myLayer, int currNode)
     return myLayer->outputs[currNode] - x;
 }
 
-void fast_softmax(layer** myLayer)
+void fast_softmax(layer* myLayer)
 {
-    int n = (*myLayer)->numNodes;
-    float maxVal = findMax((*myLayer)->outputs, n);
+    int n = myLayer->numNodes;
+    float maxVal = findMax(myLayer->outputs, n);
     float sum = 0.0f;
     
     for (int i = 0; i < n; i++) 
     {
-        (*myLayer)->outputs[i] = fast_exp((*myLayer)->outputs[i] - maxVal);
-        sum += (*myLayer)->outputs[i];
+        myLayer->outputs[i] = fast_exp(myLayer->outputs[i] - maxVal);
+        sum += myLayer->outputs[i];
     }
 
     for (int i = 0; i < n; i++)
     {
-        (*myLayer)->outputs[i] /= sum;
+        myLayer->outputs[i] /= sum;
     }
 }
 

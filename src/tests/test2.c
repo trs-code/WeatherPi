@@ -62,7 +62,7 @@ int main()
     
     // for(int i = 0; i < 3; i++) printf("Layer 1 Backerror[%d] is: %f\n", i, layer0->backErrors[i]);
     
-    // calculate_and_apply_grads(myModel, myModel->learning_rate);
+    // calculate_and_apply_grads(myModel, myModel->learningRate);
     
     for(int i = 0; i < 100; i++)
     {

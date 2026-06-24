@@ -9,7 +9,7 @@ typedef struct
     layer*** layerList;     // List of all layers in the model - for operations to encourage spatial locality, array of pointers to layer allocation pointers
     layer **outLayer;       // References the output layers of the model - entry point for model operations - pointer to layer allocation pointer
     float *targets;         // target values for the current training iteration
-    float learning_rate;    // Learning rate for the NN
+    float learningRate;    // Learning rate for the NN
     int numLayers;          // Number of total layers in the NN
     int numInLayers;        // Number of input layers in the NN
     char loss_fn;

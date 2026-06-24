@@ -8,10 +8,7 @@ float findMax(float* arr, int size)
 {
     float currMax = arr[0];
 
-    for(int i = 0; i < size; i++)
-    {
-        currMax = arr[i] > currMax ? arr[i] : currMax;
-    }
+    for(int i = 0; i < size; i++) currMax = arr[i] > currMax ? arr[i] : currMax;
 
     return currMax;
 }
@@ -20,10 +17,7 @@ float findMin(float* arr, int size)
 {
     float currMin = arr[0];
 
-    for(int i = 0; i < size; i++)
-    {
-        currMin = arr[i] < currMin ? arr[i] : currMin;
-    }
+    for(int i = 0; i < size; i++) currMin = arr[i] < currMin ? arr[i] : currMin;
 
     return currMin;
 }
@@ -33,10 +27,7 @@ void minMaxNorm(float* arr, int size)
     float min = findMin(arr, size);
     float diff = (size > 1) ? findMax(arr, size) - min : 1;
 
-    for(int i = 0; i < size; i++)
-    {
-        arr[i] = (arr[i] - min) / diff;
-    }
+    for(int i = 0; i < size; i++) arr[i] = (arr[i] - min) / diff;
 }
 
 float clip(float x, float upper, float lower)
@@ -55,55 +46,37 @@ float sign(float x)
 
 static inline float absolute(float x)
 {
-    return (x > 0) ? x : -1.0*x;
+    return (x > 0) ? x : -1.0f*x;
 }
 
 void add_array(float* dest, float* arr1, float* arr2, __ssize_t size)
 {
-    for(int i = 0; i < size; i++)
-    {
-        dest[i] = arr1[i] + arr2[i];
-    }
+    for(int i = 0; i < size; i++) dest[i] = arr1[i] + arr2[i];
 }
 
 void subtract_array(float* dest, float* arr1, float* arr2, __ssize_t size)
 {
-    for(int i = 0; i < size; i++)
-    {
-        dest[i] = arr1[i] - arr2[i];
-    }
+    for(int i = 0; i < size; i++) dest[i] = arr1[i] - arr2[i];
 }
 
 void dot_product(float* dest, float* arr1, float* arr2, __ssize_t size)
 {
-    for(int i = 0; i < size; i++)
-    {
-        dest[i] = arr1[i] * arr2[i];
-    }
+    for(int i = 0; i < size; i++) dest[i] = arr1[i] * arr2[i];
 }
 
 void dot_product_value(float* dest, float* arr1, float value, __ssize_t size)
 {
-    for(int i = 0; i < size; i++)
-    {
-        dest[i] = arr1[i] * value;
-    }
+    for(int i = 0; i < size; i++) dest[i] = arr1[i] * value;
 }
 
 void dot_product_matrix(float** dest, float** arr1, float** arr2, __ssize_t rows, __ssize_t cols)
 {
-    for(int i = 0; i < rows; i++)
-    {
-        for(int j = 0; j < cols; j++) dest[i][j] = arr1[i][j] * arr2[i][j];
-    }
+    for(int i = 0; i < rows; i++) for(int j = 0; j < cols; j++) dest[i][j] = arr1[i][j] * arr2[i][j];
 }
 
 void dot_product_value_matrix(float** dest, float** arr1, float value, __ssize_t rows, __ssize_t cols)
 {
-    for(int i = 0; i < rows; i++)
-    {
-        for(int j = 0; j < cols; j++) dest[i][j] = arr1[i][j] * value;
-    }
+    for(int i = 0; i < rows; i++) for(int j = 0; j < cols; j++) dest[i][j] = arr1[i][j] * value;
 }
 
 static inline int max(int a, int b)

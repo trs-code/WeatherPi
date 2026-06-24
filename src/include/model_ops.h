@@ -10,48 +10,54 @@
 //  Gets an output from the target layer, is essentially also a inference function
 void forward_out(model* myModel, float dropoutVal)
 {
+    layer* currLayer;
+    layer* prevLayer;
     int numPrevsTraversed = 0;
 
     for(int l = 0; l < myModel->numLayers; l++)
     {        
-        if((*myModel->layerList[l])->layerType == 'w' || (*myModel->layerList[l])->layerType == 'i') continue; // If layer has been traversed or if layer is a window layer for a context window or if layer is an input layer
+        currLayer = *myModel->layerList[l];
+
+        if(currLayer->layerType == 'w' || currLayer->layerType == 'i') continue; // If layer has been traversed or if layer is a window layer for a context window or if layer is an input layer
         
-        memset((*myModel->layerList[l])->backErrors, 0.0f, (*myModel->layerList[l])->numNodes * sizeof(float));
-        memset((*myModel->layerList[l])->preActivations, 0.0f, (*myModel->layerList[l])->numNodes * sizeof(float));
+        memset(currLayer->backErrors, 0.0f, currLayer->numNodes * sizeof(float));
+        memset(currLayer->preActivations, 0.0f, currLayer->numNodes * sizeof(float));
 
         // preActivation[i] = SUM_OVER_J(prevNodeOutputs[j] * weights[i][j]) 
-        for(int i = 0; i < (*myModel->layerList[l])->numNodes; i++, numPrevsTraversed = 0) 
+        for(int i = 0; i < currLayer->numNodes; i++, numPrevsTraversed = 0) 
         {
-            for(int j = 0; j < (*myModel->layerList[l])->numPrevLayers; j++)
+            for(int j = 0; j < currLayer->numPrevLayers; j++)
             {
-                for(int k = 0; k < (*(*myModel->layerList[l])->prevLayers[j])->numNodes; k++) (*myModel->layerList[l])->preActivations[i] += (*(*myModel->layerList[l])->prevLayers[j])->outputs[k] * (*myModel->layerList[l])->weights[i][numPrevsTraversed + k];
-                numPrevsTraversed += (*(*myModel->layerList[l])->prevLayers[j])->numNodes;
+                prevLayer = *currLayer->prevLayers[j];
+                
+                for(int k = 0; k < prevLayer->numNodes; k++) currLayer->preActivations[i] += prevLayer->outputs[k] * currLayer->weights[i][numPrevsTraversed + k];
+                numPrevsTraversed += prevLayer->numNodes;
             }
-            (*myModel->layerList[l])->preActivations[i] += (*myModel->layerList[l])->biases[i];
+            currLayer->preActivations[i] += currLayer->biases[i];
         }
         
         numPrevsTraversed = 0;
 
         // In case of softmax activation, we do a function on the layer instead of point-wise on the outputs
-        if((*myModel->layerList[l])->activationFunction == 'x')
+        if(currLayer->activationFunction == 'x')
         {
-            memcpy((*myModel->layerList[l])->outputs, (*myModel->layerList[l])->preActivations, sizeof(float) * (*myModel->layerList[l])->numNodes);
-            softmax(myModel->layerList[l]);
+            memcpy(currLayer->outputs, currLayer->preActivations, sizeof(float) * currLayer->numNodes);
+            softmax(currLayer);
         }
-        else if((*myModel->layerList[l])->activationFunction == 'f')
+        else if(currLayer->activationFunction == 'f')
         {
-            memcpy((*myModel->layerList[l])->outputs, (*myModel->layerList[l])->preActivations, sizeof(float) * (*myModel->layerList[l])->numNodes);
-            fast_softmax(myModel->layerList[l]);
+            memcpy(currLayer->outputs, currLayer->preActivations, sizeof(float) * currLayer->numNodes);
+            fast_softmax(currLayer);
         }
         else
         {
             // outputs[i] = activation_function(preActivations[i])
-            for(int i = 0; i < (*myModel->layerList[l])->numNodes; i++) (*myModel->layerList[l])->outputs[i] = activation_function((*myModel->layerList[l])->preActivations[i], (*myModel->layerList[l])->activationFunction);
+            for(int i = 0; i < currLayer->numNodes; i++) currLayer->outputs[i] = activation_function(currLayer->preActivations[i], currLayer->activationFunction);
         }
 
-        if((*myModel->layerList[l])->layerType == 'o' || dropoutVal <= 0.0f) continue;;
+        if(currLayer->layerType == 'o' || dropoutVal <= 0.0f) continue;;
         float scalingFactor = 1/(1-dropoutVal);
-        for(int i = 0; i < (*myModel->layerList[l])->numNodes; i++) (*myModel->layerList[l])->outputs[i] *= ((float)((rand() % 999))/1000.0 < dropoutVal) ? 0 : scalingFactor;
+        for(int i = 0; i < currLayer->numNodes; i++) currLayer->outputs[i] *= ((float)((rand() % 999))/1000.0 < dropoutVal) ? 0 : scalingFactor;
     }
 }
 
@@ -60,23 +66,30 @@ void forward_out(model* myModel, float dropoutVal)
 // Backerrors can be accumulated from multiple successor layers to calculate grads due to matrix distributivity
 void sgd_backprop(model* myModel)
 { // start at output layer and calculate backerrors for each previous layer
+    layer* currLayer;
+    layer* prevLayer;
     int prevsTraversed = 0;
     
     for(int l = myModel->numLayers - 1; l > -1; l--)
     {
-        if((*myModel->layerList[l])->layerType == 'i' || (*myModel->layerList[l])->layerType == 'w') continue;
+        currLayer = *myModel->layerList[l];
+
+        if(currLayer->layerType == 'i' || currLayer->layerType == 'w') continue;
         
         // backErrorsForOutputLayer = lossDerivative · activationFunctionDerivative(preActivations) - for output layer
-        if((*myModel->layerList[l])->layerType == 'o') for(int i = 0; i < (*myModel->layerList[l])->numNodes; i++) (*myModel->layerList[l])->backErrors[i] = -1 * loss_derivative(myModel->targets[i], (*myModel->layerList[l])->outputs[i], myModel) * activation_derivative((*myModel->layerList[l])->preActivations[i], (*myModel->layerList[l])->activationFunction, *myModel->layerList[l], i);
+        if(currLayer->layerType == 'o') for(int i = 0; i < currLayer->numNodes; i++) currLayer->backErrors[i] = -1 * loss_derivative(myModel->targets[i], currLayer->outputs[i], myModel) * activation_derivative(currLayer->preActivations[i], currLayer->activationFunction, currLayer, i);
         
         // backErrorsForPreviousLayers[j] = SUM_OVER_I((thisLayersBackErrors[i])(thisLayersWeightMatrix[i][j]) · activationFunctionDerivative(previousLayersPreActivation[j])) - where j is considered to be a traversal of all previous 'J' layers' 'K' values as one vector
         // e.g. J = 3 prev layers with K = 5 nodes each are considered as one prev layer with J = 15 nodes in this formulation
         prevsTraversed = 0;
-        for(int i = 0; i < (*myModel->layerList[l])->numPrevLayers; i++)
+        for(int i = 0; i < currLayer->numPrevLayers; i++)
         {
-            if((*(*myModel->layerList[l])->prevLayers[i])->layerType == 'i' || (*(*myModel->layerList[l])->prevLayers[i])->layerType == 'w') continue;
-            for(int j = 0; j < (*(*myModel->layerList[l])->prevLayers[i])->numNodes; j++) for(int k = 0; k < (*myModel->layerList[l])->numNodes; k++) (*(*myModel->layerList[l])->prevLayers[i])->backErrors[j] += (*myModel->layerList[l])->backErrors[k] * (*myModel->layerList[l])->weights[k][prevsTraversed + j] * activation_derivative((*(*myModel->layerList[l])->prevLayers[i])->preActivations[j], (*(*myModel->layerList[l])->prevLayers[i])->activationFunction, *myModel->layerList[l], i);
-            prevsTraversed += (*(*myModel->layerList[l])->prevLayers[i])->numNodes;
+            prevLayer = *currLayer->prevLayers[i];
+            
+            if(prevLayer->layerType == 'i' || prevLayer->layerType == 'w') continue;
+            
+            for(int j = 0; j < prevLayer->numNodes; j++) for(int k = 0; k < currLayer->numNodes; k++) prevLayer->backErrors[j] += currLayer->backErrors[k] * currLayer->weights[k][prevsTraversed + j] * activation_derivative(prevLayer->preActivations[j], prevLayer->activationFunction, currLayer, i);
+            prevsTraversed += prevLayer->numNodes;
         }
     }
 }
@@ -84,25 +97,30 @@ void sgd_backprop(model* myModel)
 // Another all roads spring forth from Rome approach - go to the convergence point of the model(output layer) and use it as the root this model graph
 void calculate_and_apply_grads(model* myModel)
 {
+    layer* currLayer;
+    layer* prevLayer;
     int prevsTraversed = 0;
 
     for(int l = myModel->numLayers - 1; l > -1; l--)
     {
-        if((*myModel->layerList[l])->layerType == 'i' || (*myModel->layerList[l])->layerType == 'w') continue;
+        currLayer = *myModel->layerList[l];
+
+        if(currLayer->layerType == 'i' || currLayer->layerType == 'w') continue;
 
         // newBias[i] = oldBias[i] - (learningRate * backErrors[i])
-        for(int i = 0; i < (*myModel->layerList[l])->numNodes; i++) (*myModel->layerList[l])->biases[i] -= myModel->learning_rate * (*myModel->layerList[l])->backErrors[i];
+        for(int i = 0; i < currLayer->numNodes; i++) currLayer->biases[i] -= myModel->learningRate * currLayer->backErrors[i];
 
         prevsTraversed = 0;
 
         // newWeights[i][j] = oldWeights[i][j] - (learningRate * (prevNodeOuts[j] * backError[i]))
-        for(int i = 0; i < (*myModel->layerList[l])->numNodes; i++)
+        for(int i = 0; i < currLayer->numNodes; i++)
         {
-            for(int j = 0; j < (*myModel->layerList[l])->numPrevLayers; j++)
+            for(int j = 0; j < currLayer->numPrevLayers; j++)
             {
-                for(int k = 0; k < (*(*myModel->layerList[l])->prevLayers[j])->numNodes; k++) (*myModel->layerList[l])->weights[i][k + prevsTraversed] -= myModel->learning_rate * (*(*myModel->layerList[l])->prevLayers[j])->outputs[k] * (*myModel->layerList[l])->backErrors[i];
+                prevLayer = *currLayer->prevLayers[j];
                 
-                prevsTraversed += (*(*myModel->layerList[l])->prevLayers[j])->numNodes;
+                for(int k = 0; k < prevLayer->numNodes; k++) currLayer->weights[i][k + prevsTraversed] -= myModel->learningRate * prevLayer->outputs[k] * currLayer->backErrors[i];
+                prevsTraversed += prevLayer->numNodes;
             }
             prevsTraversed = 0;
         }
@@ -113,13 +131,16 @@ void calculate_and_apply_grads(model* myModel)
 // Use by passing the output layer of the model into the function 
 void zero_everything(model* myModel)
 {
+    layer* currLayer;
     for(int l = 0; l < myModel->numLayers; l++)
     {
-        if((*myModel->layerList[l])->layerType == 'i') continue;
+        currLayer = *myModel->layerList[l];
 
-        memset((*myModel->layerList[l])->backErrors, 0.0f, (*myModel->layerList[l])->numNodes * sizeof(float));
-        memset((*myModel->layerList[l])->preActivations, 0.0f, (*myModel->layerList[l])->numNodes * sizeof(float));
-        memset((*myModel->layerList[l])->outputs, 0.0f, (*myModel->layerList[l])->numNodes * sizeof(float));
+        if(currLayer->layerType == 'i') continue;
+
+        memset(currLayer->backErrors, 0.0f, currLayer->numNodes * sizeof(float));
+        memset(currLayer->preActivations, 0.0f, currLayer->numNodes * sizeof(float));
+        memset(currLayer->outputs, 0.0f, currLayer->numNodes * sizeof(float));
     }
 }
 
@@ -157,7 +178,7 @@ int save_model(model* saveModel, char* modelFileName)
         offset += 16;
     }
 
-    snprintf(fltBuff, 19UL, "%.16f", saveModel->learning_rate);
+    snprintf(fltBuff, 19UL, "%.16f", saveModel->learningRate);
     for(int l = 0; l < 16; l++) line[offset + l] = fltBuff[l];
     offset += 16;
 
@@ -390,6 +411,8 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
         if(layerType == 'i')
         {
             (*modelLayers)[layerID] = make_input_layer(numNodes);
+            if((*modelLayers)[layerID] == NULL) goto error7;
+
             (*modelLayers)[layerID]->layerID = layerID;
             
             free(line);
@@ -490,7 +513,7 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
 
     myModel->outLayer = &(*modelLayers)[outLayerID];
     myModel->numLayers = numLayers;
-    myModel->learning_rate = learningRate;
+    myModel->learningRate = learningRate;
     myModel->numInLayers = numInLayers;
     myModel->loss_fn = loss_fn;
 
@@ -514,10 +537,7 @@ error8:
     free(layerArr);
     layerArr = NULL;
 error7:
-    for(int i = 0; i < numLayers; i++)
-    {
-        hakai_layer(&(*modelLayers)[i]);
-    }
+    for(int i = 0; i < numLayers; i++) hakai_layer(&(*modelLayers)[i]);
 error6:
     free(line);
     line = NULL;
@@ -538,34 +558,41 @@ error1:
 
 void shift_model(model* myModel, char opType)
 {
+    layer* currLayer;
+    layer* prevLayer;
     int numInputs = 0;
     int numHiddenNodes = 0;
     int prevsTraversed = 0;
+
     for(int l = 0; l < myModel->numLayers; l++)
     {
-        if((*myModel->layerList[l])->numPrevLayers == 0) continue;
-        if((*myModel->layerList[l])->layerType == 'w' && opType == 't' && (*myModel->layerList[l])->numPrevLayers == 2)
-        {
-            numInputs = (*(*myModel->layerList[l])->prevLayers[0])->numNodes;
-            numHiddenNodes = (*myModel->layerList[l])->numNodes;
+        currLayer = *myModel->layerList[l];
 
-            memcpy((*(*myModel->layerList[l])->prevLayers[1])->outputs, (*myModel->layerList[l])->outputs, sizeof(float) * numHiddenNodes);
-            memcpy((*(*myModel->layerList[l])->prevLayers[1])->preActivations, (*myModel->layerList[l])->preActivations, sizeof(float) * numHiddenNodes);
-            memcpy((*(*(*myModel->layerList[l])->prevLayers[1])->prevLayers[0])->outputs, (*(*myModel->layerList[l])->prevLayers[0])->outputs, sizeof(float) * numInputs);
+        if(currLayer->numPrevLayers == 0) continue;
+        if(currLayer->layerType == 'w' && opType == 't' && currLayer->numPrevLayers == 2)
+        {
+            numInputs = (*currLayer->prevLayers[0])->numNodes;
+            numHiddenNodes = currLayer->numNodes;
+
+            memcpy((*currLayer->prevLayers[1])->outputs, currLayer->outputs, sizeof(float) * numHiddenNodes);
+            memcpy((*currLayer->prevLayers[1])->preActivations, currLayer->preActivations, sizeof(float) * numHiddenNodes);
+            memcpy((*(*currLayer->prevLayers[1])->prevLayers[0])->outputs, (*currLayer->prevLayers[0])->outputs, sizeof(float) * numInputs);
         }
         
-        if((*(*myModel->layerList[l])->prevLayers[(*myModel->layerList[l])->numPrevLayers - 1])->layerType == 'w' && (*myModel->layerList[l])->layerType == 'h')
+        if((*currLayer->prevLayers[currLayer->numPrevLayers - 1])->layerType == 'w' && currLayer->layerType == 'h')
         {
-            numHiddenNodes = (*myModel->layerList[l])->numNodes;
-            int windowIdx = (*myModel->layerList[l])->numPrevLayers - 1;
+            numHiddenNodes = currLayer->numNodes;
+            int windowIdx = currLayer->numPrevLayers - 1;
 
-            memcpy((*(*myModel->layerList[l])->prevLayers[windowIdx])->outputs, (*myModel->layerList[l])->outputs, sizeof(float) * numHiddenNodes);
-            memcpy((*(*myModel->layerList[l])->prevLayers[windowIdx])->preActivations, (*myModel->layerList[l])->preActivations, sizeof(float) * numHiddenNodes);
+            memcpy((*currLayer->prevLayers[windowIdx])->outputs, currLayer->outputs, sizeof(float) * numHiddenNodes);
+            memcpy((*currLayer->prevLayers[windowIdx])->preActivations, currLayer->preActivations, sizeof(float) * numHiddenNodes);
 
-            for(int i = 0; i < (*myModel->layerList[l])->numPrevLayers - 1; i++)
+            for(int i = 0; i < currLayer->numPrevLayers - 1; i++)
             {
-                memcpy(&(*(*(*myModel->layerList[l])->prevLayers[windowIdx])->prevLayers[0])->outputs[prevsTraversed], (*(*myModel->layerList[l])->prevLayers[i])->outputs, sizeof(float) * (*(*myModel->layerList[l])->prevLayers[i])->numNodes);
-                prevsTraversed += (*(*myModel->layerList[l])->prevLayers[i])->numNodes;
+                prevLayer = *currLayer->prevLayers[i];
+                
+                memcpy(&(*(*currLayer->prevLayers[windowIdx])->prevLayers[0])->outputs[prevsTraversed], prevLayer->outputs, sizeof(float) * prevLayer->numNodes);
+                prevsTraversed += prevLayer->numNodes;
             }
 
             prevsTraversed = 0;
@@ -576,47 +603,53 @@ void shift_model(model* myModel, char opType)
 // Applies Back Propagation Through Time procedure for all context windows
 void calculate_and_apply_grads_through_time(model* myModel)
 {
+    layer* currLayer;
+    layer* prevLayer;
     int prevsTraversed = 0;
+    
     for(int l = myModel->numLayers - 1; l > -1; l--)
     {
-        if((*myModel->layerList[l])->layerType == 'i' || (*myModel->layerList[l])->layerType == 'w') continue;
+        currLayer = *myModel->layerList[l];
+
+        if(currLayer->layerType == 'i' || currLayer->layerType == 'w') continue;
 
         // newBiases[i] = oldBiases[i] - (learningRate * backErrors[i])
-        for(int i = 0; i < (*myModel->layerList[l])->numNodes; i++) (*myModel->layerList[l])->biases[i] -= myModel->learning_rate * (*myModel->layerList[l])->backErrors[i];
-        if((*(*myModel->layerList[l])->prevLayers[(*myModel->layerList[l])->numPrevLayers - 1])->layerType == 'w')
+        for(int i = 0; i < currLayer->numNodes; i++) currLayer->biases[i] -= myModel->learningRate * currLayer->backErrors[i];
+        if((*currLayer->prevLayers[currLayer->numPrevLayers - 1])->layerType == 'w')
         {
-            layer* currLayer = (*(*myModel->layerList[l])->prevLayers[(*myModel->layerList[l])->numPrevLayers - 1]);
+            prevLayer = (*currLayer->prevLayers[currLayer->numPrevLayers - 1]);
 
-            while(currLayer->numPrevLayers == 2)
+            while(prevLayer->numPrevLayers == 2)
             {
-                for(int i = 0; i < currLayer->numNodes; i++) (*myModel->layerList[l])->biases[i] -= myModel->learning_rate * currLayer->backErrors[i];
-                currLayer = *currLayer->prevLayers[1];
+                for(int i = 0; i < prevLayer->numNodes; i++) currLayer->biases[i] -= myModel->learningRate * prevLayer->backErrors[i];
+                prevLayer = *prevLayer->prevLayers[1];
             }
             
-            for(int i = 0; i < currLayer->numNodes; i++) (*myModel->layerList[l])->biases[i] -= myModel->learning_rate * currLayer->backErrors[i]; // For the last layer in the window with only one prevLayer
+            for(int i = 0; i < prevLayer->numNodes; i++) currLayer->biases[i] -= myModel->learningRate * prevLayer->backErrors[i]; // For the last layer in the window with only one prevLayer
         }
 
 
         // newWeights[i][j] = oldWeights[i][j] - (learningRate * (prevNodeOuts[j] * backError[i]))
-        for(int i = 0; i < (*myModel->layerList[l])->numNodes; i++, prevsTraversed = 0)
+        for(int i = 0; i < currLayer->numNodes; i++, prevsTraversed = 0)
         {
-            for(int j = 0; j < (*myModel->layerList[l])->numPrevLayers; j++)
+            for(int j = 0; j < currLayer->numPrevLayers; j++)
             {
-                for(int k = 0; k < (*(*myModel->layerList[l])->prevLayers[j])->numNodes; k++) (*myModel->layerList[l])->weights[i][k + prevsTraversed] -= myModel->learning_rate * (*(*myModel->layerList[l])->prevLayers[j])->outputs[k] * (*myModel->layerList[l])->backErrors[i];          
-                prevsTraversed += (*(*myModel->layerList[l])->prevLayers[j])->numNodes;
+                prevLayer = *currLayer->prevLayers[j];
+                for(int k = 0; k < prevLayer->numNodes; k++) currLayer->weights[i][k + prevsTraversed] -= myModel->learningRate * prevLayer->outputs[k] * currLayer->backErrors[i];          
+                prevsTraversed += prevLayer->numNodes;
             }
 
-            if((*(*myModel->layerList[l])->prevLayers[(*myModel->layerList[l])->numPrevLayers - 1])->layerType == 'w')
+            if((*currLayer->prevLayers[currLayer->numPrevLayers - 1])->layerType == 'w')
             {
-                layer* currLayer = (*(*myModel->layerList[l])->prevLayers[(*myModel->layerList[l])->numPrevLayers - 1]);
-                currLayer = *currLayer->prevLayers[1];
+                prevLayer = (*currLayer->prevLayers[currLayer->numPrevLayers - 1]);
+                prevLayer = *prevLayer->prevLayers[1];
 
-                while(currLayer->numPrevLayers == 2)
+                while(prevLayer->numPrevLayers == 2)
                 {
-                    for(int j = 0; j < (*currLayer->prevLayers[0])->numNodes; j++) (*myModel->layerList[l])->weights[i][j] -= myModel->learning_rate * (*currLayer->prevLayers[0])->outputs[j] * currLayer->backErrors[i];
-                    currLayer = *currLayer->prevLayers[1];
+                    for(int j = 0; j < (*prevLayer->prevLayers[0])->numNodes; j++) currLayer->weights[i][j] -= myModel->learningRate * (*prevLayer->prevLayers[0])->outputs[j] * prevLayer->backErrors[i];
+                    prevLayer = *prevLayer->prevLayers[1];
                 }
-                for(int j = 0; j < (*currLayer->prevLayers[0])->numNodes; j++) (*myModel->layerList[l])->weights[i][j] -= myModel->learning_rate * (*currLayer->prevLayers[0])->outputs[j] * currLayer->backErrors[i];
+                for(int j = 0; j < (*prevLayer->prevLayers[0])->numNodes; j++) currLayer->weights[i][j] -= myModel->learningRate * (*prevLayer->prevLayers[0])->outputs[j] * prevLayer->backErrors[i];
             }
 
         }
@@ -629,35 +662,38 @@ void calculate_and_apply_grads_through_time(model* myModel)
 // Vectorized version of forward out, only really makes a difference on industrial grade models so it will be shelved for now
 int _mm256_forward_out(model* myModel, float dropoutVal)
 {
+    layer* currLayer;
+
     for(int l = 0; l < myModel->numLayers; l++)
     {
-        if((*myModel->layerList[l])->layerType == 'i' || (*myModel->layerList[l])->layerType == 'w') continue;
+        currLayer = (*myModel->layerList[l]);
+        if(currLayer->layerType == 'i' || currLayer->layerType == 'w') continue;
         
-        memset((*myModel->layerList[l])->backErrors, 0.0f, (*myModel->layerList[l])->numNodes * sizeof(float));
-        memset((*myModel->layerList[l])->preActivations, 0.0f, (*myModel->layerList[l])->numNodes * sizeof(float));
-        memset((*myModel->layerList[l])->outputs, 0.0f, (*myModel->layerList[l])->numNodes * sizeof(float));
+        memset(currLayer->backErrors, 0.0f, currLayer->numNodes * sizeof(float));
+        memset(currLayer->preActivations, 0.0f, currLayer->numNodes * sizeof(float));
+        memset(currLayer->outputs, 0.0f, currLayer->numNodes * sizeof(float));
 
-        if(vectorized_forward_out_calc(myModel->layerList[l]) != 0) return -1;
+        if(vectorized_forward_out_calc(currLayer) != 0) return -1;
 
         // In case of softmax activation, we do a function on the layer instead of point-wise on the outputs
-        if((*myModel->layerList[l])->activationFunction == 'x')
+        if(currLayer->activationFunction == 'x')
         {
-            memcpy((*myModel->layerList[l])->outputs, (*myModel->layerList[l])->preActivations, sizeof(float) * (*myModel->layerList[l])->numNodes);
-            softmax(myModel->layerList[l]);
+            memcpy(currLayer->outputs, currLayer->preActivations, sizeof(float) * currLayer->numNodes);
+            softmax(currLayer);
         }
-        else if((*myModel->layerList[l])->activationFunction == 'f')
+        else if(currLayer->activationFunction == 'f')
         {
-            memcpy((*myModel->layerList[l])->outputs, (*myModel->layerList[l])->preActivations, sizeof(float) * (*myModel->layerList[l])->numNodes);
-            fast_softmax(myModel->layerList[l]);
+            memcpy(currLayer->outputs, currLayer->preActivations, sizeof(float) * currLayer->numNodes);
+            fast_softmax(currLayer);
         }
         else
         {            
-            for(int i = 0; i < (*myModel->layerList[l])->numNodes; i++) (*myModel->layerList[l])->outputs[i] = activation_function((*myModel->layerList[l])->preActivations[i], (*myModel->layerList[l])->activationFunction);
+            for(int i = 0; i < currLayer->numNodes; i++) currLayer->outputs[i] = activation_function(currLayer->preActivations[i], currLayer->activationFunction);
         }
 
-        if((*myModel->layerList[l])->layerType == 'o' || dropoutVal <= 0.0) continue;
+        if(currLayer->layerType == 'o' || dropoutVal <= 0.0) continue;
         float scalingFactor = 1/(1-dropoutVal);
-        for(int i = 0; i < (*myModel->layerList[l])->numNodes; i++) (*myModel->layerList[l])->outputs[i] *= ((float)((rand() % 999))/1000.0 < dropoutVal) ? 0 : scalingFactor;
+        for(int i = 0; i < currLayer->numNodes; i++) currLayer->outputs[i] *= ((float)((rand() % 999))/1000.0 < dropoutVal) ? 0 : scalingFactor;
     }
 
     return 0;
@@ -677,20 +713,28 @@ int _mm256_forward_out(model* myModel, float dropoutVal)
 
 int _mm256_calculate_and_apply_grads(model* myModel)
 {
+    layer* currLayer;
+
     for(int l = 0; l < myModel->numLayers; l++)
     {
-        if((*myModel->layerList[l])->layerType == 'i') continue;
-        if(vectorized_calculate_and_apply_grads(myModel->layerList[l], myModel->learning_rate) != 0) return -1;
+        currLayer = *myModel->layerList[l];
+
+        if(currLayer->layerType == 'i') continue;
+        if(vectorized_calculate_and_apply_grads(currLayer, myModel->learningRate) != 0) return -1;
     }
     return 0;
 }
 
 int _mm256_calculate_and_apply_grads_through_time(model* myModel)
 {
+    layer* currLayer;
+
     for(int l = 0; l < myModel->numLayers; l++)
     {
-        if((*myModel->layerList[l])->layerType == 'i' || (*myModel->layerList[l])->layerType == 'w') continue;
-        if(vectorized_calculate_and_apply_grads_through_time(myModel->layerList[l], myModel->learning_rate) != 0) return -1;
+        currLayer = *myModel->layerList[l];
+
+        if(currLayer->layerType == 'i' || currLayer->layerType == 'w') continue;
+        if(vectorized_calculate_and_apply_grads_through_time(currLayer, myModel->learningRate) != 0) return -1;
     }
     return 0;
 }
@@ -699,37 +743,40 @@ int _mm256_calculate_and_apply_grads_through_time(model* myModel)
 
 #if defined(__ARM_NEON)
 
-void vforward_out(layer** myLayer, float dropoutVal)
+void vforward_out(model* myModel, float dropoutVal)
 {
+    layer* currLayer;
+
     for(int l = 0; l < myModel->numLayers; l++)
     {
-        if((*myModel->layerList[l])->layerType == 'i' || (*myModel->layerList[l])->layerType == 'w') continue;
+        currLayer = *myModel->layerList[l];
+        if(currLayer->layerType == 'i' || currLayer->layerType == 'w') continue;
 
-        memset((*myModel->layerList[l])->backErrors, 0.0f, (*myModel->layerList[l])->numNodes * sizeof(float));
-        memset((*myModel->layerList[l])->preActivations, 0.0f, (*myModel->layerList[l])->numNodes * sizeof(float));
-        memset((*myModel->layerList[l])->outputs, 0.0f, (*myModel->layerList[l])->numNodes * sizeof(float));
+        memset(currLayer->backErrors, 0.0f, currLayer->numNodes * sizeof(float));
+        memset(currLayer->preActivations, 0.0f, currLayer->numNodes * sizeof(float));
+        memset(currLayer->outputs, 0.0f, currLayer->numNodes * sizeof(float));
 
-        if(vectorized_forward_out_calc(myModel->layerList[l]) != 0) return -1;
+        if(vectorized_forward_out_calc(currLayer) != 0) return -1;
 
         // In case of softmax activation, we do a function on the layer instead of point-wise on the outputs
-        if((*myModel->layerList[l])->activationFunction == 'x')
+        if(currLayer->activationFunction == 'x')
         {
-            memcpy((*myModel->layerList[l])->outputs, (*myModel->layerList[l])->preActivations, sizeof(float) * (*myModel->layerList[l])->numNodes);
-            softmax(myModel->layerList[l]);
+            memcpy(currLayer->outputs, currLayer->preActivations, sizeof(float) * currLayer->numNodes);
+            softmax(currLayer);
         }
-        else if((*myModel->layerList[l])->activationFunction == 'f')
+        else if(currLayer->activationFunction == 'f')
         {
-            memcpy((*myModel->layerList[l])->outputs, (*myModel->layerList[l])->preActivations, sizeof(float) * (*myModel->layerList[l])->numNodes);
-            fast_softmax(myModel->layerList[l]);
+            memcpy(currLayer->outputs, currLayer->preActivations, sizeof(float) * currLayer->numNodes);
+            fast_softmax(currLayer);
         }
         else
         {            
-            for(int i = 0; i < (*myModel->layerList[l])->numNodes; i++) (*myModel->layerList[l])->outputs[i] = activation_function((*myModel->layerList[l])->preActivations[i], (*myModel->layerList[l])->activationFunction);
+            for(int i = 0; i < currLayer->numNodes; i++) currLayer->outputs[i] = activation_function(currLayer->preActivations[i], currLayer->activationFunction);
         }
 
-        if((*myModel->layerList[l])->layerType == 'o' || dropoutVal <= 0.0) continue;
+        if(currLayer->layerType == 'o' || dropoutVal <= 0.0) continue;
         float scalingFactor = 1/(1-dropoutVal);
-        for(int i = 0; i < (*myModel->layerList[l])->numNodes; i++) (*myModel->layerList[l])->outputs[i] *= ((float)((rand() % 999))/1000.0 < dropoutVal) ? 0 : scalingFactor;
+        for(int i = 0; i < currLayer->numNodes; i++) currLayer->outputs[i] *= ((float)((rand() % 999))/1000.0 < dropoutVal) ? 0 : scalingFactor;
     }
 
     return 0;

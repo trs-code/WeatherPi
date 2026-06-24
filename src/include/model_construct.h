@@ -21,7 +21,7 @@ int assign_layer_ids(layer** myLayer, int currID, layer*** layerList)
 }
 
 // Provides an interface for the user to interact with the model without getting bogged down by little details
-model* construct_model(layer*** inLayers, layer** outLayer, int numLayers, int numInLayers, float learning_rate, char loss_fn)
+model* construct_model(layer*** inLayers, layer** outLayer, int numLayers, int numInLayers, float learningRate, char loss_fn)
 {
     model *myModel = (model*)malloc(sizeof(model));
     if(myModel == NULL) return NULL;
@@ -39,7 +39,7 @@ model* construct_model(layer*** inLayers, layer** outLayer, int numLayers, int n
 
     myModel->outLayer = outLayer;
     myModel->numLayers = numLayers;
-    myModel->learning_rate = learning_rate;
+    myModel->learningRate = learningRate;
     myModel->numInLayers = numInLayers;
     myModel->loss_fn = loss_fn;
 
@@ -62,7 +62,7 @@ error1:
 
 // Provides an interface for the user to interact with the model without getting bogged down by little details, takes in an already established list of layers instead of building
 // the topological relations from scratch, such as when the model is being loaded from serialized version and relations are already established
-model* construct_model_listed(layer*** inLayers, layer** outLayer, int numLayers, int numInLayers, float learning_rate, char loss_fn, layer*** modelLayers)
+model* construct_model_listed(layer*** inLayers, layer** outLayer, int numLayers, int numInLayers, float learningRate, char loss_fn, layer*** modelLayers)
 {
     model* myModel = (model*)malloc(sizeof(model));
     if(myModel == NULL) return NULL;
@@ -80,7 +80,7 @@ model* construct_model_listed(layer*** inLayers, layer** outLayer, int numLayers
 
     myModel->outLayer = outLayer;
     myModel->numLayers = numLayers;
-    myModel->learning_rate = learning_rate;
+    myModel->learningRate = learningRate;
     myModel->numInLayers = numInLayers;
     myModel->loss_fn = loss_fn;
 

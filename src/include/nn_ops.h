@@ -1,5 +1,9 @@
 #pragma once
 
+#ifndef CLOCK_MONOTONIC
+#define CLOCK_MONOTONIC 1
+#endif
+
 #include "model_ops.h"
 #include <sys/time.h>
 
@@ -17,22 +21,20 @@ void train_model_sgd(model* myModel, int epochs, int numSamples, float** inputs,
     int testSamples = numSamples - trainSamples;
     int numTrainLosses = (trainSamples != 0) ? trainSamples : 1;
     int numTestLosses = (testSamples != 0) ? testSamples : 1;
+    struct timespec start, end, tStart, tEnd;
     double timeElapsed;
-    long tStart, tEnd, eStart, eEnd;
-    struct timeval timecheck;
 
-    gettimeofday(&timecheck, NULL);
-    tStart = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
+    clock_gettime(CLOCK_MONOTONIC, &tStart);
     
     for(int e = 1; e < (epochs + 1); e++)
     {
-        gettimeofday(&timecheck, NULL);
-        eStart = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
 
         trainingLoss = 0.0;
         testingLoss = 0.0;
 
         shuffle(&inputs, &targets, numSamples);
+
+        clock_gettime(CLOCK_MONOTONIC, &start);
         
         for(int i = 0; i < trainSamples; i++)
         {
@@ -69,19 +71,20 @@ void train_model_sgd(model* myModel, int epochs, int numSamples, float** inputs,
             zero_everything(myModel);
         }
         
-        gettimeofday(&timecheck, NULL);
-        eEnd = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
+        clock_gettime(CLOCK_MONOTONIC, &end);
         
-        trainingLoss /= numTrainLosses;
+        timeElapsed = ((end.tv_sec - start.tv_sec) * 1000.0) + ((end.tv_nsec - start.tv_nsec) / 1000000.0);
+
         testingLoss /=  numTestLosses;
-        
-        printf("Epoch %d - Training Loss: %f, Testing Loss: %f - %.1ldms\n", e, trainingLoss, testingLoss, eEnd - eStart);
+        trainingLoss /= numTrainLosses;
+        printf("Epoch %d - Training Loss: %f, Testing Loss: %f - %.1lfms\n", e, trainingLoss, testingLoss, timeElapsed);
     }
 
-    gettimeofday(&timecheck, NULL);
-    tEnd = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
+    clock_gettime(CLOCK_MONOTONIC, &tEnd);
+    
+    timeElapsed = ((tEnd.tv_sec - tStart.tv_sec) * 1000.0) + ((tEnd.tv_nsec - tStart.tv_nsec) / 1000000.0);
 
-    printf("\nTotal training time: %ldms\n", (tEnd-tStart));
+    printf("\nTotal training time: %lfms\n", timeElapsed);
 }
 
 void train_rnn_sgd(model* myModel, int epochs, int numSamples, float** inputs, float **targets, float valSplit, int seqLength, float dropoutVal)
@@ -94,20 +97,17 @@ void train_rnn_sgd(model* myModel, int epochs, int numSamples, float** inputs, f
     int testSamples = numSamples - trainSamples;
     int numTrainLosses = (trainSamples != 0) ? trainSamples : 1;
     int numTestLosses = (testSamples != 0) ? testSamples : 1;;
+    struct timespec start, end, tStart, tEnd;
     double timeElapsed;
-    long tStart, tEnd, eStart, eEnd;
-    struct timeval timecheck;
 
-    gettimeofday(&timecheck, NULL);
-    tStart = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
-
+    clock_gettime(CLOCK_MONOTONIC, &tStart);
+    
     for(int e = 1; e < (epochs + 1); e++)
     {
         trainingLoss = 0.0;
         testingLoss = 0.0;
 
-        gettimeofday(&timecheck, NULL);
-        eStart = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
+        clock_gettime(CLOCK_MONOTONIC, &start);
         
         for(int i = 0; i < trainSamples; i += seqLength)
         {                
@@ -148,18 +148,20 @@ void train_rnn_sgd(model* myModel, int epochs, int numSamples, float** inputs, f
             shift_model(myModel, 'i');
         }
 
-        gettimeofday(&timecheck, NULL);
-        eEnd = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        
+        timeElapsed = ((end.tv_sec - start.tv_sec) * 1000.0) + ((end.tv_nsec - start.tv_nsec) / 1000000.0);
 
+        testingLoss /=  numTestLosses;
         trainingLoss /= numTrainLosses;
-        testingLoss /= numTestLosses;
-        printf("Epoch %d - Training Loss: %f, Testing Loss: %f - %.2ldms\n", e, trainingLoss, testingLoss, eEnd - eStart);
+        printf("Epoch %d - Training Loss: %f, Testing Loss: %f - %.1lfms\n", e, trainingLoss, testingLoss, timeElapsed);
     }
-    
-    gettimeofday(&timecheck, NULL);
-    tEnd = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
 
-    printf("\nTotal training time: %ldms\n", (tEnd-tStart));
+    clock_gettime(CLOCK_MONOTONIC, &tEnd);
+    
+    timeElapsed = ((tEnd.tv_sec - tStart.tv_sec) * 1000.0) + ((tEnd.tv_nsec - tStart.tv_nsec) / 1000000.0);
+
+    printf("\nTotal training time: %lfms\n", timeElapsed);
 }
 
 void model_inference(model* myModel, float* inputs, float** outputs) //(model*, float*, &float[])
@@ -204,17 +206,15 @@ void train_model_sgd_fast(model* myModel, int epochs, int numSamples, float** in
     int testSamples = numSamples - trainSamples;
     int numTrainLosses = (trainSamples != 0) ? trainSamples : 1;
     int numTestLosses = (testSamples != 0) ? testSamples : 1;
-    struct timespec start, end;
+    struct timespec start, end, tStart, tEnd;
     double timeElapsed;
-    long tStart, tEnd;
-    struct timeval timecheck;
 
-    gettimeofday(&timecheck, NULL);
-    tStart = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
+    clock_gettime(CLOCK_MONOTONIC, &tStart);
     
     for(int e = 1; e < (epochs + 1); e++)
     {
         clock_gettime(CLOCK_MONOTONIC, &start);
+
         trainingLoss = 0.0;
         testingLoss = 0.0;
 
@@ -256,7 +256,7 @@ void train_model_sgd_fast(model* myModel, int epochs, int numSamples, float** in
 
         clock_gettime(CLOCK_MONOTONIC, &end);
         
-        timeElapsed = (end.tv_nsec - start.tv_nsec) / 1000000.0;
+        timeElapsed = ((end.tv_sec - start.tv_sec) * 1000.0) + ((end.tv_nsec - start.tv_nsec) / 1000000.0);
         timeElapsed =  (timeElapsed >= 0) ? timeElapsed : 1000.0 + timeElapsed;
 
         testingLoss /=  numTestLosses;
@@ -264,10 +264,11 @@ void train_model_sgd_fast(model* myModel, int epochs, int numSamples, float** in
         printf("Epoch %d - Training Loss: %f, Testing Loss: %f - %.1lfms\n", e, trainingLoss, testingLoss, timeElapsed);
     }
     
-    gettimeofday(&timecheck, NULL);
-    tEnd = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
+    clock_gettime(CLOCK_MONOTONIC, &tEnd);
+    
+    timeElapsed = ((tEnd.tv_sec - tStart.tv_sec) * 1000.0) + ((tEnd.tv_nsec - tStart.tv_nsec) / 1000000.0);
 
-    printf("\nTotal training time: %ldms\n", (tEnd-tStart));
+    printf("\nTotal training time: %lfms\n", timeElapsed);
 
 }
 
@@ -281,20 +282,17 @@ void train_rnn_sgd_fast(model* myModel, int epochs, int numSamples, float** inpu
     int testSamples = numSamples - trainSamples;
     int numTrainLosses = (trainSamples != 0) ? trainSamples : 1;
     int numTestLosses = (testSamples != 0) ? testSamples : 1;
+    struct timespec start, end, tStart, tEnd;
     double timeElapsed;
-    long tStart, tEnd, eStart, eEnd;
-    struct timeval timecheck;
 
-    gettimeofday(&timecheck, NULL);
-    tStart = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
-
+    clock_gettime(CLOCK_MONOTONIC, &tStart);
+    
     for(int e = 1; e < (epochs + 1); e++)
     {
         trainingLoss = 0.0;
         testingLoss = 0.0;
 
-        gettimeofday(&timecheck, NULL);
-        eStart = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
+        clock_gettime(CLOCK_MONOTONIC, &start);
         
         for(int i = 0; i < trainSamples; i += seqLength)
         {                
@@ -335,18 +333,21 @@ void train_rnn_sgd_fast(model* myModel, int epochs, int numSamples, float** inpu
             shift_model(myModel, 'i');
         }
 
-        gettimeofday(&timecheck, NULL);
-        eEnd = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        
+        timeElapsed = ((end.tv_sec - start.tv_sec) * 1000.0) + ((end.tv_nsec - start.tv_nsec) / 1000000.0);
+        timeElapsed =  (timeElapsed >= 0) ? timeElapsed : 1000.0 + timeElapsed;
 
+        testingLoss /=  numTestLosses;
         trainingLoss /= numTrainLosses;
-        testingLoss /= numTestLosses;
-        printf("Epoch %d - Training Loss: %f, Testing Loss: %f - %.2ldms\n", e, trainingLoss, testingLoss, eEnd - eStart);
+        printf("Epoch %d - Training Loss: %f, Testing Loss: %f - %.1lfms\n", e, trainingLoss, testingLoss, timeElapsed);
     }
-    
-    gettimeofday(&timecheck, NULL);
-    tEnd = (long)timecheck.tv_sec * 1000 + (long)timecheck.tv_usec / 1000;
 
-    printf("\nTotal training time: %ldms\n", (tEnd-tStart));
+    clock_gettime(CLOCK_MONOTONIC, &tEnd);
+    
+    timeElapsed = ((tEnd.tv_sec - tStart.tv_sec) * 1000.0) + ((tEnd.tv_nsec - tStart.tv_nsec) / 1000000.0);
+
+    printf("\nTotal training time: %lfms\n", timeElapsed);
 }
 
 void model_inference_fast(model* myModel, float* inputs, float** outputs) //(model*, float*, &float[])
