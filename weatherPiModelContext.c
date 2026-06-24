@@ -18,7 +18,7 @@ int main()
     layer* hiddenLayer0 = make_hidden_layer((layer**[]){&inLayer0}, 64, 1, 't');
     if(hiddenLayer0 == NULL) goto error2;
 
-    extend_context(&hiddenLayer0, windowSize, &windowLayers);
+    extend_context(hiddenLayer0, windowSize, &windowLayers);
     if(windowLayers == NULL) goto error3;
 
     layer* hiddenLayer1 = make_hidden_layer((layer**[]){&hiddenLayer0}, 32, 1, 'r');

@@ -168,7 +168,3 @@ float loss_derivative(float target, float yHat, model* myModel)
             return 1;
     }
 }
-
-
-
-

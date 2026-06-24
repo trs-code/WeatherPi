@@ -3,20 +3,24 @@
 #include "model_destruct.h"
 
 // Assign layer IDs in a topological order to be able to reconstruct the network graph, also populates the layerList of the model accordingly
-int assign_layer_ids(layer** myLayer, int currID, layer*** layerList)
+int assign_layer_ids(layer** currLayer, int currID, layer*** layerList)
 {
     // Post order traversal so the layers can be readily identified before any of their dependencies
+    layer** prevLayer;
+    layer* myLayer = *currLayer;
     int myID = currID;
-    if((*myLayer)->layerID != -1) return currID;
+    if(myLayer->layerID != -1) return currID;
+    myLayer->layerID = 0;
 
-    for (int i = 0; i < (*myLayer)->numPrevLayers; i++)
+    for (int i = 0; i < myLayer->numPrevLayers; i++)
     {
-        if((*myLayer)->prevLayers[i] == myLayer) continue;
-        myID = assign_layer_ids((*myLayer)->prevLayers[i], myID, layerList);
+        prevLayer = myLayer->prevLayers[i];
+        if(prevLayer == currLayer) continue;
+        myID = assign_layer_ids(prevLayer, myID, layerList);
     }
     
-    (*myLayer)->layerID = myID;
-    layerList[myID] = myLayer;
+    myLayer->layerID = myID;
+    layerList[myID] = currLayer;
     return myID + 1;    
 }
 
@@ -103,7 +107,7 @@ error1:
 }
 
 // Use to automatically extend the context window of a hidden layer to enable RNN functionality
-void extend_context(layer** myLayer, int windowSize, layer*** windowLayers) // reference to array of layer pointers must be provided so user can retain ownership of all created layers 
+void extend_context(layer* myLayer, int windowSize, layer*** windowLayers) // reference to array of layer pointers must be provided so user can retain ownership of all created layers 
 {    
     layer*** tmp0 = NULL;
     float* tmp1 = NULL;
@@ -111,9 +115,9 @@ void extend_context(layer** myLayer, int windowSize, layer*** windowLayers) // r
     *windowLayers = (layer**)calloc((2 * windowSize), sizeof(layer*));
     if(*windowLayers == NULL) return;
 
-    int hiddenNodes = (*myLayer)->numNodes;
-    int numInNodes = (*myLayer)->numPrevNodes;
-    char hiddenActivationFunction = (*myLayer)->activationFunction;
+    int hiddenNodes = myLayer->numNodes;
+    int numInNodes = myLayer->numPrevNodes;
+    char hiddenActivationFunction = myLayer->activationFunction;
 
     // Make last layers first so every successive timestep's hiddenLayer in the window can have the previous timestep's hiddenLayer as its prevLayer[1]
     // Meanwhile the inputs for each timestep for calculating backerrors every sequenceLength timesteps will be prevLayers[0] for each timestep's hiddenLayer
@@ -132,23 +136,23 @@ void extend_context(layer** myLayer, int windowSize, layer*** windowLayers) // r
     }
 
     // Need to fix the current timestep's hiddenLayer so it includes the first previous timestep as a prevLayer
-    (*myLayer)->numPrevLayers += 1;
-    (*myLayer)->numPrevNodes += hiddenNodes;
-    tmp0 = (layer ***)realloc((*myLayer)->prevLayers, sizeof(layer**) * (*myLayer)->numPrevLayers);
+    myLayer->numPrevLayers += 1;
+    myLayer->numPrevNodes += hiddenNodes;
+    tmp0 = (layer ***)realloc(myLayer->prevLayers, sizeof(layer**) * myLayer->numPrevLayers);
     if(tmp0 == NULL) goto error1;
-    (*myLayer)->prevLayers = tmp0;
+    myLayer->prevLayers = tmp0;
     tmp0 = NULL;
 
-    (*myLayer)->prevLayers[(*myLayer)->numPrevLayers - 1] = &(*windowLayers)[1];
+    myLayer->prevLayers[myLayer->numPrevLayers - 1] = &(*windowLayers)[1];
 
     for(int i = 0; i < hiddenNodes; i++)
     {
-        tmp1 = (float*)realloc((*myLayer)->weights[i], sizeof(float*) * (*myLayer)->numPrevNodes);
+        tmp1 = (float*)realloc(myLayer->weights[i], sizeof(float*) * myLayer->numPrevNodes);
         if(tmp1 == NULL) goto error1;
-        (*myLayer)->weights[i] = tmp1;
+        myLayer->weights[i] = tmp1;
         tmp1 = NULL;
 
-        for(int j = (*myLayer)->numPrevNodes - hiddenNodes; j < (*myLayer)->numPrevNodes; j++) (*myLayer)->weights[i][j] = ((rand() % 100000) + 50000)/100000;
+        for(int j = myLayer->numPrevNodes - hiddenNodes; j < myLayer->numPrevNodes; j++) myLayer->weights[i][j] = ((rand() % 100000) + 50000)/100000;
     }
     
     return;
