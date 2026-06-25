@@ -233,7 +233,7 @@ void train_model_sgd_fast(model* myModel, int epochs, int numSamples, float** in
             
             _mm256_forward_out(myModel, dropoutVal);
             sgd_backprop(myModel);
-            _mm256_calculate_and_apply_grads(myModel);
+            calculate_and_apply_grads(myModel);
 
             trainingLoss += loss_function(myModel);
         }
@@ -313,7 +313,7 @@ void train_rnn_sgd_fast(model* myModel, int epochs, int numSamples, float** inpu
             }
 
             sgd_backprop(myModel);
-            _mm256_calculate_and_apply_grads_through_time(myModel);
+            calculate_and_apply_grads_through_time(myModel);
             zero_everything(myModel);
         }
         

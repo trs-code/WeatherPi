@@ -77,7 +77,7 @@ void sgd_backprop(model* myModel)
         if(currLayer->layerType == 'i' || currLayer->layerType == 'w') continue;
         
         // backErrorsForOutputLayer = lossDerivative · activationFunctionDerivative(preActivations) - for output layer
-        if(currLayer->layerType == 'o') for(int i = 0; i < currLayer->numNodes; i++) currLayer->backErrors[i] = -1 * loss_derivative(myModel->targets[i], currLayer->outputs[i], myModel) * activation_derivative(currLayer->preActivations[i], currLayer->activationFunction, currLayer, i);
+        if(currLayer->layerType == 'o') for(int i = 0; i < currLayer->numNodes; i++) currLayer->backErrors[i] = -1 * loss_derivative(myModel->targets[i], currLayer->outputs[i], myModel) * activation_derivative(currLayer->preActivations[i], currLayer, i);
         
         // backErrorsForPreviousLayers[j] = SUM_OVER_I((thisLayersBackErrors[i])(thisLayersWeightMatrix[i][j]) · activationFunctionDerivative(previousLayersPreActivation[j])) - where j is considered to be a traversal of all previous 'J' layers' 'K' values as one vector
         // e.g. J = 3 prev layers with K = 5 nodes each are considered as one prev layer with J = 15 nodes in this formulation
@@ -88,7 +88,7 @@ void sgd_backprop(model* myModel)
             
             if(prevLayer->layerType == 'i' || prevLayer->layerType == 'w') continue;
             
-            for(int j = 0; j < prevLayer->numNodes; j++) for(int k = 0; k < currLayer->numNodes; k++) prevLayer->backErrors[j] += currLayer->backErrors[k] * currLayer->weights[k][prevsTraversed + j] * activation_derivative(prevLayer->preActivations[j], prevLayer->activationFunction, currLayer, i);
+            for(int j = 0; j < prevLayer->numNodes; j++) for(int k = 0; k < currLayer->numNodes; k++) prevLayer->backErrors[j] += currLayer->backErrors[k] * currLayer->weights[k][prevsTraversed + j] * activation_derivative(prevLayer->preActivations[j], currLayer, i);
             prevsTraversed += prevLayer->numNodes;
         }
     }
@@ -699,45 +699,63 @@ int _mm256_forward_out(model* myModel, float dropoutVal)
     return 0;
 }
 
-// void _mm256_sgd_backprop(layer** myLayer, model** myModel)
+// void _mm256_sgd_backprop(model* myModel)
 // { // start at output layer and calculate backerrors for each previous layer
-//     if((*myLayer)->switchVar == '2') return;
-//
-//     (*myLayer)->switchVar = '2';
-//
-//     vectorized_sgd_backprop_calc(myLayer, myModel);
-//
-//     for(int i = 0; i < (*myLayer)->numPrevLayers; i++) if((*(*myLayer)->prevLayers[i])->numPrevLayers != 0 && (*(*myLayer)->prevLayers[i])->layerType != 'w') sgd_backprop((*myLayer)->prevLayers[i], myModel);
-//     // calculate backErrors for previous layers' previous layers according to already established layers' backErrors - All roads spring forth from Rome
+//     layer* currLayer;
+//     layer* prevLayer;
+//     int prevsTraversed = 0;
+    
+//     for(int l = myModel->numLayers - 1; l > -1; l--)
+//     {
+//         currLayer = *myModel->layerList[l];
+
+//         if(currLayer->layerType == 'i' || currLayer->layerType == 'w') continue;
+        
+//         // backErrorsForOutputLayer = lossDerivative · activationFunctionDerivative(preActivations) - for output layer
+//         if(currLayer->layerType == 'o') vectorized_sgd_backprop_output_calc(currLayer, myModel);
+        
+//         // backErrorsForPreviousLayers[j] = SUM_OVER_I((thisLayersBackErrors[i])(thisLayersWeightMatrix[i][j]) · activationFunctionDerivative(previousLayersPreActivation[j])) - where j is considered to be a traversal of all previous 'J' layers' 'K' values as one vector
+//         // e.g. J = 3 prev layers with K = 5 nodes each are considered as one prev layer with J = 15 nodes in this formulation
+//         prevsTraversed = 0;
+//         for(int i = 0; i < currLayer->numPrevLayers; i++)
+//         {
+//             prevLayer = *currLayer->prevLayers[i];
+            
+//             if(prevLayer->layerType == 'i' || prevLayer->layerType == 'w') continue;
+            
+//             for(int j = 0; j < prevLayer->numNodes; j++) for(int k = 0; k < currLayer->numNodes; k++) prevLayer->backErrors[j] += currLayer->backErrors[k] * currLayer->weights[k][prevsTraversed + j] * activation_derivative(prevLayer->preActivations[j], currLayer, i);
+//             prevsTraversed += prevLayer->numNodes;
+//         }
+//     }
 // }
 
-int _mm256_calculate_and_apply_grads(model* myModel)
-{
-    layer* currLayer;
+// int _mm256_calculate_and_apply_grads(model* myModel)
+// {
+//     layer* currLayer;
 
-    for(int l = 0; l < myModel->numLayers; l++)
-    {
-        currLayer = *myModel->layerList[l];
+//     for(int l = 0; l < myModel->numLayers; l++)
+//     {
+//         currLayer = *myModel->layerList[l];
 
-        if(currLayer->layerType == 'i') continue;
-        if(vectorized_calculate_and_apply_grads(currLayer, myModel->learningRate) != 0) return -1;
-    }
-    return 0;
-}
+//         if(currLayer->layerType == 'i') continue;
+//         if(vectorized_calculate_and_apply_grads(currLayer, myModel->learningRate) != 0) return -1;
+//     }
+//     return 0;
+// }
 
-int _mm256_calculate_and_apply_grads_through_time(model* myModel)
-{
-    layer* currLayer;
+// int _mm256_calculate_and_apply_grads_through_time(model* myModel)
+// {
+//     layer* currLayer;
 
-    for(int l = 0; l < myModel->numLayers; l++)
-    {
-        currLayer = *myModel->layerList[l];
+//     for(int l = 0; l < myModel->numLayers; l++)
+//     {
+//         currLayer = *myModel->layerList[l];
 
-        if(currLayer->layerType == 'i' || currLayer->layerType == 'w') continue;
-        if(vectorized_calculate_and_apply_grads_through_time(currLayer, myModel->learningRate) != 0) return -1;
-    }
-    return 0;
-}
+//         if(currLayer->layerType == 'i' || currLayer->layerType == 'w') continue;
+//         if(vectorized_calculate_and_apply_grads_through_time(currLayer, myModel->learningRate) != 0) return -1;
+//     }
+//     return 0;
+// }
 
 #endif
 

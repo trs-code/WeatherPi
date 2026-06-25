@@ -132,9 +132,9 @@ float activation_function(float x, char activationFunction)
     }
 }
 
-float activation_derivative(float x, char activationFunction, layer* myLayer, int currNode)
+float activation_derivative(float x, layer* myLayer, int currNode)
 {
-    switch(activationFunction)
+    switch(myLayer->activationFunction)
     {
         case 'l':
             return 1;
