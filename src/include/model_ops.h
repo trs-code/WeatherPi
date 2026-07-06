@@ -74,7 +74,7 @@ void sgd_backprop(model* myModel)
     {
         currLayer = *myModel->layerList[l];
 
-        if(currLayer->layerType == 'i' || currLayer->layerType == 'w') continue;
+        if(currLayer->layerType == 'i') continue;
         
         // backErrorsForOutputLayer = lossDerivative · activationFunctionDerivative(preActivations) - for output layer
         if(currLayer->layerType == 'o') for(int i = 0; i < currLayer->numNodes; i++) currLayer->backErrors[i] = -1 * loss_derivative(myModel->targets[i], currLayer->outputs[i], myModel) * activation_derivative(currLayer->preActivations[i], currLayer, i);
@@ -86,7 +86,7 @@ void sgd_backprop(model* myModel)
         {
             prevLayer = *currLayer->prevLayers[i];
             
-            if(prevLayer->layerType == 'i' || prevLayer->layerType == 'w') continue;
+            if(prevLayer->layerType == 'i') continue;
             
             for(int j = 0; j < prevLayer->numNodes; j++) for(int k = 0; k < currLayer->numNodes; k++) prevLayer->backErrors[j] += currLayer->backErrors[k] * currLayer->weights[k][prevsTraversed + j] * activation_derivative(prevLayer->preActivations[j], currLayer, i);
             prevsTraversed += prevLayer->numNodes;
@@ -105,7 +105,7 @@ void calculate_and_apply_grads(model* myModel)
     {
         currLayer = *myModel->layerList[l];
 
-        if(currLayer->layerType == 'i' || currLayer->layerType == 'w') continue;
+        if(currLayer->layerType == 'i') continue;
 
         // newBias[i] = oldBias[i] - (learningRate * backErrors[i])
         for(int i = 0; i < currLayer->numNodes; i++) currLayer->biases[i] -= myModel->learningRate * currLayer->backErrors[i];
@@ -559,7 +559,8 @@ error1:
 void shift_model(model* myModel, char opType)
 {
     layer* currLayer;
-    layer* prevLayer;
+    layer* prevIns;
+    layer* prevWindow;
     int numInputs = 0;
     int numHiddenNodes = 0;
     int prevsTraversed = 0;
@@ -571,91 +572,36 @@ void shift_model(model* myModel, char opType)
         if(currLayer->numPrevLayers == 0) continue;
         if(currLayer->layerType == 'w' && opType == 't' && currLayer->numPrevLayers == 2)
         {
-            numInputs = (*currLayer->prevLayers[0])->numNodes;
+            prevIns = (*currLayer->prevLayers[0]);
+            prevWindow = (*currLayer->prevLayers[1]);
+            numInputs = prevIns->numNodes;
             numHiddenNodes = currLayer->numNodes;
 
-            memcpy((*currLayer->prevLayers[1])->outputs, currLayer->outputs, sizeof(float) * numHiddenNodes);
-            memcpy((*currLayer->prevLayers[1])->preActivations, currLayer->preActivations, sizeof(float) * numHiddenNodes);
-            memcpy((*(*currLayer->prevLayers[1])->prevLayers[0])->outputs, (*currLayer->prevLayers[0])->outputs, sizeof(float) * numInputs);
+            memcpy(prevWindow->outputs, currLayer->outputs, sizeof(float) * numHiddenNodes);
+            memcpy(prevWindow->preActivations, currLayer->preActivations, sizeof(float) * numHiddenNodes);
+            memcpy((*prevWindow->prevLayers[0])->outputs, prevIns->outputs, sizeof(float) * numInputs);
         }
         
-        if((*currLayer->prevLayers[currLayer->numPrevLayers - 1])->layerType == 'w' && currLayer->layerType == 'h')
+        if((*currLayer->prevLayers[currLayer->numPrevLayers - 1])->layerType == 'w' && currLayer->layerType == 'h')// technically would work for every window layer, separate for readability and inference functionality all in single shift function
         {
             numHiddenNodes = currLayer->numNodes;
-            int windowIdx = currLayer->numPrevLayers - 1;
+            prevWindow = (*currLayer->prevLayers[currLayer->numPrevLayers - 1]);
 
-            memcpy((*currLayer->prevLayers[windowIdx])->outputs, currLayer->outputs, sizeof(float) * numHiddenNodes);
-            memcpy((*currLayer->prevLayers[windowIdx])->preActivations, currLayer->preActivations, sizeof(float) * numHiddenNodes);
+            memcpy(prevWindow->outputs, currLayer->outputs, sizeof(float) * numHiddenNodes);
+            memcpy(prevWindow->preActivations, currLayer->preActivations, sizeof(float) * numHiddenNodes);
 
             for(int i = 0; i < currLayer->numPrevLayers - 1; i++)
             {
-                prevLayer = *currLayer->prevLayers[i];
+                prevIns = *currLayer->prevLayers[i];
                 
-                memcpy(&(*(*currLayer->prevLayers[windowIdx])->prevLayers[0])->outputs[prevsTraversed], prevLayer->outputs, sizeof(float) * prevLayer->numNodes);
-                prevsTraversed += prevLayer->numNodes;
+                memcpy(&(*prevWindow->prevLayers[0])->outputs[prevsTraversed], prevIns->outputs, sizeof(float) * prevIns->numNodes);
+                prevsTraversed += prevIns->numNodes;
             }
 
             prevsTraversed = 0;
         }
     }
 }
-
-// Applies Back Propagation Through Time procedure for all context windows
-void calculate_and_apply_grads_through_time(model* myModel)
-{
-    layer* currLayer;
-    layer* prevLayer;
-    int prevsTraversed = 0;
-    
-    for(int l = myModel->numLayers - 1; l > -1; l--)
-    {
-        currLayer = *myModel->layerList[l];
-
-        if(currLayer->layerType == 'i' || currLayer->layerType == 'w') continue;
-
-        // newBiases[i] = oldBiases[i] - (learningRate * backErrors[i])
-        for(int i = 0; i < currLayer->numNodes; i++) currLayer->biases[i] -= myModel->learningRate * currLayer->backErrors[i];
-        if((*currLayer->prevLayers[currLayer->numPrevLayers - 1])->layerType == 'w')
-        {
-            prevLayer = (*currLayer->prevLayers[currLayer->numPrevLayers - 1]);
-
-            while(prevLayer->numPrevLayers == 2)
-            {
-                for(int i = 0; i < prevLayer->numNodes; i++) currLayer->biases[i] -= myModel->learningRate * prevLayer->backErrors[i];
-                prevLayer = *prevLayer->prevLayers[1];
-            }
-            
-            for(int i = 0; i < prevLayer->numNodes; i++) currLayer->biases[i] -= myModel->learningRate * prevLayer->backErrors[i]; // For the last layer in the window with only one prevLayer
-        }
-
-
-        // newWeights[i][j] = oldWeights[i][j] - (learningRate * (prevNodeOuts[j] * backError[i]))
-        for(int i = 0; i < currLayer->numNodes; i++, prevsTraversed = 0)
-        {
-            for(int j = 0; j < currLayer->numPrevLayers; j++)
-            {
-                prevLayer = *currLayer->prevLayers[j];
-                for(int k = 0; k < prevLayer->numNodes; k++) currLayer->weights[i][k + prevsTraversed] -= myModel->learningRate * prevLayer->outputs[k] * currLayer->backErrors[i];          
-                prevsTraversed += prevLayer->numNodes;
-            }
-
-            if((*currLayer->prevLayers[currLayer->numPrevLayers - 1])->layerType == 'w')
-            {
-                prevLayer = (*currLayer->prevLayers[currLayer->numPrevLayers - 1]);
-                prevLayer = *prevLayer->prevLayers[1];
-
-                while(prevLayer->numPrevLayers == 2)
-                {
-                    for(int j = 0; j < (*prevLayer->prevLayers[0])->numNodes; j++) currLayer->weights[i][j] -= myModel->learningRate * (*prevLayer->prevLayers[0])->outputs[j] * prevLayer->backErrors[i];
-                    prevLayer = *prevLayer->prevLayers[1];
-                }
-                for(int j = 0; j < (*prevLayer->prevLayers[0])->numNodes; j++) currLayer->weights[i][j] -= myModel->learningRate * (*prevLayer->prevLayers[0])->outputs[j] * prevLayer->backErrors[i];
-            }
-
-        }
-    }
-}
-
 
 #if defined(__AVX__) || defined(__AVX2__)
 //  Gets an output from the target layer, is essentially also a inference function
@@ -709,7 +655,7 @@ int _mm256_forward_out(model* myModel, float dropoutVal)
 //     {
 //         currLayer = *myModel->layerList[l];
 
-//         if(currLayer->layerType == 'i' || currLayer->layerType == 'w') continue;
+//         if(currLayer->layerType == 'i') continue;
         
 //         // backErrorsForOutputLayer = lossDerivative · activationFunctionDerivative(preActivations) - for output layer
 //         if(currLayer->layerType == 'o') vectorized_sgd_backprop_output_calc(currLayer, myModel);
@@ -721,7 +667,7 @@ int _mm256_forward_out(model* myModel, float dropoutVal)
 //         {
 //             prevLayer = *currLayer->prevLayers[i];
             
-//             if(prevLayer->layerType == 'i' || prevLayer->layerType == 'w') continue;
+//             if(prevLayer->layerType == 'i') continue;
             
 //             for(int j = 0; j < prevLayer->numNodes; j++) for(int k = 0; k < currLayer->numNodes; k++) prevLayer->backErrors[j] += currLayer->backErrors[k] * currLayer->weights[k][prevsTraversed + j] * activation_derivative(prevLayer->preActivations[j], currLayer, i);
 //             prevsTraversed += prevLayer->numNodes;
@@ -739,20 +685,6 @@ int _mm256_forward_out(model* myModel, float dropoutVal)
 
 //         if(currLayer->layerType == 'i') continue;
 //         if(vectorized_calculate_and_apply_grads(currLayer, myModel->learningRate) != 0) return -1;
-//     }
-//     return 0;
-// }
-
-// int _mm256_calculate_and_apply_grads_through_time(model* myModel)
-// {
-//     layer* currLayer;
-
-//     for(int l = 0; l < myModel->numLayers; l++)
-//     {
-//         currLayer = *myModel->layerList[l];
-
-//         if(currLayer->layerType == 'i' || currLayer->layerType == 'w') continue;
-//         if(vectorized_calculate_and_apply_grads_through_time(currLayer, myModel->learningRate) != 0) return -1;
 //     }
 //     return 0;
 // }

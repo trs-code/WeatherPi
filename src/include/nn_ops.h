@@ -114,7 +114,6 @@ void train_rnn_sgd(model* myModel, int epochs, int numSamples, float** inputs, f
             for(int j = i; j < i + seqLength && j < trainSamples; j++)
             {
                 inputsTraversed = 0;
-                if(j != i) shift_model(myModel, 't');
                 for(int k = 0; k < myModel->numInLayers; k++)
                 {
                     memcpy((*myModel->inLayers[k])->outputs, &(inputs[j][inputsTraversed]), sizeof(float) * (*myModel->inLayers[k])->numNodes);
@@ -122,13 +121,14 @@ void train_rnn_sgd(model* myModel, int epochs, int numSamples, float** inputs, f
                 }
 
                 forward_out(myModel, dropoutVal);
+                shift_model(myModel, 't');
                 
                 memcpy(myModel->targets, targets[currTargs], sizeof(float) * (*myModel->outLayer)->numNodes);
                 trainingLoss += loss_function(myModel);
             }
 
-            sgd_backprop(myModel);;
-            calculate_and_apply_grads_through_time(myModel);
+            sgd_backprop(myModel);
+            calculate_and_apply_grads(myModel);
             zero_everything(myModel);
         }
         
@@ -298,7 +298,6 @@ void train_rnn_sgd_fast(model* myModel, int epochs, int numSamples, float** inpu
         {                
             for(int j = i; j < i + seqLength && j < trainSamples; j++)
             {
-                if(i != j) shift_model(myModel, 't');
                 inputsTraversed = 0;
                 for(int k = 0; k < myModel->numInLayers; k++)
                 {
@@ -306,14 +305,15 @@ void train_rnn_sgd_fast(model* myModel, int epochs, int numSamples, float** inpu
                     inputsTraversed += (*myModel->inLayers[k])->numNodes;
                 }
 
-                _mm256_forward_out(myModel, dropoutVal);
+                forward_out(myModel, dropoutVal);
+                shift_model(myModel, 't');
 
                 memcpy(myModel->targets, targets[currTargs], sizeof(float) * (*myModel->outLayer)->numNodes);
                 trainingLoss += loss_function(myModel);
             }
 
             sgd_backprop(myModel);
-            calculate_and_apply_grads_through_time(myModel);
+            calculate_and_apply_grads(myModel);
             zero_everything(myModel);
         }
         

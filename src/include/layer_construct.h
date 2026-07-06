@@ -195,7 +195,7 @@ layer* make_window_layer(layer*** prev, int numNodes, int numPrevLayers, char ac
     windowLayer->numPrevLayers = numPrevLayers;
     windowLayer->numPrevNodes = numPrevNodes;
     windowLayer->layerType = 'w';
-    windowLayer->weights = NULL; // Just holds previous values, doesn't need actual weights, just something to facilitate forwarding values
+    windowLayer->weights = NULL; // Weights and biases are shared with base timestep layer
     windowLayer->biases = NULL;
 
     windowLayer->prevLayers = (layer ***)calloc(numPrevLayers, sizeof(layer**)); // Possibly one prev layer, none if last in window

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "layer_ops.h"
+#include "layer_construct.h"
 
 // 40 Bytes for an empty model husk 
 typedef struct

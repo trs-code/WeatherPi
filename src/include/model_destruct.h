@@ -1,35 +1,32 @@
 #pragma once
 
 #include "model.h"
-#include "layer_ops.h"
 
 
 // Destroy a model object independently from any layers(IMPORTANT TO DESTROY EVERY SINGLE LAYER MANUALLY IF USED)
 void hakai_model_mfree(model** myModel)
 {
     free((*myModel)->targets);
-    (*myModel)->targets = NULL;
 
     free(*myModel);
     *myModel= NULL;
 }
 
 // Actual user called function to destroy the entire model which sets up an outArray to keep consistency with the clear model logic, followed by model cleanup, iterative version
-void hakai_model(model** myModel)
+void hakai_model(model** thisModel)
 {
-    for(int i = 0; i < (*myModel)->numLayers; i++) hakai_layer((*myModel)->layerList[i]);
+    model* myModel = *thisModel;
 
-    free((*myModel)->layerList);
-    (*myModel)->layerList = NULL;
+    for(int i = 0; i < myModel->numLayers; i++) hakai_layer(myModel->layerList[i]);
 
-    free((*myModel)->inLayers);
-    (*myModel)->inLayers = NULL;
+    free(myModel->layerList);
 
-    free((*myModel)->targets);
-    (*myModel)->targets = NULL;
+    free(myModel->inLayers);
 
-    free(*myModel);
-    *myModel= NULL;
+    free(myModel->targets);
+
+    free(myModel);
+    *thisModel= NULL;
 }
 
 void hakai_context_window(layer*** windowLayers, int windowSize)

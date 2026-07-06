@@ -102,13 +102,16 @@ int read_csv(const char* fileName, int numSamples, int numInputs, int numOutputs
     *inArrs = (float**)malloc(numSamples * sizeof(float *));
     *outArrs = (float**)malloc(numSamples * sizeof(float *));
 
+    float** inArrsRef = *inArrs;
+    float** outArrsRef = *outArrs; 
+
     for(int i = 0; i < numSamples; i++)
     {
         if(fgets(buffer, 128, datFile) == NULL) goto error2;
 
         offset = 0;
-        (*inArrs)[i] = (float*)malloc(numInputs * sizeof(float));
-        (*outArrs)[i] = (float*)malloc(numOutputs * sizeof(float));
+        inArrsRef[i] = (float*)malloc(numInputs * sizeof(float));
+        outArrsRef[i] = (float*)malloc(numOutputs * sizeof(float));
         
         for(int j = 0; j < numInputs; j++)
         {
@@ -122,7 +125,7 @@ int read_csv(const char* fileName, int numSamples, int numInputs, int numOutputs
             }
 
             offset += 1;
-            (*inArrs)[i][j] = atof(fltBuffer);
+            inArrsRef[i][j] = atof(fltBuffer);
             flush_buffer(fltBuffer, 24);
             fltTraversed = 0;
         }
@@ -137,7 +140,7 @@ int read_csv(const char* fileName, int numSamples, int numInputs, int numOutputs
             }
             
             offset += 1;
-            (*outArrs)[i][j] = atof(fltBuffer);
+            outArrsRef[i][j] = atof(fltBuffer);
             flush_buffer(fltBuffer, 24);
             fltTraversed = 0;
         }
@@ -400,224 +403,11 @@ int vectorized_forward_out_calc(layer* myLayer)
 
 //             memcpy(&myLayer->weights[i][8 * batchesOfEightPrevs], f, sizeof(float) * leftoverBatchPrevs);
 //         }
-        
 //     }
 
 //     return 0;
 // }
 
-// int vectorized_calculate_and_apply_grads_through_time(layer* myLayer, float learningRate)
-// {
-//     int maskHelp[8] = {0, 0, 0, 0, 0, 0, 0, 0};
-//     float prevNodeOuts[myLayer->numPrevNodes];
-//     float f[8];
-//     layer* prevLayer;
-//     __m256 learningRates = _mm256_set1_ps(learningRate);
-//     __m256 biases = _mm256_setzero_ps();
-//     __m256 backErrors = _mm256_setzero_ps();
-//     __m256 prevOuts = _mm256_setzero_ps();
-//     __m256 weights =_mm256_setzero_ps();
-//     int numPrevsTraversed = 0;
-//     int leftoverBatchPrevs = myLayer->numPrevNodes % 8;
-//     int batchesOfEightPrevs = (myLayer->numPrevNodes - leftoverBatchPrevs) / 8;
-//     int leftoverBatch = myLayer->numNodes % 8;
-//     int batchesOfEight = (myLayer->numNodes - leftoverBatch) / 8;    
-    
-//     for(int i = 0; i < leftoverBatch; i++)
-//     {
-//         maskHelp[i] = -1;
-//     }
-
-//     __m256i _load_mask_biases = _mm256_loadu_si256((const __m256i*)maskHelp);
-
-//     memset(maskHelp, 0, 8 * sizeof(int));
-//     for(int i = 0; i < leftoverBatchPrevs; i++)
-//     {
-//         maskHelp[i] = -1;
-//     }
-
-//     __m256i _load_mask_prevs = _mm256_loadu_si256((const __m256i*)maskHelp);
-
-//     for(int i = 0; i < batchesOfEight; i++)
-//     {
-//         biases = _mm256_loadu_ps(&myLayer->biases[8 * i]);
-//         backErrors = _mm256_loadu_ps(&myLayer->backErrors[8 * i]);
-
-//         biases = _mm256_fnmadd_ps(backErrors, learningRates, biases);
-//         _mm256_storeu_ps(f, biases);
-
-//         memcpy(&myLayer->biases[8 * i], f, sizeof(float) * 8);
-//     }
-
-//     if(leftoverBatch > 0)
-//     {
-//         biases = _mm256_maskload_ps(&myLayer->biases[8 * batchesOfEight], _load_mask_biases);
-//         backErrors = _mm256_maskload_ps(&myLayer->backErrors[8 * batchesOfEight], _load_mask_biases);
-
-//         biases = _mm256_fnmadd_ps(backErrors, learningRates, biases);
-//         _mm256_storeu_ps(f, biases);
-
-//         memcpy(&myLayer->biases[8 * batchesOfEight], f, sizeof(float) * leftoverBatch);
-//     }
-    
-//     for(int i = 0; i < myLayer->numPrevLayers; i++)
-//     {
-//         prevLayer = *myLayer->prevLayers[i];
-        
-//         memcpy(&prevNodeOuts[numPrevsTraversed], prevLayer->outputs, prevLayer->numNodes * sizeof(float));
-//         numPrevsTraversed += prevLayer->numNodes;
-//     }
-
-//     for(int i = 0; i < myLayer->numNodes; i++)
-//     {
-//         backErrors = _mm256_set1_ps(myLayer->backErrors[i]);
-//         backErrors = _mm256_mul_ps(backErrors, learningRates);
-//         numPrevsTraversed = 0;
-
-//         for(int j = 0; j < batchesOfEightPrevs; j++)
-//         {
-//             prevOuts = _mm256_loadu_ps(&prevNodeOuts[8 * j]);
-//             weights = _mm256_loadu_ps(&myLayer->weights[i][(8 * j)]);
-
-//             weights = _mm256_fnmadd_ps(prevOuts, backErrors, weights);
-//             _mm256_storeu_ps(f, weights);
-
-//             memcpy(&myLayer->weights[i][8 * j], f, sizeof(float) * 8);
-//         }
-
-//         if(leftoverBatchPrevs > 0)
-//         {
-//             prevOuts = _mm256_maskload_ps(&prevNodeOuts[8 * batchesOfEightPrevs], _load_mask_prevs);
-//             weights = _mm256_maskload_ps(&myLayer->weights[i][(8 * batchesOfEightPrevs)], _load_mask_prevs);
-
-//             weights = _mm256_fnmadd_ps(prevOuts, backErrors, weights);
-//             _mm256_storeu_ps(f, weights);
-
-//             memcpy(&myLayer->weights[i][8 * batchesOfEightPrevs], f, sizeof(float) * leftoverBatchPrevs);
-//         }
-        
-//     }
-
-//     if((*myLayer->prevLayers[myLayer->numPrevLayers - 1])->layerType == 'w')
-//     {
-//         layer* currLayer = *(myLayer->prevLayers[myLayer->numPrevLayers - 1]);
-
-//         while(currLayer->numPrevLayers == 2)
-//         {
-//             for(int i = 0; i < batchesOfEight; i++)
-//             {
-//                 biases = _mm256_loadu_ps(&myLayer->biases[8 * i]);
-//                 backErrors = _mm256_loadu_ps(&currLayer->backErrors[8 * i]);
-
-//                 biases = _mm256_fnmadd_ps(backErrors, learningRates, biases);
-//                 _mm256_storeu_ps(f, biases);
-
-//                 memcpy(&myLayer->biases[8 * i], f, sizeof(float) * 8);
-//             }
-
-//             if(leftoverBatch > 0)
-//             {
-//                 biases = _mm256_maskload_ps(&myLayer->biases[8 * batchesOfEight], _load_mask_biases);
-//                 backErrors = _mm256_maskload_ps(&currLayer->backErrors[8 * batchesOfEight], _load_mask_biases);
-
-//                 biases = _mm256_fnmadd_ps(backErrors, learningRates, biases);
-//                 _mm256_storeu_ps(f, biases);
-
-//                 memcpy(&myLayer->biases[8 * batchesOfEight], f, sizeof(float) * leftoverBatch);
-//             }
-
-//             memcpy(prevNodeOuts, (*currLayer->prevLayers[0])->outputs, (*currLayer->prevLayers[0])->numNodes * sizeof(float));
-
-//             for(int i = 0; i < myLayer->numNodes; i++)
-//             {
-//                 backErrors = _mm256_set1_ps(currLayer->backErrors[i]);
-//                 backErrors = _mm256_mul_ps(backErrors, learningRates);
-//                 numPrevsTraversed = 0;
-
-//                 for(int j = 0; j < batchesOfEightPrevs; j++)
-//                 {
-//                     prevOuts = _mm256_loadu_ps(&prevNodeOuts[8 * j]);
-//                     weights = _mm256_loadu_ps(&myLayer->weights[i][(8 * j)]);
-
-//                     weights = _mm256_fnmadd_ps(prevOuts, backErrors, weights);
-//                     _mm256_storeu_ps(f, weights);
-
-//                     memcpy(&myLayer->weights[i][8 * j], f, sizeof(float) * 8);
-//                 }
-
-//                 if(leftoverBatchPrevs > 0)
-//                 {
-//                     prevOuts = _mm256_maskload_ps(&prevNodeOuts[8 * batchesOfEightPrevs], _load_mask_prevs);
-//                     weights = _mm256_maskload_ps(&myLayer->weights[i][(8 * batchesOfEightPrevs)], _load_mask_prevs);
-
-//                     weights = _mm256_fnmadd_ps(prevOuts, backErrors, weights);
-//                     _mm256_storeu_ps(f, weights);
-
-//                     memcpy(&myLayer->weights[i][8 * batchesOfEightPrevs], f, sizeof(float) * leftoverBatchPrevs);
-//                 }
-                
-//             }
-
-//             currLayer = *currLayer->prevLayers[1];
-//         }
-
-//         for(int i = 0; i < batchesOfEight; i++)
-//         {
-//             biases = _mm256_loadu_ps(&myLayer->biases[8 * i]);
-//             backErrors = _mm256_loadu_ps(&currLayer->backErrors[8 * i]);
-
-//             biases = _mm256_fnmadd_ps(backErrors, learningRates, biases);
-//             _mm256_storeu_ps(f, biases);
-
-//             memcpy(&myLayer->biases[8 * i], f, sizeof(float) * 8);
-//         }
-
-//         if(leftoverBatch > 0)
-//         {
-//             biases = _mm256_maskload_ps(&myLayer->biases[8 * batchesOfEight], _load_mask_biases);
-//             backErrors = _mm256_maskload_ps(&currLayer->backErrors[8 * batchesOfEight], _load_mask_biases);
-
-//             biases = _mm256_fnmadd_ps(backErrors, learningRates, biases);
-//             _mm256_storeu_ps(f, biases);
-
-//             memcpy(&myLayer->biases[8 * batchesOfEight], f, sizeof(float) * leftoverBatch);
-//         }
-
-//         memcpy(prevNodeOuts, (*currLayer->prevLayers[0])->outputs, (*currLayer->prevLayers[0])->numNodes * sizeof(float));
-
-//         for(int i = 0; i < myLayer->numNodes; i++)
-//         {
-//             backErrors = _mm256_set1_ps(currLayer->backErrors[i]);
-//             backErrors = _mm256_mul_ps(backErrors, learningRates);
-//             numPrevsTraversed = 0;
-
-//             for(int j = 0; j < batchesOfEightPrevs; j++)
-//             {
-//                 prevOuts = _mm256_loadu_ps(&prevNodeOuts[8 * j]);
-//                 weights = _mm256_loadu_ps(&myLayer->weights[i][(8 * j)]);
-
-//                 weights = _mm256_fnmadd_ps(prevOuts, backErrors, weights);
-//                 _mm256_storeu_ps(f, weights);
-
-//                 memcpy(&myLayer->weights[i][8 * j], f, sizeof(float) * 8);
-//             }
-
-//             if(leftoverBatchPrevs > 0)
-//             {
-//                 prevOuts = _mm256_maskload_ps(&prevNodeOuts[8 * batchesOfEightPrevs], _load_mask_prevs);
-//                 weights = _mm256_maskload_ps(&myLayer->weights[i][(8 * batchesOfEightPrevs)], _load_mask_prevs);
-
-//                 weights = _mm256_fnmadd_ps(prevOuts, backErrors, weights);
-//                 _mm256_storeu_ps(f, weights);
-
-//                 memcpy(&myLayer->weights[i][8 * batchesOfEightPrevs], f, sizeof(float) * leftoverBatchPrevs);
-//             }
-            
-//         }
-//     }
-
-//     return 0;
-// }
 
 #endif
 

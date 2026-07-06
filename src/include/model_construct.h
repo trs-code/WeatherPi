@@ -127,12 +127,17 @@ void extend_context(layer* myLayer, int windowSize, layer*** windowLayers) // re
     (*windowLayers)[(2 * windowSize) - 1] = make_window_layer((layer**[]){&(*windowLayers)[(2 * windowSize) - 2]}, hiddenNodes, 1, hiddenActivationFunction, numInNodes);
     if((*windowLayers)[(2 * windowSize) - 1] == NULL) goto error1;
 
+    (*windowLayers)[(2 * windowSize) - 1]->weights = myLayer->weights;
+    (*windowLayers)[(2 * windowSize) - 1]->biases = myLayer->biases;
+
     for(int i = windowSize - 1; i > 0; i--)
     {
         (*windowLayers)[(2 * i) - 2] = make_input_layer(numInNodes);
         if((*windowLayers)[(2 * i) - 2] == NULL) goto error1;
         (*windowLayers)[(2 * i) - 1] = make_window_layer((layer**[]){&(*windowLayers)[(2 * i) - 2], &(*windowLayers)[(2 * i) + 1]}, hiddenNodes, 2, hiddenActivationFunction, numInNodes + hiddenNodes);
         if((*windowLayers)[(2 * i) - 1] == NULL) goto error1;
+        (*windowLayers)[(2 * i) - 1]->weights = myLayer->weights;
+        (*windowLayers)[(2 * i) - 1]->biases = myLayer->biases;
     }
 
     // Need to fix the current timestep's hiddenLayer so it includes the first previous timestep as a prevLayer
@@ -151,9 +156,9 @@ void extend_context(layer* myLayer, int windowSize, layer*** windowLayers) // re
         if(tmp1 == NULL) goto error1;
         myLayer->weights[i] = tmp1;
         tmp1 = NULL;
-
-        for(int j = myLayer->numPrevNodes - hiddenNodes; j < myLayer->numPrevNodes; j++) myLayer->weights[i][j] = ((rand() % 100000) + 50000)/100000;
     }
+    
+    glorot_uniform_init(myLayer);
     
     return;
 

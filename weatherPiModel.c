@@ -42,7 +42,7 @@ int main()
 
     if(read_csv(filename, numSamples, numIns, numOuts, &inArrays, &outArrays) != 0) goto error11;
 
-    train_model_sgd(wethrModel, 10, numSamples, inArrays, outArrays, 0.8, 0.5);
+    train_model_sgd_fast(wethrModel, 10, numSamples, inArrays, outArrays, 0.8, 0.5);
 
     //save_model(wethrModel, "weathrModel.cml");
     hakai_matrix(&inArrays, numSamples);
@@ -56,23 +56,23 @@ error11:
     hakai_matrix(&outArrays, numSamples);
     hakai_model(&wethrModel);
 error10:
-    hakai_layer_mfree(&outLayer);
+    hakai_layer(&outLayer);
 error9:
-    hakai_layer_mfree(&denseLayer4);
+    hakai_layer(&denseLayer4);
 error8:
-    hakai_layer_mfree(&denseLayer3);
+    hakai_layer(&denseLayer3);
 error7:
-    hakai_layer_mfree(&denseLayer2);
+    hakai_layer(&denseLayer2);
 error6:
-    hakai_layer_mfree(&denseLayer1);
+    hakai_layer(&denseLayer1);
 error5:
-    hakai_layer_mfree(&denseLayer0);
+    hakai_layer(&denseLayer0);
 error4:
-    hakai_layer_mfree(&inLayer2);
+    hakai_layer(&inLayer2);
 error3:
-    hakai_layer_mfree(&inLayer1);
+    hakai_layer(&inLayer1);
 error2:
-    hakai_layer_mfree(&inLayer0);
+    hakai_layer(&inLayer0);
 error1:    
     exit(EXIT_FAILURE);
 }

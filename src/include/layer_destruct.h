@@ -7,11 +7,7 @@ void hakai_matrix(float*** mat, int rows)
 {
     if(!(*mat)) return;
     
-    for(int i = 0; i < rows; i++)
-    {
-        free((*mat)[i]);
-        (*mat)[i] = NULL;
-    }
+    for(int i = 0; i < rows; i++) free((*mat)[i]);
 
     free(*mat);
     *mat = NULL;
@@ -21,24 +17,22 @@ void hakai_matrix(float*** mat, int rows)
 void hakai_layer(layer** myLayer)
 {    
     layer* currLayer = (*myLayer);
+    if(!currLayer) return;
     
     free(currLayer->outputs);
-    currLayer->outputs = NULL;
 
     if(currLayer->activationFunction != 'i')
     {
         free(currLayer->backErrors);
-        currLayer->backErrors = NULL;
 
         free(currLayer->prevLayers);
-        currLayer->prevLayers = NULL;
 
         free(currLayer->preActivations);
-        currLayer->preActivations = NULL;
+    }
 
+    if(currLayer->layerType != 'w') 
+    {
         free(currLayer->biases);
-        currLayer->biases = NULL;
-
         hakai_matrix(&currLayer->weights, currLayer->numNodes);
     }
 
