@@ -53,71 +53,42 @@ model* construct_model(layer*** inLayers, layer** outLayer, int numLayers, int n
 
 error3:
     free(myModel->targets);
-    myModel->targets = NULL;
 error2:
     free(myModel->inLayers);
-    myModel->inLayers = NULL;
 error1:
     free(myModel);
-    myModel = NULL;
 
     return NULL;
 }
 
 // Provides an interface for the user to interact with the model without getting bogged down by little details, takes in an already established list of layers instead of building
 // the topological relations from scratch, such as when the model is being loaded from serialized version and relations are already established
-model* construct_model_listed(layer*** inLayers, layer** outLayer, int numLayers, int numInLayers, float learningRate, char loss_fn, layer*** modelLayers)
-{
-    model* myModel = (model*)malloc(sizeof(model));
-    if(myModel == NULL) return NULL;
-
-    myModel->inLayers = (layer ***)malloc(numInLayers * sizeof(layer**));
-    if(myModel->inLayers == NULL) goto error1;
-    
-    memcpy(myModel->inLayers, inLayers, sizeof(layer**) * numInLayers);
-    
-    myModel->targets = (float *)malloc((*outLayer)->numNodes * sizeof(float));
-    if(myModel->targets == NULL) goto error2;
-
-    myModel->layerList = (layer ***)malloc(numLayers * sizeof(layer**));
-    if(myModel->layerList == NULL) goto error3;
-
-    myModel->outLayer = outLayer;
-    myModel->numLayers = numLayers;
-    myModel->learningRate = learningRate;
-    myModel->numInLayers = numInLayers;
-    myModel->loss_fn = loss_fn;
-
-    // Ownership is retained by the caller, model only has references to pointers to layer struct allocations which is ultimately owned by caller
-    for(int i = 0; i < numInLayers; i++) myModel->layerList[i] = &(*modelLayers)[i];
-
-    return myModel;
-
-error3:
-    free(myModel->targets);
-    myModel->targets = NULL;
-error2:
-    free(myModel->inLayers);
-    myModel->inLayers = NULL;
-error1:
-    free(myModel);
-    myModel = NULL;
-
-    return NULL;
-}
 
 // Use to automatically extend the context window of a hidden layer to enable RNN functionality
 void extend_context(layer* myLayer, int windowSize, layer*** windowLayers) // reference to array of layer pointers must be provided so user can retain ownership of all created layers 
 {    
-    layer*** tmp0 = NULL;
-    float* tmp1 = NULL;
+    int hiddenNodes = myLayer->numNodes;
+    int numInNodes = myLayer->numPrevNodes;
+    char hiddenActivationFunction = myLayer->activationFunction;
+
+    myLayer->numPrevLayers += 1;
+    myLayer->numPrevNodes += hiddenNodes;
+    for(int i = 0; i < hiddenNodes; i++) free(myLayer->weights[i]);
+    myLayer->prevLayers = (layer ***)realloc(myLayer->prevLayers, sizeof(layer**) * myLayer->numPrevLayers);
+    if(myLayer->prevLayers == NULL) goto error1;
+
+    for(int i = 0; i < hiddenNodes; i++)
+    {
+        myLayer->weights[i] = (float*)malloc(myLayer->numPrevNodes * sizeof(float));
+        if(myLayer->weights[i] == NULL) goto error1;
+    }
+
+    glorot_uniform_init(myLayer);
 
     *windowLayers = (layer**)calloc((2 * windowSize), sizeof(layer*));
     if(*windowLayers == NULL) return;
 
-    int hiddenNodes = myLayer->numNodes;
-    int numInNodes = myLayer->numPrevNodes;
-    char hiddenActivationFunction = myLayer->activationFunction;
+    myLayer->prevLayers[myLayer->numPrevLayers - 1] = &(*windowLayers)[1];
 
     // Make last layers first so every successive timestep's hiddenLayer in the window can have the previous timestep's hiddenLayer as its prevLayer[1]
     // Meanwhile the inputs for each timestep for calculating backerrors every sequenceLength timesteps will be prevLayers[0] for each timestep's hiddenLayer
@@ -139,26 +110,6 @@ void extend_context(layer* myLayer, int windowSize, layer*** windowLayers) // re
         (*windowLayers)[(2 * i) - 1]->weights = myLayer->weights;
         (*windowLayers)[(2 * i) - 1]->biases = myLayer->biases;
     }
-
-    // Need to fix the current timestep's hiddenLayer so it includes the first previous timestep as a prevLayer
-    myLayer->numPrevLayers += 1;
-    myLayer->numPrevNodes += hiddenNodes;
-    tmp0 = (layer ***)realloc(myLayer->prevLayers, sizeof(layer**) * myLayer->numPrevLayers);
-    if(tmp0 == NULL) goto error1;
-    myLayer->prevLayers = tmp0;
-    tmp0 = NULL;
-
-    myLayer->prevLayers[myLayer->numPrevLayers - 1] = &(*windowLayers)[1];
-
-    for(int i = 0; i < hiddenNodes; i++)
-    {
-        tmp1 = (float*)realloc(myLayer->weights[i], sizeof(float*) * myLayer->numPrevNodes);
-        if(tmp1 == NULL) goto error1;
-        myLayer->weights[i] = tmp1;
-        tmp1 = NULL;
-    }
-    
-    glorot_uniform_init(myLayer);
     
     return;
 

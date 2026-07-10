@@ -159,7 +159,6 @@ error1:
     return -1;
 }
 
-
 #if defined(__AVX__) || defined(__AVX2__)
 
 static inline float _mm256_sum_manual(__m256 v)

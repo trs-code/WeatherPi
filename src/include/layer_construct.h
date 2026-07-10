@@ -56,36 +56,35 @@ layer* make_hidden_layer(layer*** prev, int numNodes, int numPrevLayers, char ac
     hiddenLayer->numPrevLayers = numPrevLayers;
     hiddenLayer->numPrevNodes = 0;
 
-    // Allocate space for the previous layers using provided parameter - DESIGN YOUR MODEL BEFORE IMPLEMENTING CAREFULLY
+    for(int i = 0; i < numPrevLayers; i++) hiddenLayer->numPrevNodes += (*prev[i])->numNodes;
+
+    hiddenLayer->weights = (float **)calloc(numNodes, sizeof(float*));
+    if(hiddenLayer->weights == NULL) goto error1;
+
+    hiddenLayer->biases = (float *)calloc(numNodes, sizeof(float)); // Bias for each neuron
+    if(hiddenLayer->biases == NULL) goto error2;
+    
+    hiddenLayer->backErrors = (float *)calloc((numNodes), sizeof(float));
+    if(hiddenLayer->backErrors == NULL) goto error3;
+
+    hiddenLayer->outputs = (float *)calloc(numNodes, sizeof(float));
+    if(hiddenLayer->outputs == NULL) goto error4;
+    
+    hiddenLayer->preActivations = (float *)calloc(numNodes, sizeof(float));
+    if(hiddenLayer->preActivations == NULL) goto error5;
+
+     // Allocate space for the previous layers using provided parameter - DESIGN YOUR MODEL BEFORE IMPLEMENTING CAREFULLY
     hiddenLayer->prevLayers = (layer ***)malloc(sizeof(layer**) * numPrevLayers);
-    if(hiddenLayer->prevLayers == NULL) goto error1;
+    if(hiddenLayer->prevLayers == NULL) goto error6;
 
     // Set the previous layers as the previous layers
     for(int i = 0; i < numPrevLayers; i++) hiddenLayer->prevLayers[i] = prev[i];
 
-    // Make this layer a next layer for all previous layers
-    for(int i = 0; i < numPrevLayers; i++) hiddenLayer->numPrevNodes += (*hiddenLayer->prevLayers[i])->numNodes;
-
-    hiddenLayer->weights = (float **)malloc(numNodes * sizeof(float*));
-    if(hiddenLayer->weights == NULL) goto error2;
-
-    hiddenLayer->biases = (float *)calloc(numNodes, sizeof(float)); // Bias for each neuron
-    if(hiddenLayer->biases == NULL) goto error3;
-
     for(int i = 0; i < numNodes; i++)
     {
         hiddenLayer->weights[i] = (float *)malloc(sizeof(float) * (hiddenLayer->numPrevNodes)); // Each column is a connection to each neuron in the previous layer pus a bias
-        if(hiddenLayer->weights[i] == NULL) goto error4;
+        if(hiddenLayer->weights[i] == NULL) goto error7;
     }
-    
-    hiddenLayer->backErrors = (float *)calloc((numNodes), sizeof(float));
-    if(hiddenLayer->backErrors == NULL) goto error4;
-
-    hiddenLayer->outputs = (float *)calloc(numNodes, sizeof(float));
-    if(hiddenLayer->outputs == NULL) goto error5;
-    
-    hiddenLayer->preActivations = (float *)calloc(numNodes, sizeof(float));
-    if(hiddenLayer->preActivations == NULL) goto error6;
     
     hiddenLayer->numNodes = numNodes;
     hiddenLayer->activationFunction = activation_function;
@@ -96,21 +95,18 @@ layer* make_hidden_layer(layer*** prev, int numNodes, int numPrevLayers, char ac
 
     return hiddenLayer;
 
-
+error7:
+    free(hiddenLayer->prevLayers);
 error6:
-    free(hiddenLayer->outputs);
-    hiddenLayer->outputs = NULL;
+    free(hiddenLayer->preActivations);
 error5:
-    free(hiddenLayer->backErrors);
-    hiddenLayer->backErrors = NULL;
+    free(hiddenLayer->outputs);
 error4:
-    hakai_matrix(&(hiddenLayer->weights), numNodes);
+    free(hiddenLayer->backErrors);
 error3:
     free(hiddenLayer->biases);
-    hiddenLayer->biases = NULL;
 error2:
-    free(hiddenLayer->prevLayers);
-    hiddenLayer->prevLayers = NULL;
+    hakai_matrix(&(hiddenLayer->weights), numNodes);
 error1:
     free(hiddenLayer);
     hiddenLayer = NULL;
@@ -125,36 +121,33 @@ layer* make_output_layer(layer*** prev, int numNodes, int numPrevLayers, char ac
 
     outLayer->numPrevLayers = numPrevLayers;
     outLayer->numPrevNodes = 0;
+    for(int i = 0; i < numPrevLayers; i++) outLayer->numPrevNodes += (*prev[i])->numNodes;
+    outLayer->weights = (float **)calloc(numNodes, sizeof(float*)); // Each row is a neuron
+    if(outLayer->weights == NULL) goto error1;
+
+    outLayer->biases = (float *)calloc(numNodes, sizeof(float)); // Bias for each neuron
+    if(outLayer->biases == NULL) goto error2;
+
+    outLayer->backErrors = (float *)calloc(numNodes, sizeof(float));
+    if(outLayer->backErrors == NULL) goto error3;
+
+    outLayer->outputs = (float *)calloc(numNodes, sizeof(float));
+    if(outLayer->outputs == NULL) goto error4;
+    
+    outLayer->preActivations = (float *)calloc(numNodes, sizeof(float));
+    if(outLayer->preActivations == NULL) goto error5;
 
     // Allocate space for the previous layers using provided parameter - DESIGN YOUR MODEL BEFORE IMPLEMENTING
     outLayer->prevLayers = (layer ***)malloc(sizeof(layer**) * numPrevLayers);
-    if(outLayer->prevLayers == NULL) goto error1;
+    if(outLayer->prevLayers == NULL) goto error6;
 
     for(int i = 0; i < numPrevLayers; i++) outLayer->prevLayers[i] = prev[i];
-
-    for(int i = 0; i < numPrevLayers; i++) outLayer->numPrevNodes += (*outLayer->prevLayers[i])->numNodes;
-
-    outLayer->weights = (float **)malloc(numNodes * sizeof(float*)); // Each row is a neuron
-    if(outLayer->weights == NULL) goto error2;
-
-    outLayer->biases = (float *)calloc(numNodes, sizeof(float)); // Bias for each neuron
-    if(outLayer->biases == NULL) goto error3;
 
     for(int i = 0; i < numNodes; i++)
     {
         outLayer->weights[i] = (float *)malloc(sizeof(float) * (outLayer->numPrevNodes + 1));
-        if(outLayer->weights[i] == NULL) goto error4;
+        if(outLayer->weights[i] == NULL) goto error7;
     }
-
-    outLayer->backErrors = (float *)calloc(numNodes, sizeof(float));
-    if(outLayer->backErrors == NULL) goto error4;
-
-    outLayer->outputs = (float *)calloc(numNodes, sizeof(float));
-    if(outLayer->outputs == NULL) goto error5;
-    
-    outLayer->preActivations = (float *)calloc(numNodes, sizeof(float));
-    if(outLayer->preActivations == NULL) goto error6;
-
 
     outLayer->numNodes = numNodes;
     outLayer->activationFunction = activation_function;
@@ -165,23 +158,20 @@ layer* make_output_layer(layer*** prev, int numNodes, int numPrevLayers, char ac
 
     return outLayer;
 
+error7:
+    free(outLayer->prevLayers);
 error6:
-    free(outLayer->outputs);
-    outLayer->outputs = NULL;
+    free(outLayer->preActivations);
 error5:
-    free(outLayer->backErrors);
-    outLayer->backErrors = NULL;
+    free(outLayer->outputs);
 error4:
-    hakai_matrix(&(outLayer->weights), numNodes);
+    free(outLayer->backErrors);
 error3:
     free(outLayer->biases);
-    outLayer->biases = NULL;
 error2:
-    free(outLayer->prevLayers);
-    outLayer->prevLayers = NULL;
+    hakai_matrix(&(outLayer->weights), numNodes);
 error1:
     free(outLayer);
-    outLayer = NULL;
 
     return NULL;
 }
@@ -202,14 +192,13 @@ layer* make_window_layer(layer*** prev, int numNodes, int numPrevLayers, char ac
     if(windowLayer->prevLayers == NULL) goto error1;
 
     windowLayer->backErrors = (float *)calloc(numNodes, sizeof(float));
-    if(windowLayer->backErrors == NULL) goto error1;
+    if(windowLayer->backErrors == NULL) goto error2;
 
     windowLayer->preActivations = (float *)calloc(numNodes, sizeof(float));
-    if(windowLayer->preActivations == NULL) goto error1;
-
+    if(windowLayer->preActivations == NULL) goto error3;
     
     windowLayer->outputs = (float *)calloc(numNodes, sizeof(float));
-    if(windowLayer->outputs == NULL) goto error1;
+    if(windowLayer->outputs == NULL) goto error4;
 
     windowLayer->numNodes = numNodes;
     windowLayer->activationFunction = activationFunction;
@@ -219,6 +208,12 @@ layer* make_window_layer(layer*** prev, int numNodes, int numPrevLayers, char ac
 
     return windowLayer;
 
+error4:
+    free(windowLayer->preActivations);
+error3:
+    free(windowLayer->backErrors);
+error2:
+    free(windowLayer->prevLayers);
 error1:
     free(windowLayer);
     windowLayer = NULL;

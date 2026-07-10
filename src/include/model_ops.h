@@ -12,28 +12,31 @@ void forward_out(model* myModel, float dropoutVal)
 {
     layer* currLayer;
     layer* prevLayer;
+    float* currCol;
+    float preAct;
+    int numNodes;
     int numPrevsTraversed = 0;
 
     for(int l = 0; l < myModel->numLayers; l++)
     {        
         currLayer = *myModel->layerList[l];
 
-        if(currLayer->layerType == 'w' || currLayer->layerType == 'i') continue; // If layer has been traversed or if layer is a window layer for a context window or if layer is an input layer
-        
-        memset(currLayer->backErrors, 0.0f, currLayer->numNodes * sizeof(float));
-        memset(currLayer->preActivations, 0.0f, currLayer->numNodes * sizeof(float));
+        if(currLayer->layerType == 'w' || currLayer->layerType == 'i') continue; // If layer is a window layer for a context window or if layer is an input layer
 
+        numNodes = currLayer->numNodes;
         // preActivation[i] = SUM_OVER_J(prevNodeOutputs[j] * weights[i][j]) 
-        for(int i = 0; i < currLayer->numNodes; i++, numPrevsTraversed = 0) 
+        for(int i = 0; i < numNodes; i++, numPrevsTraversed = 0) 
         {
+            preAct = 0.0;
+            currCol = currLayer->weights[i];
             for(int j = 0; j < currLayer->numPrevLayers; j++)
             {
                 prevLayer = *currLayer->prevLayers[j];
                 
-                for(int k = 0; k < prevLayer->numNodes; k++) currLayer->preActivations[i] += prevLayer->outputs[k] * currLayer->weights[i][numPrevsTraversed + k];
+                for(int k = 0; k < prevLayer->numNodes; k++) preAct += prevLayer->outputs[k] * currCol[numPrevsTraversed + k];
                 numPrevsTraversed += prevLayer->numNodes;
             }
-            currLayer->preActivations[i] += currLayer->biases[i];
+            currLayer->preActivations[i] =  preAct + currLayer->biases[i];
         }
         
         numPrevsTraversed = 0;
@@ -41,23 +44,23 @@ void forward_out(model* myModel, float dropoutVal)
         // In case of softmax activation, we do a function on the layer instead of point-wise on the outputs
         if(currLayer->activationFunction == 'x')
         {
-            memcpy(currLayer->outputs, currLayer->preActivations, sizeof(float) * currLayer->numNodes);
+            memcpy(currLayer->outputs, currLayer->preActivations, sizeof(float) * numNodes);
             softmax(currLayer);
         }
         else if(currLayer->activationFunction == 'f')
         {
-            memcpy(currLayer->outputs, currLayer->preActivations, sizeof(float) * currLayer->numNodes);
+            memcpy(currLayer->outputs, currLayer->preActivations, sizeof(float) * numNodes);
             fast_softmax(currLayer);
         }
         else
         {
             // outputs[i] = activation_function(preActivations[i])
-            for(int i = 0; i < currLayer->numNodes; i++) currLayer->outputs[i] = activation_function(currLayer->preActivations[i], currLayer->activationFunction);
+            for(int i = 0; i < numNodes; i++) currLayer->outputs[i] = activation_function(currLayer->preActivations[i], currLayer->activationFunction);
         }
 
         if(currLayer->layerType == 'o' || dropoutVal <= 0.0f) continue;;
         float scalingFactor = 1/(1-dropoutVal);
-        for(int i = 0; i < currLayer->numNodes; i++) currLayer->outputs[i] *= ((float)((rand() % 999))/1000.0 < dropoutVal) ? 0 : scalingFactor;
+        for(int i = 0; i < numNodes; i++) currLayer->outputs[i] *= ((float)((rand() % 999))/1000.0 < dropoutVal) ? 0 : scalingFactor;
     }
 }
 
@@ -75,6 +78,8 @@ void sgd_backprop(model* myModel)
         currLayer = *myModel->layerList[l];
 
         if(currLayer->layerType == 'i') continue;
+
+        memset(currLayer->backErrors, 0.0f, currLayer->numNodes * sizeof(float));
         
         // backErrorsForOutputLayer = lossDerivative · activationFunctionDerivative(preActivations) - for output layer
         if(currLayer->layerType == 'o') for(int i = 0; i < currLayer->numNodes; i++) currLayer->backErrors[i] = -1 * loss_derivative(myModel->targets[i], currLayer->outputs[i], myModel) * activation_derivative(currLayer->preActivations[i], currLayer, i);
@@ -569,7 +574,7 @@ void shift_model(model* myModel, char opType)
     {
         currLayer = *myModel->layerList[l];
 
-        if(currLayer->numPrevLayers == 0) continue;
+        if(currLayer->layerType == 'i') continue;
         if(currLayer->layerType == 'w' && opType == 't' && currLayer->numPrevLayers == 2)
         {
             prevIns = (*currLayer->prevLayers[0]);
@@ -580,6 +585,7 @@ void shift_model(model* myModel, char opType)
             memcpy(prevWindow->outputs, currLayer->outputs, sizeof(float) * numHiddenNodes);
             memcpy(prevWindow->preActivations, currLayer->preActivations, sizeof(float) * numHiddenNodes);
             memcpy((*prevWindow->prevLayers[0])->outputs, prevIns->outputs, sizeof(float) * numInputs);
+            continue;
         }
         
         if((*currLayer->prevLayers[currLayer->numPrevLayers - 1])->layerType == 'w' && currLayer->layerType == 'h')// technically would work for every window layer, separate for readability and inference functionality all in single shift function
@@ -609,37 +615,38 @@ void shift_model(model* myModel, char opType)
 int _mm256_forward_out(model* myModel, float dropoutVal)
 {
     layer* currLayer;
+    int numNodes;
 
     for(int l = 0; l < myModel->numLayers; l++)
     {
         currLayer = (*myModel->layerList[l]);
         if(currLayer->layerType == 'i' || currLayer->layerType == 'w') continue;
+
+        numNodes = currLayer->numNodes;
         
-        memset(currLayer->backErrors, 0.0f, currLayer->numNodes * sizeof(float));
-        memset(currLayer->preActivations, 0.0f, currLayer->numNodes * sizeof(float));
-        memset(currLayer->outputs, 0.0f, currLayer->numNodes * sizeof(float));
+        //memset(currLayer->preActivations, 0.0f, numNodes * sizeof(float));
 
         if(vectorized_forward_out_calc(currLayer) != 0) return -1;
 
         // In case of softmax activation, we do a function on the layer instead of point-wise on the outputs
         if(currLayer->activationFunction == 'x')
         {
-            memcpy(currLayer->outputs, currLayer->preActivations, sizeof(float) * currLayer->numNodes);
+            memcpy(currLayer->outputs, currLayer->preActivations, sizeof(float) * numNodes);
             softmax(currLayer);
         }
         else if(currLayer->activationFunction == 'f')
         {
-            memcpy(currLayer->outputs, currLayer->preActivations, sizeof(float) * currLayer->numNodes);
+            memcpy(currLayer->outputs, currLayer->preActivations, sizeof(float) * numNodes);
             fast_softmax(currLayer);
         }
         else
         {            
-            for(int i = 0; i < currLayer->numNodes; i++) currLayer->outputs[i] = activation_function(currLayer->preActivations[i], currLayer->activationFunction);
+            for(int i = 0; i < numNodes; i++) currLayer->outputs[i] = activation_function(currLayer->preActivations[i], currLayer->activationFunction);
         }
 
         if(currLayer->layerType == 'o' || dropoutVal <= 0.0) continue;
         float scalingFactor = 1/(1-dropoutVal);
-        for(int i = 0; i < currLayer->numNodes; i++) currLayer->outputs[i] *= ((float)((rand() % 999))/1000.0 < dropoutVal) ? 0 : scalingFactor;
+        for(int i = 0; i < numNodes; i++) currLayer->outputs[i] *= ((float)((rand() % 999))/1000.0 < dropoutVal) ? 0 : scalingFactor;
     }
 
     return 0;

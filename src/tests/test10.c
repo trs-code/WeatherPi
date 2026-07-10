@@ -35,7 +35,7 @@ int main()
         goto error2;
     }
 
-    extend_context(&hiddenLayer0, windowSize, (&windowLayers));
+    extend_context(hiddenLayer0, windowSize, (&windowLayers));
     if(windowLayers == NULL) goto error3;
 
     layer* outLayer = make_output_layer((layer**[]){&hiddenLayer0}, 1, 1, 'g');
@@ -50,8 +50,7 @@ int main()
     {
         printf("Memory allocation failed at model\n");
         goto error4;
-    }
-
+    };
 
     printf("Model creation successful\n\n");
 
@@ -66,14 +65,14 @@ int main()
     printf("\nModel output is: %f\n", (*myModel->outLayer)->outputs[0]);
     printf("\noutLayer Backerror is: %f\n", outLayer->backErrors[0]);
     
-    calculate_and_apply_grads_through_time(myModel);
+    calculate_and_apply_grads(myModel);
     
-    for(int i = 0; i < 5000; i++)
+    for(int i = 0; i < 10000; i++)
     {
         shift_model(myModel, 't');
         forward_out(myModel, 0.0);
         sgd_backprop(myModel);
-        calculate_and_apply_grads_through_time(myModel);
+        calculate_and_apply_grads(myModel);
     }
 
     printf("\nModel output is: %f\tTarget is : %f", (*myModel->outLayer)->outputs[0], myModel->targets[0]);
