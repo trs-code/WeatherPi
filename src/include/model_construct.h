@@ -71,6 +71,8 @@ void extend_context(layer* myLayer, int windowSize, layer*** windowLayers) // re
     int numInNodes = myLayer->numPrevNodes;
     char hiddenActivationFunction = myLayer->activationFunction;
 
+    if(windowSize < 1) return;
+
     myLayer->numPrevLayers += 1;
     myLayer->numPrevNodes += hiddenNodes;
     for(int i = 0; i < hiddenNodes; i++) free(myLayer->weights[i]);

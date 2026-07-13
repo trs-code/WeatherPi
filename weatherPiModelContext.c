@@ -15,7 +15,7 @@ int main()
     layer* inLayer0 = make_input_layer(3);
     if(inLayer0 == NULL)goto error1;
     
-    layer* hiddenLayer0 = make_hidden_layer((layer**[]){&inLayer0}, 64, 1, 't');
+    layer* hiddenLayer0 = make_hidden_layer((layer**[]){&inLayer0}, 64, 1, 'h');
     if(hiddenLayer0 == NULL) goto error2;
 
     extend_context(hiddenLayer0, windowSize, &windowLayers);
@@ -24,10 +24,10 @@ int main()
     layer* hiddenLayer1 = make_hidden_layer((layer**[]){&hiddenLayer0}, 32, 1, 'r');
     if(hiddenLayer1 == NULL) goto error3;
 
-    layer* outLayer = make_output_layer((layer**[]){&hiddenLayer1, &hiddenLayer0}, 2, 2, 'x');
+    layer* outLayer = make_output_layer((layer**[]){&hiddenLayer1}, 2, 1, 'f');
     if(outLayer == NULL) goto error4;
 
-    model *wethrModel = construct_model((layer**[]){&inLayer0}, &outLayer, 4 + (2 * windowSize), 1, 0.0000000001, 'c');
+    model *wethrModel = construct_model((layer**[]){&inLayer0}, &outLayer, 4 + (2 * windowSize), 1, 0.000000002, 'x');
     if(wethrModel == NULL) goto error5;
 
     if(read_csv(filename, numSamples, numIns, numOuts, &inArrays, &outArrays) != 0) goto error6;
@@ -56,5 +56,6 @@ error3:
 error2:
     hakai_layer(&inLayer0);
 error1:
+    printf("Error Occured!\nEXITING");
     exit(EXIT_FAILURE);
 }
