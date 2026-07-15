@@ -13,8 +13,8 @@
 // I tried my best to build the functionality for this into the library itself, but the possibility of human error is NEVER zero
 
 
-// 72 Bytes to allocate for the structure at base
-// Extra # bytes for each layer: 40 + 8m + 8n + 4np + 16n  -> m previous layers, n current nodes, p previous nodes
+// 66 Bytes to allocate for the structure at base - likely padded by compiler with 6 extra bytes to be 72 bytes total
+// Extra # bytes for each layer: 8m + 4np + 16n  -> m previous layers, n current nodes, p previous nodes
 
 typedef struct layer layer;
 struct layer

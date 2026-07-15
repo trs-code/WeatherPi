@@ -70,7 +70,6 @@ int main()
     
     for(int i = 0; i < 500; i++)
     {
-        zero_everything(myModel);
         forward_out(myModel, 0.0);
         sgd_backprop(myModel);
         calculate_and_apply_grads(myModel);

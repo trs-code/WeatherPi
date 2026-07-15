@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <pthread.h>
 
-//  Gets an output from the target layer, is essentially also a inference function
+// Gets outputs from the layers, is essentially also a inference function
 void forward_out(model* myModel, float dropoutVal)
 {
     layer* currLayer;
@@ -64,13 +64,13 @@ void forward_out(model* myModel, float dropoutVal)
     }
 }
 
-// Run on each output layer and then apply grads before clearing the layer backerrors - All roads spring forth from Rome algorithm
 // We pass the backerrors to each previous layer to calculate grads later
 // Backerrors can be accumulated from multiple successor layers to calculate grads due to matrix distributivity
 void sgd_backprop(model* myModel)
 { // start at output layer and calculate backerrors for each previous layer
     layer* currLayer;
     layer* prevLayer;
+    float prevBackerror = 0.0;
     int prevsTraversed = 0;
     
     for(int l = myModel->numLayers - 1; l > -1; l--)
@@ -78,8 +78,6 @@ void sgd_backprop(model* myModel)
         currLayer = *myModel->layerList[l];
 
         if(currLayer->layerType == 'i') continue;
-
-        memset(currLayer->backErrors, 0.0f, currLayer->numNodes * sizeof(float));
         
         // backErrorsForOutputLayer = lossDerivative · activationFunctionDerivative(preActivations) - for output layer
         if(currLayer->layerType == 'o') for(int i = 0; i < currLayer->numNodes; i++) currLayer->backErrors[i] = -1 * loss_derivative(myModel->targets[i], currLayer->outputs[i], myModel) * activation_derivative(currLayer->preActivations[i], currLayer, i);
@@ -93,13 +91,16 @@ void sgd_backprop(model* myModel)
             
             if(prevLayer->layerType == 'i') continue;
             
-            for(int j = 0; j < prevLayer->numNodes; j++) for(int k = 0; k < currLayer->numNodes; k++) prevLayer->backErrors[j] += currLayer->backErrors[k] * currLayer->weights[k][prevsTraversed + j] * activation_derivative(prevLayer->preActivations[j], currLayer, i);
+            for(int j = 0; j < prevLayer->numNodes; j++, prevBackerror = 0.0)
+            {
+                for(int k = 0; k < currLayer->numNodes; k++) prevBackerror += currLayer->backErrors[k] * currLayer->weights[k][prevsTraversed + j] * activation_derivative(prevLayer->preActivations[j], currLayer, i);
+                prevLayer->backErrors[j] = prevBackerror;
+            }
             prevsTraversed += prevLayer->numNodes;
         }
     }
 }
 
-// Another all roads spring forth from Rome approach - go to the convergence point of the model(output layer) and use it as the root this model graph
 void calculate_and_apply_grads(model* myModel)
 {
     layer* currLayer;
@@ -118,7 +119,7 @@ void calculate_and_apply_grads(model* myModel)
         prevsTraversed = 0;
 
         // newWeights[i][j] = oldWeights[i][j] - (learningRate * (prevNodeOuts[j] * backError[i]))
-        for(int i = 0; i < currLayer->numNodes; i++)
+        for(int i = 0; i < currLayer->numNodes; i++, prevsTraversed = 0)
         {
             for(int j = 0; j < currLayer->numPrevLayers; j++)
             {
@@ -127,34 +128,15 @@ void calculate_and_apply_grads(model* myModel)
                 for(int k = 0; k < prevLayer->numNodes; k++) currLayer->weights[i][k + prevsTraversed] -= myModel->learningRate * prevLayer->outputs[k] * currLayer->backErrors[i];
                 prevsTraversed += prevLayer->numNodes;
             }
-            prevsTraversed = 0;
         }
     }
 }
 
-// For clearing the backErrors once no longer needed, and to also prime for next forward and backward pass
-// Use by passing the output layer of the model into the function 
-void zero_everything(model* myModel)
-{
-    layer* currLayer;
-    for(int l = 0; l < myModel->numLayers; l++)
-    {
-        currLayer = *myModel->layerList[l];
-
-        if(currLayer->layerType == 'i') continue;
-
-        memset(currLayer->backErrors, 0.0f, currLayer->numNodes * sizeof(float));
-        memset(currLayer->preActivations, 0.0f, currLayer->numNodes * sizeof(float));
-        memset(currLayer->outputs, 0.0f, currLayer->numNodes * sizeof(float));
-    }
-}
-
-// Fix required to properly handle referential layers
 // Encode and save a model to file
 int save_model(model* saveModel, char* modelFileName)
 {
-    FILE *modFile = NULL;
-    char *line = NULL;
+    FILE* modFile = NULL;
+    char* line = NULL;
     int offset = 0;
     int lineLength = 50;
     char bitBuff[33] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
@@ -334,7 +316,7 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
 {
     layer*** layerArr = (layer***)NULL;
     model* myModel = NULL;
-    int *inLayerIDs = NULL;
+    int* inLayerIDs = NULL;
     char* line = NULL;
     float learningRate = 1.0f;
     int outLayerID = 0;
@@ -574,7 +556,8 @@ void shift_model(model* myModel, char opType)
     {
         currLayer = *myModel->layerList[l];
 
-        if(currLayer->layerType == 'i') continue;
+        if(currLayer->layerType == 'i') continue; // Second if statement after this one will fail without this since input layers don't have prevLayers
+        
         if(currLayer->layerType == 'w' && opType == 't' && currLayer->numPrevLayers == 2)
         {
             prevIns = (*currLayer->prevLayers[0]);

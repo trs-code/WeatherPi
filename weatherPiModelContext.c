@@ -56,6 +56,6 @@ error3:
 error2:
     hakai_layer(&inLayer0);
 error1:
-    printf("Error Occured!\nEXITING");
+    printf("Error Occurred!\nEXITING");
     exit(EXIT_FAILURE);
 }

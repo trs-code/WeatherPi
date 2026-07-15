@@ -68,7 +68,6 @@ void train_model_sgd(model* myModel, int epochs, int numSamples, float** inputs,
             forward_out(myModel, 0.0);
 
             testingLoss += loss_function(myModel);
-            zero_everything(myModel);
         }
         
         clock_gettime(CLOCK_MONOTONIC, &end);
@@ -129,7 +128,6 @@ void train_rnn_sgd(model* myModel, int epochs, int numSamples, float** inputs, f
 
             sgd_backprop(myModel);
             calculate_and_apply_grads(myModel);
-            zero_everything(myModel);
         }
         
         for(int i = trainSamples; i < numSamples; i++)
@@ -305,7 +303,7 @@ void train_rnn_sgd_fast(model* myModel, int epochs, int numSamples, float** inpu
                     inputsTraversed += (*myModel->inLayers[k])->numNodes;
                 }
 
-                forward_out(myModel, dropoutVal);
+                _mm256_forward_out(myModel, dropoutVal);
                 shift_model(myModel, 't');
 
                 memcpy(myModel->targets, targets[currTargs], sizeof(float) * (*myModel->outLayer)->numNodes);
@@ -314,7 +312,6 @@ void train_rnn_sgd_fast(model* myModel, int epochs, int numSamples, float** inpu
 
             sgd_backprop(myModel);
             calculate_and_apply_grads(myModel);
-            zero_everything(myModel);
         }
         
         for(int i = trainSamples; i < numSamples; i++)
