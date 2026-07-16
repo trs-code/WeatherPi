@@ -25,9 +25,9 @@ struct layer
     float* backErrors; // Only necessary for backpropagation, not necessary for an inference model - n values
     float* outputs; // Activation value passed through activation function, output of the node that is passed forward - n values
     float* preActivations; // Sum of all previous nodes according to each previous node weight - n values
-    size_t numPrevNodes; // Helps set up the model and also operate it
-    size_t numNodes; // Helps set up the model and also operate it
-    size_t numPrevLayers; // Very necessary for all roads spring forth from rome approach - helps operate the model
+    int numPrevNodes; // Helps set up the model and also operate it
+    int numNodes; // Helps set up the model and also operate it
+    int numPrevLayers; // Very necessary for all roads spring forth from rome approach - helps operate the model
     int layerID; // A unique number from [0, (# of layers in the Model) - 1] - can be phased out by having layer assignment done directly but honestly it makes debugging easier
     char layerType;
     char activationFunction;

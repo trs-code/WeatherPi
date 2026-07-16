@@ -11,8 +11,8 @@ typedef struct
     layer** outLayer;       // References the output layer of the model - entry point for model operations - pointer to layer allocation pointer
     float* targets;         // target values for the current training iteration
     float learningRate;    // Learning rate for the NN
-    size_t numLayers;          // Number of total layers in the NN
-    size_t numInLayers;        // Number of input layers in the NN
+    int numLayers;          // Number of total layers in the NN
+    int numInLayers;        // Number of input layers in the NN
     char loss_fn;
 } model;
 
