@@ -14,27 +14,29 @@ void forward_out(model* myModel, float dropoutVal)
     layer* prevLayer;
     float* currCol;
     float preAct;
-    int numNodes;
+    int currNumNodes;
+    int prevNumNodes;
     int numPrevsTraversed = 0;
 
     for(int l = 0; l < myModel->numLayers; l++)
     {        
         currLayer = *myModel->layerList[l];
 
-        if(currLayer->layerType == 'w' || currLayer->layerType == 'i') continue; // If layer is a window layer for a context window or if layer is an input layer
+        if(currLayer->layerType == 'i' || currLayer->layerType == 'w') continue;
 
-        numNodes = currLayer->numNodes;
+        currNumNodes = currLayer->numNodes;
         // preActivation[i] = SUM_OVER_J(prevNodeOutputs[j] * weights[i][j]) 
-        for(int i = 0; i < numNodes; i++, numPrevsTraversed = 0) 
+        for(int i = 0; i < currNumNodes; i++, numPrevsTraversed = 0) 
         {
             preAct = 0.0;
             currCol = currLayer->weights[i];
             for(int j = 0; j < currLayer->numPrevLayers; j++)
             {
                 prevLayer = *currLayer->prevLayers[j];
+                prevNumNodes = prevLayer->numNodes;
                 
-                for(int k = 0; k < prevLayer->numNodes; k++) preAct += prevLayer->outputs[k] * currCol[numPrevsTraversed + k];
-                numPrevsTraversed += prevLayer->numNodes;
+                for(int k = 0; k < prevNumNodes; k++) preAct += prevLayer->outputs[k] * currCol[numPrevsTraversed + k];
+                numPrevsTraversed += prevNumNodes;
             }
             currLayer->preActivations[i] =  preAct + currLayer->biases[i];
         }
@@ -44,23 +46,23 @@ void forward_out(model* myModel, float dropoutVal)
         // In case of softmax activation, we do a function on the layer instead of point-wise on the outputs
         if(currLayer->activationFunction == 'x')
         {
-            memcpy(currLayer->outputs, currLayer->preActivations, sizeof(float) * numNodes);
+            memcpy(currLayer->outputs, currLayer->preActivations, sizeof(float) * currNumNodes);
             softmax(currLayer);
         }
         else if(currLayer->activationFunction == 'f')
         {
-            memcpy(currLayer->outputs, currLayer->preActivations, sizeof(float) * numNodes);
+            memcpy(currLayer->outputs, currLayer->preActivations, sizeof(float) * currNumNodes);
             fast_softmax(currLayer);
         }
         else
         {
             // outputs[i] = activation_function(preActivations[i])
-            for(int i = 0; i < numNodes; i++) currLayer->outputs[i] = activation_function(currLayer->preActivations[i], currLayer->activationFunction);
+            for(int i = 0; i < currNumNodes; i++) currLayer->outputs[i] = activation_function(currLayer->preActivations[i], currLayer->activationFunction);
         }
 
         if(currLayer->layerType == 'o' || dropoutVal <= 0.0f) continue;;
         float scalingFactor = 1/(1-dropoutVal);
-        for(int i = 0; i < numNodes; i++) currLayer->outputs[i] *= ((float)((rand() % 999))/1000.0 < dropoutVal) ? 0 : scalingFactor;
+        for(int i = 0; i < currNumNodes; i++) currLayer->outputs[i] *= ((float)((rand() % 999))/1000.0 < dropoutVal) ? 0 : scalingFactor;
     }
 }
 
@@ -72,15 +74,19 @@ void sgd_backprop(model* myModel)
     layer* prevLayer;
     float prevBackerror = 0.0;
     int prevsTraversed = 0;
+    int currNumNodes;
+    int prevNumNodes;
     
     for(int l = myModel->numLayers - 1; l > -1; l--)
     {
         currLayer = *myModel->layerList[l];
 
         if(currLayer->layerType == 'i') continue;
+
+        currNumNodes = currLayer->numNodes;
         
         // backErrorsForOutputLayer = lossDerivative · activationFunctionDerivative(preActivations) - for output layer
-        if(currLayer->layerType == 'o') for(int i = 0; i < currLayer->numNodes; i++) currLayer->backErrors[i] = -1 * loss_derivative(myModel->targets[i], currLayer->outputs[i], myModel) * activation_derivative(currLayer->preActivations[i], currLayer, i);
+        if(currLayer->layerType == 'o') for(int i = 0; i < currNumNodes; i++) currLayer->backErrors[i] = -1 * loss_derivative(myModel->targets[i], currLayer->outputs[i], myModel) * activation_derivative(currLayer->preActivations[i], currLayer, i);
         
         // backErrorsForPreviousLayers[j] = SUM_OVER_I((thisLayersBackErrors[i])(thisLayersWeightMatrix[i][j]) · activationFunctionDerivative(previousLayersPreActivation[j])) - where j is considered to be a traversal of all previous 'J' layers' 'K' values as one vector
         // e.g. J = 3 prev layers with K = 5 nodes each are considered as one prev layer with J = 15 nodes in this formulation
@@ -90,13 +96,15 @@ void sgd_backprop(model* myModel)
             prevLayer = *currLayer->prevLayers[i];
             
             if(prevLayer->layerType == 'i') continue;
+
+            prevNumNodes = prevLayer->numNodes;
             
-            for(int j = 0; j < prevLayer->numNodes; j++, prevBackerror = 0.0)
+            for(int j = 0; j < prevNumNodes; j++, prevBackerror = 0.0)
             {
-                for(int k = 0; k < currLayer->numNodes; k++) prevBackerror += currLayer->backErrors[k] * currLayer->weights[k][prevsTraversed + j] * activation_derivative(prevLayer->preActivations[j], currLayer, i);
-                prevLayer->backErrors[j] = prevBackerror;
+                for(int k = 0; k < currNumNodes; k++) prevBackerror += currLayer->backErrors[k] * currLayer->weights[k][prevsTraversed + j] * activation_derivative(prevLayer->preActivations[j], prevLayer, i);
+                prevLayer->backErrors[j] += prevBackerror;
             }
-            prevsTraversed += prevLayer->numNodes;
+            prevsTraversed += prevNumNodes;
         }
     }
 }
@@ -105,6 +113,8 @@ void calculate_and_apply_grads(model* myModel)
 {
     layer* currLayer;
     layer* prevLayer;
+    int currNumNodes;
+    int prevNumNodes;
     int prevsTraversed = 0;
 
     for(int l = myModel->numLayers - 1; l > -1; l--)
@@ -113,22 +123,25 @@ void calculate_and_apply_grads(model* myModel)
 
         if(currLayer->layerType == 'i') continue;
 
-        // newBias[i] = oldBias[i] - (learningRate * backErrors[i])
-        for(int i = 0; i < currLayer->numNodes; i++) currLayer->biases[i] -= myModel->learningRate * currLayer->backErrors[i];
+        currNumNodes = currLayer->numNodes;
 
-        prevsTraversed = 0;
+        // newBias[i] = oldBias[i] - (learningRate * backErrors[i])
+        for(int i = 0; i < currNumNodes; i++) currLayer->biases[i] -= myModel->learningRate * currLayer->backErrors[i];
 
         // newWeights[i][j] = oldWeights[i][j] - (learningRate * (prevNodeOuts[j] * backError[i]))
-        for(int i = 0; i < currLayer->numNodes; i++, prevsTraversed = 0)
+        for(int i = 0; i < currNumNodes; i++, prevsTraversed = 0)
         {
             for(int j = 0; j < currLayer->numPrevLayers; j++)
             {
                 prevLayer = *currLayer->prevLayers[j];
+                prevNumNodes = prevLayer->numNodes;
                 
-                for(int k = 0; k < prevLayer->numNodes; k++) currLayer->weights[i][k + prevsTraversed] -= myModel->learningRate * prevLayer->outputs[k] * currLayer->backErrors[i];
-                prevsTraversed += prevLayer->numNodes;
+                for(int k = 0; k < prevNumNodes; k++) currLayer->weights[i][k + prevsTraversed] -= myModel->learningRate * prevLayer->outputs[k] * currLayer->backErrors[i];
+                prevsTraversed += prevNumNodes;
             }
         }
+
+        memset(currLayer->backErrors, 0, currNumNodes * sizeof(float));
     }
 }
 

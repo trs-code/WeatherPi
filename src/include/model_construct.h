@@ -61,9 +61,6 @@ error1:
     return NULL;
 }
 
-// Provides an interface for the user to interact with the model without getting bogged down by little details, takes in an already established list of layers instead of building
-// the topological relations from scratch, such as when the model is being loaded from serialized version and relations are already established
-
 // Use to automatically extend the context window of a hidden layer to enable RNN functionality
 void extend_context(layer* myLayer, int windowSize, layer*** windowLayers) // reference to array of layer pointers must be provided so user can retain ownership of all created layers 
 {    
