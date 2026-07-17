@@ -584,7 +584,7 @@ void shift_model(model* myModel, char opType)
             continue;
         }
         
-        if((*currLayer->prevLayers[currLayer->numPrevLayers - 1])->layerType == 'w' && currLayer->layerType == 'h')// technically would work for every window layer, separate for readability and inference functionality all in single shift function
+        if(currLayer->layerType == 'h' && (*currLayer->prevLayers[currLayer->numPrevLayers - 1])->layerType == 'w')// technically would work for every window layer, separate for readability and inference functionality all in single shift function
         {
             numHiddenNodes = currLayer->numNodes;
             prevWindow = (*currLayer->prevLayers[currLayer->numPrevLayers - 1]);
