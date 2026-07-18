@@ -28,6 +28,8 @@ void hakai_layer(layer** myLayer)
         free(currLayer->prevLayers);
 
         free(currLayer->preActivations);
+
+        free(currLayer->activationDerivatives);
     }
 
     if(currLayer->layerType != 'w') 

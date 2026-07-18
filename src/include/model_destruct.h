@@ -19,11 +19,13 @@ void hakai_model(model** thisModel)
 
     for(int i = 0; i < myModel->numLayers; i++) hakai_layer(myModel->layerList[i]);
 
-    free(myModel->layerList);
-
     free(myModel->inLayers);
 
+    free(myModel->layerList);
+
     free(myModel->targets);
+
+    free(myModel->lossDerivatives);
 
     free(myModel);
     *thisModel= NULL;

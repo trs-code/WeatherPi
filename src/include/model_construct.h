@@ -1,5 +1,6 @@
 #pragma once
 
+#include "layer_destruct.h"
 #include "model_destruct.h"
 
 // Assign layer IDs in a topological order to be able to reconstruct the network graph, also populates the layerList of the model accordingly
@@ -32,15 +33,17 @@ model* construct_model(layer*** inLayers, layer** outLayer, int numLayers, int n
 
     myModel->inLayers = (layer ***)calloc(numInLayers, sizeof(layer**));
     if(myModel->inLayers == NULL) goto error1;
-    
-    memcpy(myModel->inLayers, inLayers, sizeof(layer**) * numInLayers);
-
-    myModel->targets = (float *)malloc((*outLayer)->numNodes * sizeof(float));
-    if(myModel->targets == NULL) goto error2;
 
     myModel->layerList = (layer ***)malloc(numLayers * sizeof(layer**));
-    if(myModel->layerList == NULL) goto error3;
+    if(myModel->layerList == NULL) goto error2;
 
+    myModel->targets = (float *)malloc((*outLayer)->numNodes * sizeof(float));
+    if(myModel->targets == NULL) goto error3;
+
+    myModel->lossDerivatives = (float *)malloc((*outLayer)->numNodes * sizeof(float));
+    if(myModel->lossDerivatives == NULL) goto error4;
+
+    memcpy(myModel->inLayers, inLayers, sizeof(layer**) * numInLayers);
     myModel->outLayer = outLayer;
     myModel->numLayers = numLayers;
     myModel->learningRate = learningRate;
@@ -51,8 +54,10 @@ model* construct_model(layer*** inLayers, layer** outLayer, int numLayers, int n
 
     return myModel;
 
-error3:
+error4:
     free(myModel->targets);
+error3:
+    free(myModel->layerList);
 error2:
     free(myModel->inLayers);
 error1:
@@ -67,12 +72,14 @@ void extend_context(layer* myLayer, int windowSize, layer*** windowLayers) // re
     int hiddenNodes = myLayer->numNodes;
     int numInNodes = myLayer->numPrevNodes;
     char hiddenActivationFunction = myLayer->activationFunction;
+    *windowLayers = NULL;
 
     if(windowSize < 1) return;
 
     myLayer->numPrevLayers += 1;
     myLayer->numPrevNodes += hiddenNodes;
     for(int i = 0; i < hiddenNodes; i++) free(myLayer->weights[i]);
+    
     myLayer->prevLayers = (layer ***)realloc(myLayer->prevLayers, sizeof(layer**) * myLayer->numPrevLayers);
     if(myLayer->prevLayers == NULL) goto error1;
 

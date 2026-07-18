@@ -14,22 +14,23 @@
 
 
 // 66 Bytes to allocate for the structure at base - likely padded by compiler with 6 extra bytes to be 72 bytes total
-// Extra # bytes for each layer: 8m + 4np + 16n  -> m previous layers, n current nodes, p previous nodes
+// Extra # bytes for each layer: 8m + 4np + 20n  -> m previous layers, n current nodes, p previous nodes
 
 typedef struct layer layer;
 struct layer
 {
-    layer*** prevLayers; // Very necessary to operate model - array of pointers(memory addresses) to layer allocation pointers
-    float** weights; // n nodes * p previous nodes - weight matrix
-    float* biases; // n biases - 1 for each node
-    float* backErrors; // Only necessary for backpropagation, not necessary for an inference model - n values
-    float* outputs; // Activation value passed through activation function, output of the node that is passed forward - n values
-    float* preActivations; // Sum of all previous nodes according to each previous node weight - n values
-    int numPrevNodes; // Helps set up the model and also operate it
-    int numNodes; // Helps set up the model and also operate it
-    int numPrevLayers; // Very necessary for all roads spring forth from rome approach - helps operate the model
-    int layerID; // A unique number from [0, (# of layers in the Model) - 1] - can be phased out by having layer assignment done directly but honestly it makes debugging easier
-    char layerType;
-    char activationFunction;
+    layer*** prevLayers;            // Very necessary to operate model - array of pointers(memory addresses) to layer allocation pointers
+    float** weights;                // n nodes * p previous nodes - weight matrix
+    float* biases;                  // n biases - 1 for each node
+    float* backErrors;              // Only necessary for backpropagation, not necessary for an inference model - n values
+    float* outputs;                 // Activation value passed through activation function, output of the node that is passed forward - n values
+    float* preActivations;          // Sum of all previous nodes according to each previous node weight - n values
+    float* activationDerivatives;   // Derivatives of the outputs corresponding to the activations function
+    int numPrevNodes;               // Helps set up the model and also operate it
+    int numNodes;                   // Helps set up the model and also operate it
+    int numPrevLayers;              // Very necessary for all roads spring forth from rome approach - helps operate the model
+    int layerID;                    // A unique number from [0, (# of layers in the Model) - 1] - can be phased out by having layer assignment done directly but honestly it makes debugging easier
+    char layerType;                 // What kind of layer this is
+    char activationFunction;        // Activation function signifier that shows which activation function should be utilized for this layer
 };
 

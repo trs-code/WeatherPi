@@ -72,21 +72,38 @@ void sgd_backprop(model* myModel)
 { // start at output layer and calculate backerrors for each previous layer
     layer* currLayer;
     layer* prevLayer;
+    float* lossDerivatives = myModel->lossDerivatives;
+    float* activationDerivatives;
     float prevBackerror = 0.0;
     int prevsTraversed = 0;
     int currNumNodes;
     int prevNumNodes;
     
+    currLayer = *myModel->outLayer;
+    
+    for(int i = 0; i < currLayer->numNodes; i++) lossDerivatives[i] = loss_derivative(myModel->targets[i], currLayer->outputs[i], myModel);
+
     for(int l = myModel->numLayers - 1; l > -1; l--)
+    {        
+        currLayer = *myModel->layerList[l];
+        if(currLayer->layerType == 'i') continue;
+        activationDerivatives = currLayer->activationDerivatives;
+        for(int i = 0; i < currLayer->numNodes; i++) activationDerivatives[i] = activation_derivative(currLayer->preActivations[i], currLayer, i);
+    }
+
+    currLayer = *myModel->outLayer;
+    activationDerivatives = currLayer->activationDerivatives;
+
+    // backErrorsForOutputLayer = lossDerivative · activationFunctionDerivative(preActivations)
+    for(int i = 0; i < currLayer->numNodes; i++) currLayer->backErrors[i] = -1 * lossDerivatives[i] * activationDerivatives[i];
+
+    for(int l = myModel->numLayers - 2; l > -1; l--)
     {
         currLayer = *myModel->layerList[l];
 
         if(currLayer->layerType == 'i') continue;
 
         currNumNodes = currLayer->numNodes;
-        
-        // backErrorsForOutputLayer = lossDerivative · activationFunctionDerivative(preActivations) - for output layer
-        if(currLayer->layerType == 'o') for(int i = 0; i < currNumNodes; i++) currLayer->backErrors[i] = -1 * loss_derivative(myModel->targets[i], currLayer->outputs[i], myModel) * activation_derivative(currLayer->preActivations[i], currLayer, i);
         
         // backErrorsForPreviousLayers[j] = SUM_OVER_I((thisLayersBackErrors[i])(thisLayersWeightMatrix[i][j]) · activationFunctionDerivative(previousLayersPreActivation[j])) - where j is considered to be a traversal of all previous 'J' layers' 'K' values as one vector
         // e.g. J = 3 prev layers with K = 5 nodes each are considered as one prev layer with J = 15 nodes in this formulation
@@ -98,10 +115,11 @@ void sgd_backprop(model* myModel)
             if(prevLayer->layerType == 'i') continue;
 
             prevNumNodes = prevLayer->numNodes;
+            activationDerivatives = prevLayer->activationDerivatives;
             
-            for(int j = 0; j < prevNumNodes; j++, prevBackerror = 0.0)
+            for(int j = 0; j < prevNumNodes; j++, prevBackerror = 0.0f)
             {
-                for(int k = 0; k < currNumNodes; k++) prevBackerror += currLayer->backErrors[k] * currLayer->weights[k][prevsTraversed + j] * activation_derivative(prevLayer->preActivations[j], prevLayer, i);
+                for(int k = 0; k < currNumNodes; k++) prevBackerror += currLayer->backErrors[k] * currLayer->weights[k][prevsTraversed + j] * activationDerivatives[j];
                 prevLayer->backErrors[j] += prevBackerror;
             }
             prevsTraversed += prevNumNodes;
@@ -113,6 +131,10 @@ void calculate_and_apply_grads(model* myModel)
 {
     layer* currLayer;
     layer* prevLayer;
+    float* backErrors;
+    float* prevOutputs;
+    float learningRate = myModel->learningRate;
+    float backError;
     int currNumNodes;
     int prevNumNodes;
     int prevsTraversed = 0;
@@ -124,19 +146,23 @@ void calculate_and_apply_grads(model* myModel)
         if(currLayer->layerType == 'i') continue;
 
         currNumNodes = currLayer->numNodes;
+        backErrors = currLayer->backErrors;
 
         // newBias[i] = oldBias[i] - (learningRate * backErrors[i])
-        for(int i = 0; i < currNumNodes; i++) currLayer->biases[i] -= myModel->learningRate * currLayer->backErrors[i];
+        for(int i = 0; i < currNumNodes; i++) currLayer->biases[i] -= learningRate * currLayer->backErrors[i];
 
         // newWeights[i][j] = oldWeights[i][j] - (learningRate * (prevNodeOuts[j] * backError[i]))
         for(int i = 0; i < currNumNodes; i++, prevsTraversed = 0)
         {
+            backError = backErrors[i];
+
             for(int j = 0; j < currLayer->numPrevLayers; j++)
             {
                 prevLayer = *currLayer->prevLayers[j];
                 prevNumNodes = prevLayer->numNodes;
+                prevOutputs = prevLayer->outputs;
                 
-                for(int k = 0; k < prevNumNodes; k++) currLayer->weights[i][k + prevsTraversed] -= myModel->learningRate * prevLayer->outputs[k] * currLayer->backErrors[i];
+                for(int k = 0; k < prevNumNodes; k++) currLayer->weights[i][k + prevsTraversed] -= learningRate * prevOutputs[k] * backError;
                 prevsTraversed += prevNumNodes;
             }
         }
