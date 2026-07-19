@@ -5,16 +5,9 @@
 #include <time.h>
 #include <math.h>
 
-static inline void glorot_uniform_init(layer* myLayer) 
-{
-    float limit = sqrt(6.0 / (myLayer->numPrevNodes + myLayer->numNodes));
-    for (int i = 0; i < myLayer->numNodes; ++i) for(int j = 0; j < myLayer->numPrevNodes; j++) myLayer->weights[i][j] = ((float)rand() / RAND_MAX) * 2.0 * limit - limit;
-}
-
 // Solely to load input values into the model in a form where layer operations can be generalized into
 layer* make_input_layer(int numNodes)
 {
-    srand(time(NULL)); // Done here with assumption that input layers will be constructed initially
     // Allocate space for the input layer
     layer* inLayer = (layer*)malloc(sizeof(layer));
     if(inLayer == NULL) return NULL;
@@ -99,8 +92,6 @@ layer* make_hidden_layer(layer*** prev, int numNodes, int numPrevLayers, char ac
     hiddenLayer->layerID = -1;
     hiddenLayer->layerType = 'h';
 
-    glorot_uniform_init(hiddenLayer);
-
     return hiddenLayer;
 
 error8:
@@ -170,8 +161,6 @@ layer* make_output_layer(layer*** prev, int numNodes, int numPrevLayers, char ac
     outLayer->activationFunction = activation_function;
     outLayer->layerID = -1;
     outLayer->layerType = 'o';
-
-    glorot_uniform_init(outLayer);
 
     return outLayer;
 

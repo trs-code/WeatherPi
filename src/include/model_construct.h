@@ -1,7 +1,14 @@
 #pragma once
 
+#include "layer_construct.h"
 #include "layer_destruct.h"
 #include "model_destruct.h"
+
+static inline void glorot_uniform_init(layer* myLayer) 
+{
+    float limit = sqrt(6.0 / (myLayer->numPrevNodes + myLayer->numNodes));
+    for (int i = 0; i < myLayer->numNodes; ++i) for(int j = 0; j < myLayer->numPrevNodes; j++) myLayer->weights[i][j] = ((float)rand() / RAND_MAX) * 2.0 * limit - limit;
+}
 
 // Assign layer IDs in a topological order to be able to reconstruct the network graph, also populates the layerList of the model accordingly
 int assign_layer_ids(layer** currLayer, int currID, layer*** layerList)
@@ -28,6 +35,9 @@ int assign_layer_ids(layer** currLayer, int currID, layer*** layerList)
 // Provides an interface for the user to interact with the model without getting bogged down by little details
 model* construct_model(layer*** inLayers, layer** outLayer, int numLayers, int numInLayers, float learningRate, char loss_fn)
 {
+    layer* currLayer;
+
+    srand(time(NULL));
     model *myModel = (model*)malloc(sizeof(model));
     if(myModel == NULL) return NULL;
 
@@ -52,6 +62,11 @@ model* construct_model(layer*** inLayers, layer** outLayer, int numLayers, int n
 
     assign_layer_ids(outLayer, 0, myModel->layerList);
 
+    for(int i = 0; i < numLayers; i++)
+    {
+        currLayer = (*myModel->layerList[i]);
+        if(currLayer->layerType != 'i' && currLayer->layerType != 'w') glorot_uniform_init(currLayer);
+    }
     return myModel;
 
 error4:
