@@ -37,7 +37,6 @@ model* construct_model(layer*** inLayers, layer** outLayer, int numLayers, int n
 {
     layer* currLayer;
 
-    srand(time(NULL));
     model *myModel = (model*)malloc(sizeof(model));
     if(myModel == NULL) return NULL;
 
@@ -61,6 +60,7 @@ model* construct_model(layer*** inLayers, layer** outLayer, int numLayers, int n
     myModel->loss_fn = loss_fn;
 
     assign_layer_ids(outLayer, 0, myModel->layerList);
+    srand(time(NULL));
 
     for(int i = 0; i < numLayers; i++)
     {

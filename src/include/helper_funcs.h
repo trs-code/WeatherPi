@@ -1,5 +1,6 @@
 #pragma once
 
+#include "layer_destruct.h"
 #include "nn_math.h"
 #include "model.h"
 
@@ -87,12 +88,8 @@ int read_csv(const char* fileName, int numSamples, int numInputs, int numOutputs
     FILE *datFile = fopen(fileName, "r");
     if(datFile == NULL) goto error1;
 
-    char buffer[128];
-    flush_buffer(buffer, 128);
-    
-    char fltBuffer[24];
-    flush_buffer(fltBuffer, 24);
-
+    char buffer[128] = {'\0'};   
+    char fltBuffer[24] = {'\0'};
     int fltTraversed = 0;
     int offset = 0;
 
@@ -132,7 +129,7 @@ int read_csv(const char* fileName, int numSamples, int numInputs, int numOutputs
 
         for(int j = 0; j < numOutputs; j++)
         {
-            while(buffer[offset] != ',' && buffer[offset] != ';')
+            while(buffer[offset] != ',' && buffer[offset] != '\n')
             {
                 fltBuffer[fltTraversed] = buffer[offset];
                 offset += 1;
@@ -153,6 +150,8 @@ int read_csv(const char* fileName, int numSamples, int numInputs, int numOutputs
     return 0;
 
 error2:
+    hakai_matrix(inArrs, numSamples);
+    hakai_matrix(outArrs, numSamples);
     fclose(datFile);
     datFile = NULL;
 error1:
