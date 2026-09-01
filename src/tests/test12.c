@@ -11,7 +11,7 @@ int main()
     int numOuts = 2;
     int numSamples = 67764;
 
-    model *wethrModel = load_model("weathrModelContextBest.cml", &modelLayers);
+    model *wethrModel = load_model("../../weathrModelContext.cml", &modelLayers);
     if(wethrModel == NULL)
     {
         printf("Failed to load model\n");

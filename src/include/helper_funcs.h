@@ -12,39 +12,21 @@
 #include <arm_neon.h>
 #endif
 
+void reverse_chars(char* arr, size_t n)
+{
+    char c;
 
+    for(size_t i = 0; i < n / 2; i++)
+    {
+        c = arr[i];
+        arr[i] = arr[n - i - 1];
+        arr[n - i - 1] = c;
+    }
+}
 
 void flush_buffer(char* buffer, int size)
 {
     for(int i = 0; i < size; i++) buffer[i] = '\0';
-}
-
-void int2bin(int x, int numBits, char* bitBuff)
-{
-    int myX = x;
-
-    for(int i = 0; i < numBits; i++)
-    {
-        bitBuff[i] = (myX & 1) ? '1' : '0';
-        myX >>= 1; 
-    }
-}
-
-int bin2int(const char* bin, int size)
-{
-    int retVal = 0;
-    int currCount = 1;
-
-    for(int i = 0; i < size; i++)
-    {
-        if(bin[i] == '1')
-        {
-            retVal += currCount;
-        }
-        currCount <<= 1;
-    }
-
-    return retVal;
 }
 
 void shuffle(float*** arr1, float*** arr2, int n) 

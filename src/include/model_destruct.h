@@ -26,7 +26,6 @@ void hakai_model(model** thisModel)
     free(myModel->targets);
 
     free(myModel->lossDerivatives);
-
     free(myModel);
     *thisModel= NULL;
 }

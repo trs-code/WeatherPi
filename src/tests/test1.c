@@ -73,7 +73,7 @@ int main()
     printf("\nLayer 2 pre-activation is: %f\n", outLayer->preActivations[0]);
     for(int i = 0; i < 3; i++) printf("Layer 1 pre-activation[%d] is: %f\n", i, layer0->preActivations[i]);
 
-    // save_model(myModel, "test1Model.cml");
+    save_model(myModel, "test1Model.cml");
 
     hakai_model(&myModel);
     

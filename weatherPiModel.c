@@ -42,9 +42,9 @@ int main()
 
     if(read_csv(filename, numSamples, numIns, numOuts, &inArrays, &outArrays) != 0) goto error11;
 
-    train_model_sgd_fast(wethrModel, 10, numSamples, inArrays, outArrays, 0.8, 0.5);
+    train_model_sgd_fast(wethrModel, 2, numSamples, inArrays, outArrays, 0.8, 0.5);
 
-    //save_model(wethrModel, "weathrModel.cml");
+    save_model(wethrModel, "weathrModel.cml");
     hakai_matrix(&inArrays, numSamples);
     hakai_matrix(&outArrays, numSamples);
     hakai_model(&wethrModel);

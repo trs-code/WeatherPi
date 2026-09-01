@@ -4,8 +4,20 @@
 #include "activation.h"
 #include "loss.h"
 #include "helper_funcs.h"
-#include <stdio.h>
 #include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+
+typedef union {
+    float flt;
+    unsigned char chars[sizeof(float)];
+} fltChars;
+
+typedef union {
+    uint32_t num;
+    unsigned char chars[4];
+} intChars;
 
 // Gets outputs from the layers, is essentially also a inference function
 void forward_out(model* myModel, float dropoutVal)
@@ -172,136 +184,126 @@ void calculate_and_apply_grads(model* myModel)
 }
 
 // Encode and save a model to file
+// Care is needed when using, this implementation assumes that a float is always 32 bits and endianness is little if not defined;
 int save_model(model* saveModel, char* modelFileName)
 {
     FILE* modFile = NULL;
-    char* line = NULL;
+    unsigned char* line = NULL;
+    fltChars fVal;
+    intChars iVal;
     int offset = 0;
-    int lineLength = 50;
-    char bitBuff[33] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
-    char fltBuff[20] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+    uint32_t lineLength = 13;
 
-    modFile = fopen(modelFileName, "w");
+    modFile = fopen(modelFileName, "wb");
     if(modFile == NULL) goto error1;
 
-    lineLength += 16 * saveModel->numInLayers;
+    #if defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__)
+    if (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__) fputc('L', modFile); 
+    else if(__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__) fputc('B', modFile); 
+    #else
+    fputc('L', modFile);  // Making a big assumption here
+    #endif
 
-    line = (char *)calloc(lineLength, sizeof(char));
+    lineLength += 4 * saveModel->numInLayers;
+
+    line = (char *)calloc(lineLength, sizeof(unsigned char));
     if(line == NULL) goto error2;
-    
-    int2bin(saveModel->numLayers, 16, bitBuff);
-    for(int i = 0; i < 16; i++) line[offset + i] = bitBuff[i]; // big endian representation
-    offset += 16;
 
-    int2bin(saveModel->numInLayers, 16, bitBuff);
-    for(int i = 0; i < 16; i++) line[offset + i] = bitBuff[i]; // big endian representation
-    offset += 16;
+    iVal.num = saveModel->numLayers;
+    memcpy(&line[offset], iVal.chars, 4);
+    offset += 4;
+
+    iVal.num = saveModel->numInLayers;    
+    memcpy(&line[offset], iVal.chars, 4);
+    offset += 4;
+
 
     for(int i = 0; i < saveModel->numInLayers; i++)
     {
-        int2bin((*saveModel->inLayers[i])->layerID, 16, bitBuff);
-        for(int j = 0; j < 16; j++) line[offset + j] = bitBuff[j]; // big endian representation
-        offset += 16;
+        iVal.num = (*saveModel->inLayers[i])->layerID;    
+        memcpy(&line[offset], iVal.chars, 4);
+        offset += 4;
     }
 
-    snprintf(fltBuff, 19UL, "%.16f", saveModel->learningRate);
-    for(int l = 0; l < 16; l++) line[offset + l] = fltBuff[l];
-    offset += 16;
 
-    line[offset] = saveModel->loss_fn;
+    fVal.flt = saveModel->learningRate;
+    for(int l = 0; l < 4; l++) line[offset++] = fVal.chars[l];
 
-    line[lineLength - 1] = '\0';
+    line[offset++] = saveModel->loss_fn;
 
-    int2bin(lineLength, 24, bitBuff);
+    iVal.num = lineLength;
         
-    for(int i = 0; i < 24; i++) fputc(bitBuff[i], modFile);
-    fputc('\n', modFile);
-    fputs(line, modFile);
-    fputs("\n", modFile);
+    fwrite(iVal.chars, sizeof(unsigned char), 4, modFile);
+    fwrite(line, sizeof(unsigned char), lineLength, modFile);
 
     free(line);
     line = NULL;
 
     for(int i = 0; i < saveModel->numLayers; i++)
     {
-        lineLength = 29;
+        lineLength = 9;
         if((*saveModel->layerList[i])->layerType == 'h' || (*saveModel->layerList[i])->layerType == 'o')
         {
-            lineLength += 16 * (*saveModel->layerList[i])->numPrevLayers;
-            lineLength += 16 * ((*saveModel->layerList[i])->numNodes * ((*saveModel->layerList[i])->numPrevNodes + 1));
-            lineLength += 65;
+            lineLength += 4 * (*saveModel->layerList[i])->numPrevLayers;
+            lineLength += 4 * ((*saveModel->layerList[i])->numNodes * ((*saveModel->layerList[i])->numPrevNodes + 1));
+            lineLength += 9;
         }
         else if((*saveModel->layerList[i])->layerType == 'w')
         {
-            lineLength += 16 * (*saveModel->layerList[i])->numPrevLayers;
-            lineLength += 49;
+            lineLength += 4 * (*saveModel->layerList[i])->numPrevLayers;
+            lineLength += 9;
         }
         offset = 0;
 
-        line = (char *)calloc(lineLength, sizeof(char));
+        line = (unsigned char *)calloc(lineLength, sizeof(unsigned char));
         if(line == NULL) goto error2;
 
-        line[0] = (*saveModel->layerList[i])->layerType;
-        offset += 1;
+        line[offset++] = (*saveModel->layerList[i])->layerType;
+        
+        iVal.num = (*saveModel->layerList[i])->layerID;
+        for(int j = 0; j < 4; j++) line[offset++] = iVal.chars[j];
 
-        int2bin((*saveModel->layerList[i])->layerID, 11, bitBuff);
-        for(int j = 0; j < 11; j++) line[offset + j] = bitBuff[j]; // big endian representation
-        offset += 11;
-
-        int2bin((*saveModel->layerList[i])->numNodes, 16, bitBuff);
-        for(int j = 0; j < 16; j++) line[offset+ j] = bitBuff[j];
-        offset += 16;
+        iVal.num = (*saveModel->layerList[i])->numNodes;
+        for(int j = 0; j < 4; j++) line[offset++] = iVal.chars[j];
 
         if((*saveModel->layerList[i])->layerType == 'i')
-        {
-            line[offset] = '\0';
+        {            
+            iVal.num = lineLength;
+        
+            fwrite(iVal.chars, 4, 1, modFile);
             
-            int2bin(lineLength, 24, bitBuff);
-            
-            for(int j = 0; j < 24; j++) fputc(bitBuff[j], modFile);
-            fputc('\n', modFile);
-            
-            fputs(line, modFile);
-            fputs("\n", modFile);
+            fwrite(line, lineLength, 1, modFile);
             
             free(line);
-            line = (char*)NULL;
+            line = (unsigned char*)NULL;
             continue;
         }
 
-        int2bin((*saveModel->layerList[i])->numPrevNodes, 32, bitBuff);
-        for(int j = 0; j < 32; j++) line[offset + j] = bitBuff[j];
-        offset += 32;
+        iVal.num = (*saveModel->layerList[i])->numPrevNodes;
+        for(int j = 0; j < 4; j++) line[offset++] = iVal.chars[j];
         
-        int2bin((*saveModel->layerList[i])->numPrevLayers, 16, bitBuff);
-        for(int j = 0; j < 16; j++) line[offset + j] = bitBuff[j];
-        offset += 16;
+        iVal.num = (*saveModel->layerList[i])->numPrevLayers;
+        for(int j = 0; j < 4; j++) line[offset++] = iVal.chars[j];
         
-        line[offset] = (*saveModel->layerList[i])->activationFunction;
-        offset += 1;
+        line[offset++] = (*saveModel->layerList[i])->activationFunction;
 
         for(int j = 0; j < (*saveModel->layerList[i])->numPrevLayers; j++)
         {
-            //if((*layerList[i])->layerID == (*(*layerList[i])->prevLayers[j])->layerID) continue;
-            int2bin((*(*saveModel->layerList[i])->prevLayers[j])->layerID, 16, bitBuff);
-            for(int k = 0; k < 16; k++) line[offset + k] = bitBuff[k];
-            offset += 16;
+            // if((*layerList[i])->layerID == (*(*layerList[i])->prevLayers[j])->layerID) continue;
+            iVal.num = (*(*saveModel->layerList[i])->prevLayers[j])->layerID;
+            for(int k = 0; k < 4; k++) line[offset++] = iVal.chars[k];
         }
 
         if((*saveModel->layerList[i])->layerType == 'w')
-        {
-            line[offset] = '\0';
+        {            
+            iVal.num = lineLength;
+        
+            fwrite(iVal.chars, 4, 1, modFile);
             
-            int2bin(lineLength, 24, bitBuff);
-            
-            for(int j = 0; j < 24; j++) fputc(bitBuff[j], modFile);
-            fputc('\n', modFile);
-            
-            fputs(line, modFile);
-            fputs("\n", modFile);
+            fwrite(line, lineLength, 1, modFile);
             
             free(line);
-            line = (char*)NULL;
+            line = (unsigned char*)NULL;
             continue;
         }
 
@@ -309,31 +311,21 @@ int save_model(model* saveModel, char* modelFileName)
         {
             for(int k = 0; k < (*saveModel->layerList[i])->numPrevNodes; k++)
             {
-                if((*saveModel->layerList[i])->weights[j][k] < 0) snprintf(fltBuff, 18UL, "%.15f", (*saveModel->layerList[i])->weights[j][k]);
-                else snprintf(fltBuff, 19UL, "%.16f", (*saveModel->layerList[i])->weights[j][k]);
-                
-                for(int l = 0; l < 16; l++) line[offset + l] = fltBuff[l];
-                offset += 16;
+                fVal.flt = (*saveModel->layerList[i])->weights[j][k];
+                for(int l = 0; l < 4; l++) line[offset++] = fVal.chars[l];
             }
         }
 
         for(int j = 0; j < (*saveModel->layerList[i])->numNodes; j++)
         {
-            if((*saveModel->layerList[i])->biases[j] < 0) snprintf(fltBuff, 18UL, "%.15f", (*saveModel->layerList[i])->biases[j]);
-            else snprintf(fltBuff, 19UL, "%.16f", (*saveModel->layerList[i])->biases[j]);
-            
-            for(int l = 0; l < 16; l++) line[offset + l] = fltBuff[l];
-            offset += 16;
+            fVal.flt = (*saveModel->layerList[i])->biases[j];
+            for(int l = 0; l < 4; l++) line[offset++] = fVal.chars[l];
         }
 
-        line[offset] = '\0';
-
-        int2bin(lineLength, 24, bitBuff);
+        iVal.num = lineLength;
         
-        for(int j = 0; j < 24; j++) fputc(bitBuff[j], modFile);
-        fputc('\n', modFile);
-        fputs(line, modFile);
-        fputs("\n", modFile);
+        fwrite(iVal.chars, 4, 1, modFile);
+        fwrite(line, lineLength, 1, modFile);
 
         free(line);
         line = NULL;
@@ -356,10 +348,12 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
     layer*** layerArr = (layer***)NULL;
     model* myModel = NULL;
     int* inLayerIDs = NULL;
-    char* line = NULL;
+    unsigned char* line = NULL;
+    fltChars fVal;
+    intChars iVal;
     float learningRate = 1.0f;
     int outLayerID = 0;
-    int lineLength = 0;
+    uint32_t lineLength = 0;
     int offset = 0;
     int numLayers = 0;
     int numInLayers = 0;
@@ -370,37 +364,54 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
     char activationFunction = '\0';
     char loss_fn = '\0';
     char layerType = '\0';
-    char lineLengthBuff[26] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"; // Line length of next line string will always be 24 characters
-    char fltBuff[17] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0";
+    char endianness = '\0';
+    char myEndianness;
 
-    FILE *modFile = fopen(modelFileName, "r");
+    #if defined(__BYTE_ORDER__) && defined(__ORDER_LITTLE_ENDIAN__)
+    if (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__) myEndianness = 'L'; 
+    else if(__BYTE_ORDER__ == __ORDER_BIG_ENDIAN__) myEndianness = 'B';
+    #else
+    myEndianness = 'L'; // Making a big assumption here
+    #endif
+
+    FILE *modFile = fopen(modelFileName, "rb");
     if(modFile == NULL) goto error1;
 
-    if(fgets(lineLengthBuff, 26, modFile) == NULL) goto error5;
+    endianness = fgetc(modFile);
 
-    lineLength = bin2int(lineLengthBuff, 24) + 1;
+    if(fread(iVal.chars, sizeof(unsigned char), 4, modFile) != 4) goto error2;
+    if(myEndianness != endianness) reverse_chars(iVal.chars, 4);
+    lineLength = iVal.num;
 
-    line = (char *)calloc(lineLength, sizeof(char));
+    line = (unsigned char *)calloc(lineLength, sizeof(unsigned char));
     if(line == NULL) goto error2;
 
-    if(fgets(line, lineLength, modFile) == NULL) goto error6;
-    numLayers = bin2int(line, 16);
-    numInLayers = bin2int(&line[16], 16);
-    offset += 32;
+    if(fread(line, sizeof(unsigned char), lineLength, modFile) != lineLength) goto error3;
+    
+    memcpy(iVal.chars, line, 4 * sizeof(unsigned char));
+    if(myEndianness != endianness) reverse_chars(iVal.chars, 4);
+    numLayers = iVal.num;
+    
+    memcpy(iVal.chars, &line[4], 4 * sizeof(unsigned char));
+    if(myEndianness != endianness) reverse_chars(iVal.chars, 4);
+    numInLayers = iVal.num;
+
+    offset += 8;
 
     inLayerIDs = (int *)calloc(numInLayers, sizeof(int));
     if(inLayerIDs == NULL) goto error3;
 
     for(int i = 0; i < numInLayers; i++) 
     {
-        inLayerIDs[i] = bin2int(&line[offset], 16);
-        offset += 16;
+        memcpy(iVal.chars, &line[offset], 4 * sizeof(unsigned char));
+        if(myEndianness != endianness) reverse_chars(iVal.chars, 4);
+        inLayerIDs[i] = iVal.num;
+        offset += 4;
     }
 
-    for(int i = 0; i < 16; i++) fltBuff[i] = line[offset + i];
-    offset += 16;
-
-    learningRate = atof(fltBuff);
+    memcpy(fVal.chars, &line[offset], 4 * sizeof(unsigned char));
+    learningRate = fVal.flt;
+    offset += 4;
 
     loss_fn = line[offset];
 
@@ -412,27 +423,31 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
 
     for(int i = 0; i < numLayers; i++)
     {
-        if(fgets(lineLengthBuff, 26, modFile) == NULL) goto error5;
+        if(fread(iVal.chars, sizeof(unsigned char), 4, modFile) != 4) goto error5;
+        if(myEndianness != endianness) reverse_chars(iVal.chars, 4);
+        lineLength = iVal.num;
 
-        lineLength = bin2int(lineLengthBuff, 24) + 2;
-
-        line = (char *)calloc(lineLength, sizeof(char));
+        line = (unsigned char *)calloc(lineLength, sizeof(unsigned char));
         if(line == NULL) goto error5;
 
-        if(fgets(line, lineLength, modFile) == NULL) goto error6;
+        if(fread(line, sizeof(unsigned char), lineLength, modFile) != lineLength) goto error6;
 
         offset = 0;
         numNodes = 0;
         numPrevNodes = 0;
 
         layerType = line[0];
-        offset += 1;
+        offset++;
 
-        layerID = bin2int(&line[offset], 11);
-        offset += 11;
+        memcpy(iVal.chars, &line[offset], 4 * sizeof(unsigned char));
+        if(myEndianness != endianness) reverse_chars(iVal.chars, 4);
+        layerID = iVal.num;
+        offset += 4;
         
-        numNodes = bin2int(&line[offset], 16);
-        offset += 16;
+        memcpy(iVal.chars, &line[offset], 4 * sizeof(unsigned char));
+        if(myEndianness != endianness) reverse_chars(iVal.chars, 4);
+        numNodes = iVal.num;
+        offset += 4;
 
         if(layerType == 'i')
         {
@@ -447,22 +462,29 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
             continue;
         }
 
-        numPrevNodes = bin2int(&line[offset], 32);
-        offset += 32;
+        memcpy(iVal.chars, &line[offset], 4 * sizeof(unsigned char));
+        if(myEndianness != endianness) reverse_chars(iVal.chars, 4);
+        numPrevNodes = iVal.num;
+        offset += 4;
 
-        numPrevLayers = bin2int(&line[offset], 16);
-        offset += 16;
+        memcpy(iVal.chars, &line[offset], 4 * sizeof(unsigned char));
+        if(myEndianness != endianness) reverse_chars(iVal.chars, 4);
+        numPrevLayers = iVal.num;
+        offset += 4;
 
         activationFunction = line[offset];
-        offset += 1;
+        offset+=1;
 
         layerArr = (layer***)malloc(numPrevLayers * sizeof(layer**));
         if(layerArr == NULL) goto error6;
 
         for(int j = 0; j < numPrevLayers; j++)
         {
-            layerArr[j] = &((*modelLayers)[bin2int(&line[offset], 16)]);
-            offset += 16;
+            memcpy(iVal.chars, &line[offset], 4 * sizeof(unsigned char));
+            if(myEndianness != endianness) reverse_chars(iVal.chars, 4);
+            offset += 4;
+
+            layerArr[j] = &((*modelLayers)[iVal.num]);
         }
 
         if(layerType == 'h')
@@ -475,9 +497,10 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
             (*modelLayers)[layerID] = make_window_layer(layerArr, numNodes, numPrevLayers, activationFunction, numPrevNodes);
             if((*modelLayers)[layerID] == NULL) goto error8;
 
-            flush_buffer(lineLengthBuff, 26);
+            (*modelLayers)[layerID]->layerID = layerID;
+
             free(line);
-            line = (char *)NULL;
+            line = (unsigned char *)NULL;
             free(layerArr);
             layerArr = (layer***)NULL;
 
@@ -497,24 +520,25 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
         {
             for(int k = 0; k < numPrevNodes; k++)
             {
-                for(int l = 0; l < 16; l++) fltBuff[l] = line[offset+l];
-                offset += 16;
-                (*modelLayers)[layerID]->weights[j][k] = atof(fltBuff);
-                flush_buffer(fltBuff, 16);
+                memcpy(fVal.chars, &line[offset], 4 * sizeof(unsigned char));
+                if(myEndianness != endianness) reverse_chars(iVal.chars, 4);
+                offset += 4;
+                
+                (*modelLayers)[layerID]->weights[j][k] = fVal.flt;
             }
         }
 
         for(int j = 0; j < numNodes; j++)
         {
-            for(int k = 0; k < 16; k++) fltBuff[k] = line[offset+k];
-            offset += 16;
-            (*modelLayers)[layerID]->biases[j] = atof(fltBuff);
-            flush_buffer(fltBuff, 16);
+            memcpy(fVal.chars, &line[offset], 4 * sizeof(unsigned char));
+            if(myEndianness != endianness) reverse_chars(iVal.chars, 4);
+            offset += 4;
+            
+            (*modelLayers)[layerID]->biases[j] = fVal.flt;
         }
 
-        flush_buffer(lineLengthBuff, 26);
         free(line);
-        line = (char *)NULL;
+        line = (unsigned char *)NULL;
         free(layerArr);
         layerArr = (layer***)NULL;
     }
@@ -534,6 +558,9 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
     myModel->layerList = (layer ***)malloc(numLayers * sizeof(layer**));
     if(myModel->layerList == NULL) goto error11;
 
+    myModel->lossDerivatives = (float *)malloc((*modelLayers)[outLayerID]->numNodes * sizeof(float));
+    if(myModel->lossDerivatives == NULL) goto error12;
+
     for(int i = 0; i < numInLayers; i++) myModel->inLayers[i] = &(*modelLayers)[inLayerIDs[i]];
     for(int i = 0; i < numLayers; i++) myModel->layerList[i] = &(*modelLayers)[i];
 
@@ -550,6 +577,9 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
 
     return myModel;
 
+error12:
+    free(myModel->layerList);
+    myModel->layerList = NULL;
 error11:
     free(myModel->targets);
     myModel->targets = NULL;
@@ -568,8 +598,8 @@ error6:
     free(line);
     line = NULL;
 error5:
-    free(modelLayers);
-    modelLayers = NULL;
+    free(*modelLayers);
+    *modelLayers = NULL;
 error4:
     free(inLayerIDs);
     inLayerIDs = NULL;
@@ -679,25 +709,25 @@ int _mm256_forward_out(model* myModel, float dropoutVal)
 //     layer* currLayer;
 //     layer* prevLayer;
 //     int prevsTraversed = 0;
-    
+// 
 //     for(int l = myModel->numLayers - 1; l > -1; l--)
 //     {
 //         currLayer = *myModel->layerList[l];
-
+//
 //         if(currLayer->layerType == 'i') continue;
-        
+//        
 //         // backErrorsForOutputLayer = lossDerivative · activationFunctionDerivative(preActivations) - for output layer
 //         if(currLayer->layerType == 'o') vectorized_sgd_backprop_output_calc(currLayer, myModel);
-        
+//        
 //         // backErrorsForPreviousLayers[j] = SUM_OVER_I((thisLayersBackErrors[i])(thisLayersWeightMatrix[i][j]) · activationFunctionDerivative(previousLayersPreActivation[j])) - where j is considered to be a traversal of all previous 'J' layers' 'K' values as one vector
 //         // e.g. J = 3 prev layers with K = 5 nodes each are considered as one prev layer with J = 15 nodes in this formulation
 //         prevsTraversed = 0;
 //         for(int i = 0; i < currLayer->numPrevLayers; i++)
 //         {
 //             prevLayer = *currLayer->prevLayers[i];
-            
+//            
 //             if(prevLayer->layerType == 'i') continue;
-            
+//            
 //             for(int j = 0; j < prevLayer->numNodes; j++) for(int k = 0; k < currLayer->numNodes; k++) prevLayer->backErrors[j] += currLayer->backErrors[k] * currLayer->weights[k][prevsTraversed + j] * activation_derivative(prevLayer->preActivations[j], currLayer, i);
 //             prevsTraversed += prevLayer->numNodes;
 //         }
@@ -707,11 +737,11 @@ int _mm256_forward_out(model* myModel, float dropoutVal)
 // int _mm256_calculate_and_apply_grads(model* myModel)
 // {
 //     layer* currLayer;
-
+//
 //     for(int l = 0; l < myModel->numLayers; l++)
 //     {
 //         currLayer = *myModel->layerList[l];
-
+//
 //         if(currLayer->layerType == 'i') continue;
 //         if(vectorized_calculate_and_apply_grads(currLayer, myModel->learningRate) != 0) return -1;
 //     }

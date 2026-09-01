@@ -51,7 +51,7 @@ int main()
 
     read_csv(filename, numSamples, numIns, numOuts, &inArrays, &outArrays);
 
-    train_model_sgd(wethrModel, 50, numSamples, inArrays, outArrays, 0.5, 0.2);
+    train_model_sgd_fast(wethrModel, 5 , numSamples, inArrays, outArrays, 0.5, 0.2);
 
     save_model(wethrModel, "testWeatherModel.cml");
     

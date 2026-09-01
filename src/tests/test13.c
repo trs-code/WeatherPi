@@ -11,7 +11,7 @@ int main()
     int numOuts = 1;
     int numSamples = 67758;
 
-    model *wethrModel = load_model("weathrPiModelBest.cml", &modelLayers);
+    model *wethrModel = load_model("../../weathrModel.cml", &modelLayers);
     if(wethrModel == NULL)
     {
         printf("Failed to load model\n");
@@ -20,7 +20,7 @@ int main()
 
     if(read_csv(filename, numSamples, numIns, numOuts, &inArrays, &outArrays) != 0) goto error2;
 
-    train_model_sgd(wethrModel, 5, numSamples, inArrays, outArrays, 1.0, 0.2);
+    train_model_sgd(wethrModel, 2, numSamples, inArrays, outArrays, 1.0, 0.2);
 
     hakai_matrix(&inArrays, numSamples);
     hakai_matrix(&outArrays, numSamples);
