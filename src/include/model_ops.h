@@ -9,12 +9,14 @@
 #include <stdio.h>
 #include <string.h>
 
-typedef union {
+typedef union 
+{
     float flt;
     unsigned char chars[sizeof(float)];
 } fltChars;
 
-typedef union {
+typedef union 
+{
     uint32_t num;
     unsigned char chars[4];
 } intChars;
@@ -387,7 +389,7 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
     if(line == NULL) goto error2;
 
     if(fread(line, sizeof(unsigned char), lineLength, modFile) != lineLength) goto error3;
-    
+
     memcpy(iVal.chars, line, 4 * sizeof(unsigned char));
     if(myEndianness != endianness) reverse_chars(iVal.chars, 4);
     numLayers = iVal.num;
@@ -410,6 +412,7 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
     }
 
     memcpy(fVal.chars, &line[offset], 4 * sizeof(unsigned char));
+    if(myEndianness != endianness) reverse_chars(fVal.chars, 4);
     learningRate = fVal.flt;
     offset += 4;
 
@@ -521,7 +524,7 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
             for(int k = 0; k < numPrevNodes; k++)
             {
                 memcpy(fVal.chars, &line[offset], 4 * sizeof(unsigned char));
-                if(myEndianness != endianness) reverse_chars(iVal.chars, 4);
+                if(myEndianness != endianness) reverse_chars(fVal.chars, 4);
                 offset += 4;
                 
                 (*modelLayers)[layerID]->weights[j][k] = fVal.flt;
@@ -531,7 +534,7 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
         for(int j = 0; j < numNodes; j++)
         {
             memcpy(fVal.chars, &line[offset], 4 * sizeof(unsigned char));
-            if(myEndianness != endianness) reverse_chars(iVal.chars, 4);
+            if(myEndianness != endianness) reverse_chars(fVal.chars, 4);
             offset += 4;
             
             (*modelLayers)[layerID]->biases[j] = fVal.flt;
@@ -542,6 +545,20 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
         free(layerArr);
         layerArr = (layer***)NULL;
     }
+
+    for(int i = numLayers - 1; i > -1; i--)
+    {
+        layer* currLayer = (*modelLayers)[i];
+        if(currLayer->numPrevLayers == 0) continue;
+        layer* lastPrevLayer = *(currLayer->prevLayers[currLayer->numPrevLayers - 1]);
+        
+        if(lastPrevLayer->layerType == 'w')
+        {
+            lastPrevLayer->weights = currLayer->weights;
+            lastPrevLayer->biases = currLayer->biases;
+        }
+    }
+    
 
     fclose(modFile);
     modFile = NULL;
@@ -667,38 +684,36 @@ void shift_model(model* myModel, char opType)
 int _mm256_forward_out(model* myModel, float dropoutVal)
 {
     layer* currLayer;
-    int numNodes;
+    int currNumNodes;
 
     for(int l = 0; l < myModel->numLayers; l++)
     {
         currLayer = (*myModel->layerList[l]);
         if(currLayer->layerType == 'i' || currLayer->layerType == 'w') continue;
 
-        numNodes = currLayer->numNodes;
+        currNumNodes = currLayer->numNodes;
         
-        //memset(currLayer->preActivations, 0.0f, numNodes * sizeof(float));
-
         if(vectorized_forward_out_calc(currLayer) != 0) return -1;
 
         // In case of softmax activation, we do a function on the layer instead of point-wise on the outputs
         if(currLayer->activationFunction == 'x')
         {
-            memcpy(currLayer->outputs, currLayer->preActivations, sizeof(float) * numNodes);
+            memcpy(currLayer->outputs, currLayer->preActivations, sizeof(float) * currNumNodes);
             softmax(currLayer);
         }
         else if(currLayer->activationFunction == 'f')
         {
-            memcpy(currLayer->outputs, currLayer->preActivations, sizeof(float) * numNodes);
+            memcpy(currLayer->outputs, currLayer->preActivations, sizeof(float) * currNumNodes);
             fast_softmax(currLayer);
         }
         else
         {            
-            for(int i = 0; i < numNodes; i++) currLayer->outputs[i] = activation_function(currLayer->preActivations[i], currLayer->activationFunction);
+            for(int i = 0; i < currNumNodes; i++) currLayer->outputs[i] = activation_function(currLayer->preActivations[i], currLayer->activationFunction);
         }
 
         if(currLayer->layerType == 'o' || dropoutVal <= 0.0) continue;
         float scalingFactor = 1/(1-dropoutVal);
-        for(int i = 0; i < numNodes; i++) currLayer->outputs[i] *= ((float)((rand() % 999))/1000.0 < dropoutVal) ? 0 : scalingFactor;
+        for(int i = 0; i < currNumNodes; i++) currLayer->outputs[i] *= ((float)((rand() % 999))/1000.0 < dropoutVal) ? 0 : scalingFactor;
     }
 
     return 0;

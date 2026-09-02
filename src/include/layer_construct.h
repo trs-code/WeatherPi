@@ -83,7 +83,7 @@ layer* make_hidden_layer(layer*** prev, int numNodes, int numPrevLayers, char ac
 
     for(int i = 0; i < numNodes; i++)
     {
-        hiddenLayer->weights[i] = (float *)malloc(sizeof(float) * (hiddenLayer->numPrevNodes)); // Each column is a connection to each neuron in the previous layer pus a bias
+        hiddenLayer->weights[i] = (float *)malloc(sizeof(float) * (hiddenLayer->numPrevNodes)); // Each column is a connection to each neuron in the previous layer
         if(hiddenLayer->weights[i] == NULL) goto error8;
     }
     
@@ -153,7 +153,7 @@ layer* make_output_layer(layer*** prev, int numNodes, int numPrevLayers, char ac
 
     for(int i = 0; i < numNodes; i++)
     {
-        outLayer->weights[i] = (float *)malloc(sizeof(float) * (outLayer->numPrevNodes + 1));
+        outLayer->weights[i] = (float *)malloc(sizeof(float) * (outLayer->numPrevNodes));
         if(outLayer->weights[i] == NULL) goto error8;
     }
 
