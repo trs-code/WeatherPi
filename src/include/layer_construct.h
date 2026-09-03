@@ -50,8 +50,6 @@ layer* make_hidden_layer(layer*** prev, int numNodes, int numPrevLayers, char ac
     hiddenLayer->numPrevLayers = numPrevLayers;
     hiddenLayer->numPrevNodes = 0;
 
-    for(int i = 0; i < numPrevLayers; i++) hiddenLayer->numPrevNodes += (*prev[i])->numNodes;
-
     hiddenLayer->biases = (float *)calloc(numNodes, sizeof(float)); // Bias for each neuron
     if(hiddenLayer->biases == NULL) goto error1;
     
