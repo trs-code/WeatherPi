@@ -115,71 +115,12 @@ error1:
 
 layer* make_output_layer(layer*** prev, int numNodes, int numPrevLayers, char activation_function)
 {
-    layer* outLayer = (layer *)malloc(sizeof(layer));
+    layer* outLayer = make_hidden_layer(prev, numNodes, numPrevLayers, activation_function);
     if(outLayer == NULL) return NULL;
-
-    outLayer->numPrevLayers = numPrevLayers;
-    outLayer->numPrevNodes = 0;
-
-    outLayer->biases = (float *)calloc(numNodes, sizeof(float)); // Bias for each neuron
-    if(outLayer->biases == NULL) goto error1;
-
-    outLayer->backErrors = (float *)calloc(numNodes, sizeof(float));
-    if(outLayer->backErrors == NULL) goto error2;
-
-    outLayer->outputs = (float *)malloc(numNodes * sizeof(float));
-    if(outLayer->outputs == NULL) goto error3;
     
-    outLayer->preActivations = (float *)malloc(numNodes * sizeof(float));
-    if(outLayer->preActivations == NULL) goto error4;
-
-    outLayer->activationDerivatives = (float *)calloc(numNodes, sizeof(float));
-    if(outLayer->activationDerivatives == NULL) goto error5;
-
-    outLayer->weights = (float **)calloc(numNodes, sizeof(float*)); // Each row is a neuron, initially zeroed out
-    if(outLayer->weights == NULL) goto error6;
-
-    // Allocate space for the previous layers using provided parameter - DESIGN YOUR MODEL BEFORE IMPLEMENTING
-    outLayer->prevLayers = (layer ***)malloc(sizeof(layer**) * numPrevLayers);
-    if(outLayer->prevLayers == NULL) goto error7;
-
-    for(int i = 0; i < numPrevLayers; i++)
-    {
-        outLayer->prevLayers[i] = prev[i];
-        outLayer->numPrevNodes += (*prev[i])->numNodes;
-    }
-
-    for(int i = 0; i < numNodes; i++)
-    {
-        outLayer->weights[i] = (float *)malloc(sizeof(float) * (outLayer->numPrevNodes));
-        if(outLayer->weights[i] == NULL) goto error8;
-    }
-
-    outLayer->numNodes = numNodes;
-    outLayer->activationFunction = activation_function;
-    outLayer->layerID = -1;
     outLayer->layerType = 'o';
 
     return outLayer;
-
-error8:
-    free(outLayer->prevLayers);
-error7:
-    hakai_matrix(&(outLayer->weights), numNodes);
-error6:
-    free(outLayer->activationDerivatives);
-error5:
-    free(outLayer->preActivations);
-error4:
-    free(outLayer->outputs);
-error3:
-    free(outLayer->backErrors);
-error2:
-    free(outLayer->biases);
-error1:
-    free(outLayer);
-
-    return NULL;
 }
 
 layer* make_window_layer(layer*** prev, int numNodes, int numPrevLayers, char activationFunction, int numPrevNodes)
@@ -236,4 +177,54 @@ error1:
 layer** make_convolutional_layers(layer*** prevLayers, int numPrevLayers, int numFilters, int numDims, int* dims, int hasPadding);
 
 // Not yet implemented
-layer* make_attention_layer(layer** windowLayers, int windowSize, char activationFunction);
+layer* make_attention_layer(layer*** prevLayers, int numNodes, int numPrevLayers, int windowSize, char activation_function)
+{
+    layer* attnLayer;
+    layer*** prevWindows;
+    layer** prevLayer;
+    int winTrav = 0;
+    int numPrevs = numPrevLayers;
+    char act = (activation_function  == 'x' ? 'x' : 'f');
+
+    for(int i = 0; i < numPrevLayers; i++)
+    {
+        prevLayer = prevLayers[i];
+        if((*prevLayer)->layerType != 'h') return NULL;
+        while(winTrav < windowSize && (*(*prevLayer)->prevLayers[(*prevLayer)->numPrevLayers - 1])->layerType == 'w')
+        {
+            prevLayer = (*prevLayer)->prevLayers[(*prevLayer)->numPrevLayers - 1];
+            winTrav++;
+            numPrevs++;
+        }
+        winTrav = 0;
+    }
+
+    prevWindows = malloc(numPrevs * sizeof(layer**));
+    if(prevWindows == NULL) goto error1;
+
+    for(int i = 0; i < numPrevLayers; i++)
+    {
+        prevLayer = prevLayers[i];
+        prevWindows[i] = prevLayer;
+        while(winTrav < windowSize && (*(*prevLayer)->prevLayers[(*prevLayer)->numPrevLayers - 1])->layerType == 'w')
+        {
+            prevLayer = (*prevLayer)->prevLayers[(*prevLayer)->numPrevLayers - 1];
+            winTrav++;
+            prevWindows[i + winTrav] = prevLayer;
+        }
+        winTrav = 0;
+    }
+
+    attnLayer = make_hidden_layer(prevWindows, numNodes, numPrevs, act);
+    if(attnLayer == NULL) goto error2;
+
+    free(prevWindows);
+
+    attnLayer->layerType = 'a';
+    return attnLayer;
+
+error2:
+    free(prevWindows);
+error1:
+    return NULL;
+}
