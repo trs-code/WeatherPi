@@ -74,6 +74,11 @@ void dot_product_matrix(float** dest, float** arr1, float** arr2, __ssize_t rows
     for(int i = 0; i < rows; i++) for(int j = 0; j < cols; j++) dest[i][j] = arr1[i][j] * arr2[i][j];
 }
 
+void vector_dot_product_transpose_matrix(float** dest, float* arr1, float* arr2, __ssize_t rows, __ssize_t cols)
+{
+    for(int i = 0; i < rows; i++) for(int j = 0; j < cols; j++) dest[i][j] = arr1[i] * arr2[j];
+}
+
 void dot_product_value_matrix(float** dest, float** arr1, float value, __ssize_t rows, __ssize_t cols)
 {
     for(int i = 0; i < rows; i++) for(int j = 0; j < cols; j++) dest[i][j] = arr1[i][j] * value;

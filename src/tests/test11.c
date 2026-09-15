@@ -40,7 +40,7 @@ int main()
         goto error3;
     }
 
-    model* myModel = construct_model((layer**[]){&inLayer}, &outLayer, 3, 1, 0.1f, 'q');
+    model* myModel = construct_model(&outLayer, 0.1f, 'q');
     if(myModel == NULL)
     {
         printf("Memory allocation failed at model\n");
