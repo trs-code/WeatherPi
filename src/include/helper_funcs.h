@@ -12,7 +12,7 @@
 #include <arm_neon.h>
 #endif
 
-void reverse_chars(char* arr, size_t n)
+void reverse_uchars(unsigned char* arr, size_t n)
 {
     char c;
 

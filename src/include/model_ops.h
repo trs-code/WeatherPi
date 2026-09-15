@@ -209,7 +209,7 @@ int save_model(model* saveModel, char* modelFileName)
 
     lineLength += 4 * saveModel->numInLayers;
 
-    line = (char *)calloc(lineLength, sizeof(unsigned char));
+    line = (unsigned char *)calloc(lineLength, sizeof(unsigned char));
     if(line == NULL) goto error2;
 
     iVal.num = saveModel->numLayers;
@@ -383,7 +383,7 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
     endianness = fgetc(modFile);
 
     if(fread(iVal.chars, sizeof(unsigned char), 4, modFile) != 4) goto error2;
-    if(myEndianness != endianness) reverse_chars(iVal.chars, 4);
+    if(myEndianness != endianness) reverse_uchars(iVal.chars, 4);
     lineLength = iVal.num;
 
     line = (unsigned char *)calloc(lineLength, sizeof(unsigned char));
@@ -392,11 +392,11 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
     if(fread(line, sizeof(unsigned char), lineLength, modFile) != lineLength) goto error3;
 
     memcpy(iVal.chars, line, 4 * sizeof(unsigned char));
-    if(myEndianness != endianness) reverse_chars(iVal.chars, 4);
+    if(myEndianness != endianness) reverse_uchars(iVal.chars, 4);
     numLayers = iVal.num;
     
     memcpy(iVal.chars, &line[4], 4 * sizeof(unsigned char));
-    if(myEndianness != endianness) reverse_chars(iVal.chars, 4);
+    if(myEndianness != endianness) reverse_uchars(iVal.chars, 4);
     numInLayers = iVal.num;
 
     offset += 8;
@@ -407,13 +407,13 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
     for(int i = 0; i < numInLayers; i++) 
     {
         memcpy(iVal.chars, &line[offset], 4 * sizeof(unsigned char));
-        if(myEndianness != endianness) reverse_chars(iVal.chars, 4);
+        if(myEndianness != endianness) reverse_uchars(iVal.chars, 4);
         inLayerIDs[i] = iVal.num;
         offset += 4;
     }
 
     memcpy(fVal.chars, &line[offset], 4 * sizeof(unsigned char));
-    if(myEndianness != endianness) reverse_chars(fVal.chars, 4);
+    if(myEndianness != endianness) reverse_uchars(fVal.chars, 4);
     learningRate = fVal.flt;
     offset += 4;
 
@@ -428,7 +428,7 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
     for(int i = 0; i < numLayers; i++)
     {
         if(fread(iVal.chars, sizeof(unsigned char), 4, modFile) != 4) goto error5;
-        if(myEndianness != endianness) reverse_chars(iVal.chars, 4);
+        if(myEndianness != endianness) reverse_uchars(iVal.chars, 4);
         lineLength = iVal.num;
 
         line = (unsigned char *)calloc(lineLength, sizeof(unsigned char));
@@ -444,12 +444,12 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
         offset++;
 
         memcpy(iVal.chars, &line[offset], 4 * sizeof(unsigned char));
-        if(myEndianness != endianness) reverse_chars(iVal.chars, 4);
+        if(myEndianness != endianness) reverse_uchars(iVal.chars, 4);
         layerID = iVal.num;
         offset += 4;
         
         memcpy(iVal.chars, &line[offset], 4 * sizeof(unsigned char));
-        if(myEndianness != endianness) reverse_chars(iVal.chars, 4);
+        if(myEndianness != endianness) reverse_uchars(iVal.chars, 4);
         numNodes = iVal.num;
         offset += 4;
 
@@ -469,12 +469,12 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
         }
 
         memcpy(iVal.chars, &line[offset], 4 * sizeof(unsigned char));
-        if(myEndianness != endianness) reverse_chars(iVal.chars, 4);
+        if(myEndianness != endianness) reverse_uchars(iVal.chars, 4);
         numPrevNodes = iVal.num;
         offset += 4;
 
         memcpy(iVal.chars, &line[offset], 4 * sizeof(unsigned char));
-        if(myEndianness != endianness) reverse_chars(iVal.chars, 4);
+        if(myEndianness != endianness) reverse_uchars(iVal.chars, 4);
         numPrevLayers = iVal.num;
         offset += 4;
 
@@ -487,7 +487,7 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
         for(int j = 0; j < numPrevLayers; j++)
         {
             memcpy(iVal.chars, &line[offset], 4 * sizeof(unsigned char));
-            if(myEndianness != endianness) reverse_chars(iVal.chars, 4);
+            if(myEndianness != endianness) reverse_uchars(iVal.chars, 4);
             offset += 4;
 
             layerArr[j] = &((*modelLayers)[iVal.num]);
@@ -525,7 +525,7 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
             for(int k = 0; k < numPrevNodes; k++)
             {
                 memcpy(fVal.chars, &line[offset], 4 * sizeof(unsigned char));
-                if(myEndianness != endianness) reverse_chars(fVal.chars, 4);
+                if(myEndianness != endianness) reverse_uchars(fVal.chars, 4);
                 offset += 4;
                 
                 (*modelLayers)[layerID]->weights[j][k] = fVal.flt;
@@ -535,7 +535,7 @@ model* load_model(const char* modelFileName, layer*** modelLayers)
         for(int j = 0; j < numNodes; j++)
         {
             memcpy(fVal.chars, &line[offset], 4 * sizeof(unsigned char));
-            if(myEndianness != endianness) reverse_chars(fVal.chars, 4);
+            if(myEndianness != endianness) reverse_uchars(fVal.chars, 4);
             offset += 4;
             
             (*modelLayers)[layerID]->biases[j] = fVal.flt;
