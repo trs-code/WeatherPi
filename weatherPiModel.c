@@ -37,7 +37,7 @@ int main()
     layer* outLayer = make_output_layer((layer**[]){&denseLayer4}, 1, 1, 's');
     if(denseLayer2 == NULL) goto error9;
 
-    model *wethrModel = construct_model((layer**[]){&inLayer0, &inLayer1, &inLayer2}, &outLayer, 9, 3, 0.0000005f, 'n');
+    model *wethrModel = construct_model(&outLayer, 0.0000005f, 'n');
     if(wethrModel == NULL) goto error10;
 
     if(read_csv(filename, numSamples, numIns, numOuts, &inArrays, &outArrays) != 0) goto error11;
