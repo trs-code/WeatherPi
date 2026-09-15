@@ -110,7 +110,9 @@ error1:
 layer* make_output_layer(layer*** prev, int numNodes, int numPrevLayers, char activation_function)
 {
     layer* outLayer = make_hidden_layer(prev, numNodes, numPrevLayers, activation_function);
+    layer* outLayer = make_hidden_layer(prev, numNodes, numPrevLayers, activation_function);
     if(outLayer == NULL) return NULL;
+    
     
     outLayer->layerType = 'o';
 
