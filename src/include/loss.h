@@ -12,7 +12,7 @@ float mse_loss(model* myModel)
 
 float mse_loss_derivative(float target, float yHat, int n)
 {
-    return (yHat - target) / n;
+    return 2 * (yHat - target) / n;
 }
 
 float mae_loss(model* myModel)
@@ -72,7 +72,8 @@ float binary_cross_entropy_loss(model* myModel)
 
 float binary_cross_entropy_loss_derivative(float target, float yHat)
 {
-    return (yHat - target);
+    float eps = 1e-8f;
+    return (target - yHat) / (yHat * (1.0f - yHat) + eps);
 }
 
 float fast_binary_cross_entropy_loss(model* myModel)
@@ -87,7 +88,8 @@ float fast_binary_cross_entropy_loss(model* myModel)
 
 float fast_binary_cross_entropy_loss_derivative(float target, float yHat)
 {
-    return (yHat - target);
+    float eps = 1e-8f;
+    return (target - yHat) / (yHat * (1.0f - yHat) + eps);
 }
 
 float categorical_cross_entropy_loss(model* myModel)
