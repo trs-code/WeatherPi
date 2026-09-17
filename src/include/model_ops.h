@@ -110,7 +110,7 @@ void sgd_backprop(model* myModel)
     activationDerivatives = currLayer->activationDerivatives;
 
     // backErrorsForOutputLayer = lossDerivative · activationFunctionDerivative(preActivations)
-    for(int i = 0; i < currLayer->numNodes; i++) currLayer->backErrors[i] = -1 * lossDerivatives[i] * activationDerivatives[i];
+    for(int i = 0; i < currLayer->numNodes; i++) currLayer->backErrors[i] = lossDerivatives[i] * activationDerivatives[i];
 
     for(int l = myModel->numLayers - 2; l > -1; l--)
     {
@@ -768,7 +768,7 @@ int _mm256_forward_out(model* myModel, float dropoutVal)
 
 #if defined(__ARM_NEON)
 
-void vforward_out(model* myModel, float dropoutVal)
+int vforward_out(model* myModel, float dropoutVal)
 {
     layer* currLayer;
 

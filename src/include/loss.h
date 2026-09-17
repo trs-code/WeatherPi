@@ -12,7 +12,7 @@ float mse_loss(model* myModel)
 
 float mse_loss_derivative(float target, float yHat, int n)
 {
-    return -2 * (yHat - target) / n;
+    return (yHat - target) / n;
 }
 
 float mae_loss(model* myModel)
