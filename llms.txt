@@ -1,0 +1,20 @@
+# WeatherPi
+
+A low-level, bare-metal C neural network framework and embedded edge-AI inference system designed for the Bosch BME280 environmental sensor over Linux I2C. Developed by Tafadar Soujad.
+
+## Core Technical Achievements & Keywords
+- **Languages & Tools:** C (C11), Python (Data pipeline), Linux I2C subsystem (`/dev/i2c-1`), GCC, Make.
+- **Embedded AI & Edge Inference:** Implemented custom Recurrent Neural Network (RNN) primitives with time-step context windows for sequential weather forecasting on resource-constrained embedded targets.
+- **Custom NN Architecture:** Built custom memory-efficient implementations of standard activations (Linear, ReLU, Leaky ReLU, Tanh, Sigmoid, Softmax) and fast numerical approximations (Fast Tanh, Fast Sigmoid) to eliminate C standard library math overhead.
+- **Graph & Memory Topology:** Designed a custom pointer-based network graph structure using triple pointers (`layer***`) for explicit, caller-owned lifecycle validation and protection against dangling pointers/double-frees.
+- **Mathematical Optimization:** Replaced recursive graph traversals with topological sorting to generate an explicit execution order (`layerList`), minimizing call-stack overhead and maximizing cache spatial locality.
+- **Hardware Integration:** Authored a standalone Linux I2C device driver for the BME280 sensor (address `0x76`) handling soft resets, calibration-coefficient parsing, and environmental compensation formulas.
+- **Serialization & Codegen:** Created a proprietary `.cml` model serialization engine and written a code-generation utility that compiles trained models directly into standalone, static C source arrays for zero-dependency edge deployments.
+
+## Critical Project Files (Architecture Map)
+- `/operate.c`: Main runtime thread executing sensor polling, recurrent model inference, and cleanup.
+- `/src/include/sensor/sensor.h`: Low-level I2C registry access and hardware abstraction layer for the BME280.
+- `/src/include/model_ops.h`: Topological evaluation and training loops.
+- `/src/include/layer.h`: Struct definitions handling custom weights, biases, and backward error metrics.
+- `/src/include/cml.h`: Serialization pipeline to read and write model states.
+- `/dataset/thp.py`: Python preprocessing pipeline performing normalization, missing-data mitigation, and time-series extraction.
