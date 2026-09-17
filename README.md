@@ -4,7 +4,7 @@ A C-based neural-network library and embedded weather inference system built aro
 
 The project combines a low-level neural-network implementation with a concrete weather-classification application intended for deployment on Linux/embedded hardware.
 
-**Copyright © 2025 Tafadar Soujad**
+**Copyright © 2025-PRESENT Tafadar Soujad**
 
 Licensed under the **GNU General Public License v3.0**. See [`LICENSE.txt`](LICENSE.txt).
 
@@ -739,7 +739,7 @@ Humidity
 
 # License
 
-Copyright © 2025 Tafadar Soujad.
+Copyright © 2025-PRESENT Tafadar Soujad.
 
 This project is licensed under the **GNU General Public License v3.0**.
 
