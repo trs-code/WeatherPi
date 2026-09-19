@@ -63,6 +63,8 @@ int main()
         goto error7;
     }
 
+    for(int i = 0; i < myModel->numLayers; i++) one_weight_init(*(myModel->layerList[i]));
+
     printf("Model creation successful\n\n");
 
     memcpy((*myModel->inLayers[0])->outputs, (float[]){0.04, 0.05}, 2*sizeof(float));

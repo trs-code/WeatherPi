@@ -47,6 +47,8 @@ int main()
         goto error4;
     }
 
+    for(int i = 0; i < myModel->numLayers; i++) one_weight_init(*(myModel->layerList[i]));
+
     printf("Model creation successful\n\n");
 
     train_model_sgd_fast(myModel, 5, 1, inArr, outArr, 1.0, 0.0);

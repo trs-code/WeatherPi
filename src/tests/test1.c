@@ -24,7 +24,7 @@ int main()
         goto error2;
     }
 
-    layer* outLayer = make_output_layer((layer**[]){&layer0}, 1, 1, 'g');
+    layer* outLayer = make_output_layer((layer**[]){&layer0}, 1, 1, 's');
     if(outLayer == NULL)
     {
         printf("Memory allocation failed at outLayer\n");
@@ -38,6 +38,7 @@ int main()
         goto error4;
     }
 
+    for(int i = 0; i < myModel->numLayers; i++) one_weight_init(*(myModel->layerList[i]));
     printf("Model creation successful\n\n");
 
     memcpy((*myModel->inLayers[0])->outputs, (float[]){0.05, 0.10, 0.15}, 3*sizeof(float));
@@ -54,7 +55,7 @@ int main()
     
     calculate_and_apply_grads(myModel);
     
-    for(int i = 0; i < 500; i++)
+    for(int i = 0; i < 1500; i++)
     {
         forward_out(myModel, 0.0);
         sgd_backprop(myModel);

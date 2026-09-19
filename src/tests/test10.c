@@ -19,7 +19,7 @@ Model Structure
 int main() 
 {
     layer** windowLayers = NULL;
-    int windowSize = 10;
+    int windowSize = 3;
 
     layer* inLayer0 = make_input_layer(3);
     if(inLayer0 == NULL)
@@ -45,12 +45,14 @@ int main()
         goto error3;
     }
 
-    model *myModel = construct_model(&outLayer, 1.0f, 'q');
+    model *myModel = construct_model(&outLayer, 1.5f, 'q');
     if(myModel == NULL)
     {
         printf("Memory allocation failed at model\n");
         goto error4;
     };
+
+    for(int i = 0; i < myModel->numLayers; i++) one_weight_init(*(myModel->layerList[i]));
 
     printf("Model creation successful\n\n");
 
@@ -67,7 +69,7 @@ int main()
     
     calculate_and_apply_grads(myModel);
     
-    for(int i = 0; i < 10000; i++)
+    for(int i = 0; i < 100000; i++)
     {
         shift_model(myModel, 't');
         forward_out(myModel, 0.0);
