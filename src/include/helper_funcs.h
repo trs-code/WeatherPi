@@ -140,6 +140,30 @@ error1:
     return -1;
 }
 
+void class_weights(int numClasses, int numSamples, float** outputs, float** classWeights, unsigned char binaryFlag)
+{
+    *classWeights = (float*)calloc(numClasses, sizeof(float));
+    float* weightNums = *classWeights;
+
+    if(!binaryFlag)
+    {
+        for(int i = 0; i < numSamples; i++)
+        {   
+            for(int j = 0; j < numClasses; j++) 
+            {
+                if(outputs[i][j] != 0)
+                {
+                    weightNums[j] += 1.0f;
+                    continue;
+                }
+            }
+        }
+    }
+    else for(int i = 0; i < numSamples; i++) weightNums[(outputs[i][0] == 0) ? 0 : 1] += 1.0f;
+
+    for(int i = 0; i < numClasses; i++) if(weightNums[i] != 0.0f) weightNums[i] = numSamples / (numClasses * weightNums[i]);
+}
+
 #if defined(__AVX__) || defined(__AVX2__)
 
 static inline float _mm256_sum_manual(__m256 v)

@@ -66,7 +66,7 @@ int main()
     
     // calculate_and_apply_grads(myModel, myModel->learningRate);
     
-    for(int i = 0; i < 100; i++)
+    for(int i = 0; i < 500; i++)
     {
         forward_out(myModel, 0.0);
         sgd_backprop(myModel);

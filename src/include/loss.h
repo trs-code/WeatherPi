@@ -60,66 +60,68 @@ float huber_loss_derivative(float target, float yHat, int n)
     else return error / (float)n;
 }
 
-float binary_cross_entropy_loss(model* myModel)
+float binary_cross_entropy_loss(model* myModel, float* classWeights)
 {
     if((*myModel->outLayer)->numNodes > 1) exit(EXIT_FAILURE);
-    float sum = 0;
+    float sum = 0.0f;
+    float eps = 1e-7f;
+    float y = myModel->targets[0];
+    float yHat = (*myModel->outLayer)->outputs[0];
+    if(yHat < eps) yHat = eps;
+    if(yHat > 1.0f - eps) yHat = 1.0f - eps;
     
-    sum -= ((myModel->targets[0]) * log((*myModel->outLayer)->outputs[0] + 0.00000001)) + ((1-(myModel->targets[0])) * log((1 - (*myModel->outLayer)->outputs[0] + 0.00000001)));
+    sum -= (((classWeights) ? classWeights[(y == 0) ? 0 : 1] : 1) * y * logf(yHat)) + (((classWeights) ? classWeights[(y == 0) ? 1 : 0] : 1) * (1.0f-y) * logf(1.0f - yHat));
     
     return (sum);
 }
 
-float binary_cross_entropy_loss_derivative(float target, float yHat)
-{
-    float eps = 1e-8f;
-    return (target - yHat) / (yHat * (1.0f - yHat) + eps);
-}
+// Erroneous and will never actually be implemented because model construction ensures that BCE Loss is paired with sigmoid output activation to produce cleaner backerror calculation case
+// float binary_cross_entropy_loss_derivative(float target, float yHat, float classWeight)
+// {
+//     float eps = 1e-8f;
+//     return (-1 * ( target / (yHat + eps))) + ((1 - target) / (1 - yHat + eps));
+// }
 
-float fast_binary_cross_entropy_loss(model* myModel)
+float fast_binary_cross_entropy_loss(model* myModel, float* classWeights)
 {
     if((*myModel->outLayer)->numNodes > 1) exit(EXIT_FAILURE);
-    float sum = 0;
-    
-    sum -= ((myModel->targets[0]) * fast_ln((*myModel->outLayer)->outputs[0])) + ((1-(myModel->targets[0])) * fast_ln((1 - (*myModel->outLayer)->outputs[0])));
-    
-    return (sum);
-}
-
-float fast_binary_cross_entropy_loss_derivative(float target, float yHat)
-{
+    float sum = 0.0f;
     float eps = 1e-8f;
-    return (target - yHat) / (yHat * (1.0f - yHat) + eps);
-}
-
-float categorical_cross_entropy_loss(model* myModel)
-{
-    float sum = 0;
+    float y = myModel->targets[0];
+    float yHat = (*myModel->outLayer)->outputs[0];
+    if(yHat < eps) yHat = eps;
+    if(yHat > 1.0f - eps) yHat = 1.0f - eps;
     
-    for(int i = 0; i < (*myModel->outLayer)->numNodes; i++) sum -= (myModel->targets[i]) * log((*myModel->outLayer)->outputs[i] + 0.000000001);
+    sum -= (((classWeights) ? classWeights[(y == 0) ? 0 : 1] : 1) * y * fast_ln(yHat)) + (((classWeights) ? classWeights[(y == 0) ? 1 : 0] : 1.0f) * (1.0f-y) * fast_ln(1.0f - yHat));
     
     return (sum);
 }
 
-float categorical_cross_entropy_loss_derivative(float target, float yHat)
-{
-    return (yHat - target);
-}
-
-float fast_categorical_cross_entropy_loss(model* myModel)
+float categorical_cross_entropy_loss(model* myModel, float* classWeights)
 {
     float sum = 0;
     
-    for(int i = 0; i < (*myModel->outLayer)->numNodes; i++) sum -= (myModel->targets[i]) * fast_ln((*myModel->outLayer)->outputs[i]);
-    return (sum);
+    for(int i = 0; i < (*myModel->outLayer)->numNodes; i++) sum -= ((classWeights) ? classWeights[i] : 1) * (myModel->targets[i]) * logf((*myModel->outLayer)->outputs[i] + 1e-7);
+    
+    return sum;
 }
 
-float fast_categorical_cross_entropy_loss_derivative(float target, float yHat)
+// Erroneous and will never actually be implemented because model construction ensures that CCE Loss is paired with softmax output activation to produce cleaner backerror calculation case
+// float categorical_cross_entropy_loss_derivative(float target, float yHat, float classWeight)
+// {
+//     return (yHat - target);
+// }
+
+float fast_categorical_cross_entropy_loss(model* myModel, float* classWeights)
 {
-    return (yHat - target);
+    float sum = 0;
+    
+    for(int i = 0; i < (*myModel->outLayer)->numNodes; i++) sum -= ((classWeights) ? classWeights[i] : 1) * (myModel->targets[i]) * fast_ln((*myModel->outLayer)->outputs[i] + 1e-7);
+    return sum;
 }
 
-float loss_function(model* myModel)
+
+float loss_function(model* myModel, float* classWeights)
 {
     switch(myModel->loss_fn)
     {
@@ -132,19 +134,19 @@ float loss_function(model* myModel)
         case 'h':
             return huber_loss(myModel);
         case 'n':
-            return binary_cross_entropy_loss(myModel);
+            return binary_cross_entropy_loss(myModel, classWeights);
         case 'r':
-            return fast_binary_cross_entropy_loss(myModel);
+            return fast_binary_cross_entropy_loss(myModel, classWeights);
         case 'c':
-            return categorical_cross_entropy_loss(myModel);
+            return categorical_cross_entropy_loss(myModel, classWeights);
         case 'x':
-            return fast_categorical_cross_entropy_loss(myModel);
+            return fast_categorical_cross_entropy_loss(myModel, classWeights);
         default:
             return 1;
     }
 }
 
-float loss_derivative(float target, float yHat, model* myModel)
+float loss_derivative(float target, float yHat, model* myModel, float classWeight)
 {
     float numNodes = (*myModel->outLayer)->numNodes;
 
@@ -158,14 +160,6 @@ float loss_derivative(float target, float yHat, model* myModel)
             return mbe_loss_derivative(numNodes);
         case 'h':
             return huber_loss_derivative(target, yHat, numNodes);
-        case 'n':
-            return binary_cross_entropy_loss_derivative(target, yHat);
-        case 'r':
-            return fast_binary_cross_entropy_loss_derivative(target, yHat);
-        case 'c':
-            return categorical_cross_entropy_loss_derivative(target, yHat);
-        case 'x':
-            return fast_categorical_cross_entropy_loss_derivative(target, yHat);
         default:
             return 1;
     }

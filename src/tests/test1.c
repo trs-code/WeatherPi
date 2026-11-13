@@ -55,7 +55,7 @@ int main()
     
     calculate_and_apply_grads(myModel);
     
-    for(int i = 0; i < 1500; i++)
+    for(int i = 0; i < 650; i++)
     {
         forward_out(myModel, 0.0);
         sgd_backprop(myModel);

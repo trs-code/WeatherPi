@@ -11,7 +11,7 @@ int main()
     int numIns = 3;
     int numOuts = 2;
     int numSamples = 67764;
-    int windowSize = 12;
+    int windowSize = 3;
 
     layer* inLayer0 = make_input_layer(3);
     if(inLayer0 == NULL)goto error1;
@@ -22,20 +22,17 @@ int main()
     extend_context(hiddenLayer0, windowSize, &windowLayers);
     if(windowLayers == NULL) goto error3;
 
-    //layer* attnLayer0 = make_attention_layer((layer**[]){&hiddenLayer0}, 64, 1, windowSize, 'f');
+    //layer* attnLayer0 = make_attention_layer(&hiddenLayer0, windowSize, 'x');
 
-    layer* hiddenLayer1 = make_hidden_layer((layer**[]){&hiddenLayer0}, 32, 1, 'r');
-    if(hiddenLayer1 == NULL) goto error3;
-
-    layer* outLayer = make_output_layer((layer**[]){&hiddenLayer1}, 2, 1, 'f');
+    layer* outLayer = make_output_layer((layer**[]){&hiddenLayer0}, 2, 1, 'x');
     if(outLayer == NULL) goto error4;
 
-    model *wethrModel = construct_model(&outLayer, 0.000000002, 'x');
+    model *wethrModel = construct_model(&outLayer, 0.00001, 'x');
     if(wethrModel == NULL) goto error5;
 
     if(read_csv(filename, numSamples, numIns, numOuts, &inArrays, &outArrays) != 0) goto error6;
 
-    train_rnn_sgd_fast(wethrModel, 15, numSamples, inArrays, outArrays, 0.85, windowSize, 0.25);
+    train_rnn_sgd(wethrModel, 10, numSamples, inArrays, outArrays, 0.85, windowSize, 0.25);
 
     //save_model(wethrModel, "weathrModelContext.cml");
     hakai_matrix(&inArrays, numSamples);

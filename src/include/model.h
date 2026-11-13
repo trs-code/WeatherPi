@@ -3,7 +3,7 @@
 #include "layer_construct.h"
 
 // 56 Bytes for an empty model husk, likely padded by compiler with three extra bytes to be 56 bytes total
-// Extra # of bytes: 8(i + l) + 8n-> i input layers, l total number of layers, and n nodes in output layer
+// Extra # of bytes: 8(i + l) + 8n -> i input layers, l total number of layers, and n nodes in output layer
 typedef struct
 {
     int numLayers;          // Number of total layers in the NN

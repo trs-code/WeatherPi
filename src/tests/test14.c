@@ -19,7 +19,7 @@ Model Structure
 int main() 
 {
     layer** windowLayers = NULL;
-    int windowSize = 10;
+    int windowSize = 3;
 
     layer* inLayer0 = make_input_layer(3);
     if(inLayer0 == NULL)
@@ -38,24 +38,24 @@ int main()
     extend_context(hiddenLayer0, windowSize, (&windowLayers));
     if(windowLayers == NULL) goto error3;
 
-    layer* attnLayer0 = make_attention_layer((layer**[]){&hiddenLayer0}, 1, 1, windowSize, 'x');
-    attnLayer0->layerType = 'a';
+    layer* attnLayer0 = make_attention_layer(&hiddenLayer0, windowSize, 'x');
+    
 
-    layer* outLayer = make_output_layer((layer**[]){&attnLayer0}, 1, 1, 'g');
+    layer* outLayer = make_output_layer((layer**[]){&attnLayer0}, 1, 1, 's');
     if(outLayer == NULL)
     {
         printf("Memory allocation failed at outLayer\n");
         goto error3;
     }
 
-    model *myModel = construct_model(&outLayer, 1.0f, 'q');
+    model *myModel = construct_model(&outLayer, 1.0f, 'n');
     if(myModel == NULL)
     {
         printf("Memory allocation failed at model\n");
         goto error4;
     }
 
-    for(int i = 0; i < myModel->numLayers; i++) one_weight_init(*(myModel->layerList[i]));
+    for(int i = 0; i < myModel->numLayers; i++) if((*(myModel->layerList[i]))->layerType != 'a' && (*(myModel->layerList[i]))->layerType != 'i' && (*(myModel->layerList[i]))->layerType != 't')one_weight_init(*(myModel->layerList[i]));
 
     printf("Model creation successful\n\n");
 
@@ -68,14 +68,26 @@ int main()
     for(int i = 0; i < 1; i++) printf("hiddenLayer0 output[%d] is: %f\n", i, hiddenLayer0->outputs[i]);
 
     printf("\nModel output is: %f\n", (*myModel->outLayer)->outputs[0]);
-    printf("\noutLayer Backerror is: %f\n", outLayer->backErrors[0]);
+    printf("outLayer Backerror is: %f\n", outLayer->backErrors[0]);
+    for(int i = 0; i < attnLayer0->numNodes; i++) printf("attnLayer0 Backerror[%d] is: %f\n", i, attnLayer0->backErrors[i]);
+    for(int i = 0; i < attnLayer0->numNodes; i++) printf("attnLayer0 output[%d] is: %f\n", i, attnLayer0->outputs[i]);
+
+    for(int i = 0; i < windowSize; i++)
+    {
+        printf("timestep %d hidden output: %f\n", i, (windowLayers[2*i + 1])->outputs[0]);
+        printf("timestep %d hidden backerror: %f\n", i, (windowLayers[2*i + 1])->backErrors[0]);
+        printf("timestep %d attention weight: %f\n", i, attnLayer0->preActivations[i]);
+    }
     
     calculate_and_apply_grads(myModel);
     
-    for(int i = 0; i < 1500; i++)
+    for(int i = 0; i < 8500; i+= windowSize)
     {
-        shift_model(myModel, 't');
-        forward_out(myModel, 0.0);
+        for(int j = i; j < i + windowSize; j++)
+        {
+            shift_model(myModel, 't');
+            forward_out(myModel, 0.0);
+        }
         sgd_backprop(myModel);
         calculate_and_apply_grads(myModel);
     }
@@ -86,6 +98,16 @@ int main()
 
     printf("\noutLayer Backerror is: %f\n", outLayer->backErrors[0]);
     for(int i = 0; i < 1; i++) printf("hiddenLayer0 Backerror[%d] is: %f\n", i, hiddenLayer0->backErrors[i]);
+
+    for(int i = 0; i < attnLayer0->numNodes; i++) printf("attnLayer0 Backerror[%d] is: %f\n", i, attnLayer0->backErrors[i]);
+    for(int i = 0; i < attnLayer0->numNodes; i++) printf("attnLayer0 output[%d] is: %f\n", i, attnLayer0->outputs[i]);
+
+    for(int i = 0; i < windowSize; i++)
+    {
+        printf("timestep %d hidden output: %f\n", i, (windowLayers[2*i + 1])->outputs[0]);
+        printf("timestep %d hidden backerror: %f\n", i, (windowLayers[2*i + 1])->backErrors[0]);
+        printf("timestep %d attention weight: %f\n", i, attnLayer0->preActivations[i]);
+    }
 
     printf("\noutLayer preActivation is: %f\n", outLayer->preActivations[0]);
     for(int i = 0; i < 1; i++) printf("hiddenLayer0 preActivation[%d] is: %f\n", i, hiddenLayer0->preActivations[i]);

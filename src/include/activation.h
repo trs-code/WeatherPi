@@ -60,50 +60,48 @@ float fast_sigmoid_derivative(float x) {
     return yHat * (1.0 - yHat);
 }
 
-void softmax(layer* myLayer)
+void softmax(float* arr, int n)
 {
-    int n = myLayer->numNodes;
-    float maxVal = findMax(myLayer->outputs, n);
+    float maxVal = findMax(arr, n);
     float sum = 0.0f;
     
     for (int i = 0; i < n; i++) 
     {
-        myLayer->outputs[i] = exp(myLayer->outputs[i] - maxVal);
-        sum += myLayer->outputs[i];
+        arr[i] = exp(arr[i] - maxVal);
+        sum += arr[i];
     }
 
     for (int i = 0; i < n; i++)
     {
-        myLayer->outputs[i] /= sum;
+        arr[i] /= sum;
     }
 }
 
-float softmax_derivative(float x, layer* myLayer, int currNode)
+float softmax_derivative(float x, float* arr, int currNode)
 {
-    return myLayer->outputs[currNode] - x;
+    return arr[currNode] - x;
 }
 
-void fast_softmax(layer* myLayer)
+void fast_softmax(float* arr, int n)
 {
-    int n = myLayer->numNodes;
-    float maxVal = findMax(myLayer->outputs, n);
+    float maxVal = findMax(arr, n);
     float sum = 0.0f;
     
     for (int i = 0; i < n; i++) 
     {
-        myLayer->outputs[i] = fast_exp(myLayer->outputs[i] - maxVal);
-        sum += myLayer->outputs[i];
+        arr[i] = fast_exp(arr[i] - maxVal);
+        sum += arr[i];
     }
 
     for (int i = 0; i < n; i++)
     {
-        myLayer->outputs[i] /= sum;
+        arr[i] /= sum;
     }
 }
 
-float fast_softmax_derivative(float x, layer* myLayer, int currNode)
+float fast_softmax_derivative(float x, float* arr, int currNode)
 {
-    return myLayer->outputs[currNode] - x;
+    return arr[currNode] - x;
 }
 
 
@@ -153,9 +151,9 @@ float activation_derivative(float x, layer* myLayer, int currNode)
         case 'g':
             return fast_sigmoid_derivative(x);
         case 'x':
-            return softmax_derivative(x, myLayer, currNode);
+            return softmax_derivative(x, myLayer->outputs, currNode);
         case 'f':
-            return fast_softmax_derivative(x, myLayer, currNode);
+            return fast_softmax_derivative(x, myLayer->outputs, currNode);
         default:
             return 0.0;
     }

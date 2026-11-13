@@ -38,14 +38,14 @@ int main()
     extend_context(hiddenLayer0, windowSize, (&windowLayers));
     if(windowLayers == NULL) goto error3;
 
-    layer* outLayer = make_output_layer((layer**[]){&hiddenLayer0}, 1, 1, 'g');
+    layer* outLayer = make_output_layer((layer**[]){&hiddenLayer0}, 2, 1, 'x');
     if(outLayer == NULL)
     {
         printf("Memory allocation failed at outLayer\n");
         goto error3;
     }
 
-    model *myModel = construct_model(&outLayer, 1.5f, 'q');
+    model *myModel = construct_model(&outLayer, 1.5f, 'c');
     if(myModel == NULL)
     {
         printf("Memory allocation failed at model\n");
@@ -57,27 +57,42 @@ int main()
     printf("Model creation successful\n\n");
 
     memcpy((*myModel->inLayers[0])->outputs, (float[]){0.05, 0.10, 0.15}, 3*sizeof(float));
-    memcpy(myModel->targets, (float[]){0.905405}, sizeof(float));
+    memcpy(myModel->targets, (float[]){0.905405, 0.094595}, 2 * sizeof(float));
 
     forward_out(myModel, 0.0);
     sgd_backprop(myModel);
 
     for(int i = 0; i < 1; i++) printf("hiddenLayer0 output[%d] is: %f\n", i, hiddenLayer0->outputs[i]);
 
-    printf("\nModel output is: %f\n", (*myModel->outLayer)->outputs[0]);
+    printf("\nModel output is: %f, %f\n", (*myModel->outLayer)->outputs[0], (*myModel->outLayer)->outputs[1]);
     printf("\noutLayer Backerror is: %f\n", outLayer->backErrors[0]);
     
     calculate_and_apply_grads(myModel);
     
-    for(int i = 0; i < 100000; i++)
+    for(int i = 0; i < 100; i += windowSize)
     {
-        shift_model(myModel, 't');
-        forward_out(myModel, 0.0);
-        sgd_backprop(myModel);
-        calculate_and_apply_grads(myModel);
+        for(int j = i; j < i + windowSize; j++)
+        {
+            shift_rnn(myModel, 't');
+            forward_out(myModel, 0.0);
+            sgd_backprop(myModel);
+            calculate_and_apply_grads(myModel);
+        }
+        
+        for(int l = 0; l < myModel->numLayers; l++) 
+        {
+            if((*myModel->layerList[l])->layerType == 'h')
+            {
+                if((*(*myModel->layerList[l])->prevLayers[(*myModel->layerList[l])->numPrevLayers - 1])->layerType == 'w')
+                {
+                    memset((*(*myModel->layerList[l])->prevLayers[(*myModel->layerList[l])->numPrevLayers - 1])->preActivations, 0.0, (*myModel->layerList[l])->numPrevNodes);
+                    memset((*(*myModel->layerList[l])->prevLayers[(*myModel->layerList[l])->numPrevLayers - 1])->biases, 0.0, (*myModel->layerList[l])->numNodes);
+                }
+            }
+        }
     }
 
-    printf("\nModel output is: %f\tTarget is : %f", (*myModel->outLayer)->outputs[0], myModel->targets[0]);
+    printf("\nModel output is: %f, %f\tTarget is : %f, %f", (*myModel->outLayer)->outputs[0], (*myModel->outLayer)->outputs[1], myModel->targets[0], myModel->targets[1]);
     printf("\noutLayer Weights:\n");
     for(int i = 0; i < 1; i++) printf("[%f]\n", outLayer->weights[0][i]);
 
